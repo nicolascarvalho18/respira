@@ -31,11 +31,14 @@ import { MoodLineChart } from '../../src/components/mood/MoodLineChart';
 import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
 import { useToast } from '../../src/components/ui/Toast';
 import { useMoodStore } from '../../src/store/moodStore';
+import { usePracticeStore } from '../../src/store/practiceStore';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
 import { MoodRecord } from '../../src/types';
 import { formatDate, formatTime } from '../../src/utils/date';
 import { calculateMoodStats } from '../../src/utils/stats';
+import { correlationInsightsService } from '../../src/services/analytics/correlationInsightsService';
+import { CorrelationInsightsCard } from '../../src/components/mood/CorrelationInsightsCard';
 
 export default function DiaryScreen() {
   const router = useRouter();
@@ -44,12 +47,14 @@ export default function DiaryScreen() {
   const { showToast } = useToast();
 
   const { records, deleteRecord } = useMoodStore();
+  const { practices } = usePracticeStore();
   const [selectedFilterDays, setSelectedFilterDays] = useState<7 | 30 | 90>(7);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);
 
   const stats = calculateMoodStats(records);
+  const insights = correlationInsightsService.calculateInsights(records, practices);
 
   const handleDeleteConfirm = async () => {
     if (!recordToDelete) return;
@@ -323,7 +328,10 @@ export default function DiaryScreen() {
         />
       </View>
 
-      {/* 3. Seção "Histórico" */}
+      {/* Card de Insights de Correlação Baseados em Dados Reais */}
+      <CorrelationInsightsCard insights={insights} />
+
+      {/* 3. Seção Histórico */}
       <View style={styles.historyHeaderRow}>
         <Text style={[styles.historyTitle, { color: '#173D3B' }]}>Histórico</Text>
 

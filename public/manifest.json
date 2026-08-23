@@ -1,0 +1,30 @@
+{
+  "short_name": "Respira",
+  "name": "Respira • Bem-estar e Saúde Digital",
+  "description": "Aplicativo de saúde mental, check-in de humor, respiração guiada e paisagens sonoras.",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/assets/icon.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/adaptive-icon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#F7F9F7",
+  "theme_color": "#2F7F7C",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/"
+}

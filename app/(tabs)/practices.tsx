@@ -41,6 +41,7 @@ export default function PracticesScreen() {
     { id: 'breathing', label: 'Respiração' },
     { id: 'relaxation', label: 'Relaxamento' },
     { id: 'mindfulness', label: 'Atenção' },
+    { id: 'soundscapes', label: 'Sons' },
   ];
 
   // Calculate weekly completed count from practice completions
@@ -245,7 +246,13 @@ export default function PracticesScreen() {
             return (
               <TouchableOpacity
                 key={tab.id}
-                onPress={() => setSelectedCategory(tab.id)}
+                onPress={() => {
+                  if (tab.id === 'soundscapes') {
+                    router.push('/practices/soundscapes' as any);
+                  } else {
+                    setSelectedCategory(tab.id);
+                  }
+                }}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: isSelected }}
                 accessibilityLabel={`Filtrar por ${tab.label}`}

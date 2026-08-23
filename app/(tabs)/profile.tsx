@@ -39,6 +39,8 @@ import { EditProfileModal } from '../../src/components/profile/EditProfileModal'
 import { DataExportModal } from '../../src/components/profile/DataExportModal';
 import { SecurityAccessModal } from '../../src/components/profile/SecurityAccessModal';
 import { SessionsModal } from '../../src/components/profile/SessionsModal';
+import { NotificationSettingsModal } from '../../src/components/profile/NotificationSettingsModal';
+import { MonthlyReportModal } from '../../src/components/profile/MonthlyReportModal';
 import { userService } from '../../src/services/user/userService';
 import { UserSession } from '../../src/types';
 
@@ -55,6 +57,8 @@ export default function ProfileScreen() {
   const [isDataExportOpen, setIsDataExportOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isSessionsModalOpen, setIsSessionsModalOpen] = useState(false);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [isMonthlyReportOpen, setIsMonthlyReportOpen] = useState(false);
 
   // Logout & Delete account state
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
@@ -357,23 +361,24 @@ export default function ProfileScreen() {
         <View style={[styles.rowDivider, { backgroundColor: isDark ? colors.border : '#F0F5F3' }]} />
 
         {/* Linha 3: Lembrete diário */}
-        <View style={styles.itemRow}>
+        <TouchableOpacity
+          onPress={() => setIsNotificationModalOpen(true)}
+          activeOpacity={0.7}
+          style={styles.itemRow}
+          accessibilityRole="button"
+          accessibilityLabel="Configurar lembretes e horários"
+        >
           <View style={styles.itemIconCircle}>
             <Bell size={18} color="#2F7F7C" />
           </View>
           <View style={styles.itemTextCol}>
-            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>Lembrete diário</Text>
+            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>Lembretes e horários</Text>
             <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
-              Todos os dias às 20:30
+              Configurar horários de pausa e hábitos gentis
             </Text>
           </View>
-          <Switch
-            value={dailyReminder}
-            onValueChange={setDailyReminder}
-            trackColor={{ false: '#DCE5E2', true: '#2F7F7C' }}
-            thumbColor="#FFFFFF"
-          />
-        </View>
+          <ChevronRight size={18} color="#8C9E9B" />
+        </TouchableOpacity>
       </View>
 
       {/* 4. Seção "Privacidade e dados" */}
@@ -410,7 +415,29 @@ export default function ProfileScreen() {
 
         <View style={[styles.rowDivider, { backgroundColor: isDark ? colors.border : '#F0F5F3' }]} />
 
-        {/* Linha 2: Exportar meus dados */}
+        {/* Linha 2: Gerar relatório mensal em PDF */}
+        <TouchableOpacity
+          onPress={() => setIsMonthlyReportOpen(true)}
+          activeOpacity={0.7}
+          style={styles.itemRow}
+          accessibilityRole="button"
+          accessibilityLabel="Gerar relatório mensal em PDF"
+        >
+          <View style={styles.itemIconCircle}>
+            <FileDown size={18} color="#2F7F7C" />
+          </View>
+          <View style={styles.itemTextCol}>
+            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>Gerar relatório mensal</Text>
+            <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
+              Relatório em PDF para terapia ou acompanhamento
+            </Text>
+          </View>
+          <ChevronRight size={18} color="#8C9E9B" />
+        </TouchableOpacity>
+
+        <View style={[styles.rowDivider, { backgroundColor: isDark ? colors.border : '#F0F5F3' }]} />
+
+        {/* Linha 3: Exportar meus dados */}
         <TouchableOpacity
           onPress={() => setIsDataExportOpen(true)}
           activeOpacity={0.7}
@@ -572,6 +599,16 @@ export default function ProfileScreen() {
         onClose={() => setIsSessionsModalOpen(false)}
         onRevokeSession={handleRevokeSession}
         onRevokeOthers={handleRevokeOthers}
+      />
+
+      <NotificationSettingsModal
+        visible={isNotificationModalOpen}
+        onClose={() => setIsNotificationModalOpen(false)}
+      />
+
+      <MonthlyReportModal
+        visible={isMonthlyReportOpen}
+        onClose={() => setIsMonthlyReportOpen(false)}
       />
 
       {/* Diálogo de Confirmação de Logout */}
