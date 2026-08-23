@@ -231,10 +231,22 @@ export class UserAccountService {
     const index = users.findIndex((u) => u.id === userId);
     if (index === -1) throw new Error('Usuário não encontrado.');
 
+    const currentUser = users[index];
+    const defaultPreferences: User['preferences'] = {
+      theme: 'light',
+      reducedMotion: false,
+      dailyReminder: true,
+      reminderTime: '20:30',
+      vibrationEnabled: true,
+      soundEnabled: true,
+      countryHelpline: 'BR',
+    };
+
     const updatedUser: User = {
-      ...users[index],
+      ...currentUser,
       preferences: {
-        ...users[index].preferences,
+        ...defaultPreferences,
+        ...currentUser.preferences,
         ...partial,
       },
       updatedAt: new Date().toISOString(),
@@ -253,10 +265,21 @@ export class UserAccountService {
     const index = users.findIndex((u) => u.id === userId);
     if (index === -1) throw new Error('Usuário não encontrado.');
 
+    const currentUser = users[index];
+    const defaultConsents: User['consents'] = {
+      termsAccepted: true,
+      privacyAccepted: true,
+      personalizationAccepted: true,
+      analyticsAccepted: false,
+      chatRetentionAccepted: true,
+      acceptedAt: new Date().toISOString(),
+    };
+
     const updatedUser: User = {
-      ...users[index],
+      ...currentUser,
       consents: {
-        ...users[index].consents,
+        ...defaultConsents,
+        ...currentUser.consents,
         ...partial,
         acceptedAt: new Date().toISOString(),
       },

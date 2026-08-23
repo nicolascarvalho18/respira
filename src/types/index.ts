@@ -96,13 +96,20 @@ export type Role = 'user' | 'admin';
 export interface UserSession {
   id: string;
   userId: string;
-  deviceType: 'mobile' | 'desktop' | 'tablet';
+  deviceType: 'mobile' | 'desktop' | 'tablet' | 'web';
+  deviceName?: string;
   browser: string;
   os: string;
   lastActiveAt: string;
-  ipAddressMasked: string;
+  ipAddressMasked?: string;
   isCurrent: boolean;
 }
+
+export type UserPreferences = User['preferences'] & {
+  soundscapeVolume?: number;
+  voiceVolume?: number;
+  microPausesEnabled?: boolean;
+};
 
 export interface NotificationPreferences {
   dailyReminder: boolean;
@@ -148,11 +155,13 @@ export interface User {
   email: string;
   role: Role;
   avatarUrl?: string;
+  phone?: string;
+  birthDate?: string;
   isEmailVerified: boolean;
   createdAt: string;
   updatedAt: string;
   lastPasswordChangeAt?: string;
-  consents: {
+  consents?: {
     termsAccepted: boolean;
     privacyAccepted: boolean;
     personalizationAccepted: boolean;
@@ -160,7 +169,7 @@ export interface User {
     chatRetentionAccepted?: boolean;
     acceptedAt: string;
   };
-  preferences: {
+  preferences?: {
     theme: 'light' | 'dark' | 'system';
     reducedMotion: boolean;
     largeText?: boolean;
@@ -172,6 +181,9 @@ export interface User {
     soundEnabled: boolean;
     countryHelpline: string; // "BR"
     notifications?: NotificationPreferences;
+    soundscapeVolume?: number;
+    voiceVolume?: number;
+    microPausesEnabled?: boolean;
   };
 }
 

@@ -458,8 +458,8 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 5. Seção "Conta" */}
-      <Text style={[styles.sectionTitle, { color: '#173D3B' }]}>Conta</Text>
+      {/* 5. Seção "Segurança e acesso" */}
+      <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>Segurança</Text>
       <View
         style={[
           styles.groupedCard,
@@ -469,7 +469,7 @@ export default function ProfileScreen() {
           },
         ]}
       >
-        {/* Linha 1: Segurança e acesso */}
+        {/* Segurança e acesso */}
         <TouchableOpacity
           onPress={() => setIsSecurityModalOpen(true)}
           activeOpacity={0.7}
@@ -481,17 +481,61 @@ export default function ProfileScreen() {
             <KeyRound size={18} color="#667775" />
           </View>
           <View style={styles.itemTextCol}>
-            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>Segurança e acesso</Text>
-            <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
+            <Text style={[styles.itemTitle, { color: isDark ? colors.text : '#173D3B' }]}>Segurança e acesso</Text>
+            <Text style={[styles.itemSubtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
               Senha, e-mail e autenticação
             </Text>
           </View>
           <ChevronRight size={18} color="#8C9E9B" />
         </TouchableOpacity>
+      </View>
 
-        <View style={[styles.rowDivider, { backgroundColor: isDark ? colors.border : '#F0F5F3' }]} />
+      {/* 6. Seção "Sessões e dispositivos" (Última seção antes de encerrar e excluir conta) */}
+      <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>Sessões e dispositivos</Text>
+      <View
+        style={[
+          styles.groupedCard,
+          {
+            backgroundColor: isDark ? colors.surface : '#FFFFFF',
+            borderColor: isDark ? colors.border : '#DCE5E2',
+          },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={() => setIsSessionsModalOpen(true)}
+          activeOpacity={0.7}
+          style={styles.itemRow}
+          accessibilityRole="button"
+          accessibilityLabel="Sessões e dispositivos"
+        >
+          <View style={styles.itemIconCircle}>
+            <Laptop size={18} color="#2F7F7C" />
+          </View>
+          <View style={styles.itemTextCol}>
+            <Text style={[styles.itemTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              Gerenciar sessões
+            </Text>
+            <Text style={[styles.itemSubtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
+              {sessions.length} {sessions.length === 1 ? 'dispositivo conectado' : 'dispositivos conectados'}
+            </Text>
+          </View>
+          <ChevronRight size={18} color="#8C9E9B" />
+        </TouchableOpacity>
+      </View>
 
-        {/* Linha 2: Sair da conta */}
+      {/* 7. Ações de Encerramento e Exclusão */}
+      <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>Conta</Text>
+      <View
+        style={[
+          styles.groupedCard,
+          {
+            backgroundColor: isDark ? colors.surface : '#FFFFFF',
+            borderColor: isDark ? colors.border : '#DCE5E2',
+            marginBottom: 28,
+          },
+        ]}
+      >
+        {/* Linha 1: Sair da conta */}
         <TouchableOpacity
           onPress={() => setIsLogoutDialogOpen(true)}
           activeOpacity={0.7}
@@ -503,8 +547,8 @@ export default function ProfileScreen() {
             <LogOut size={18} color="#667775" />
           </View>
           <View style={styles.itemTextCol}>
-            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>Sair da conta</Text>
-            <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
+            <Text style={[styles.itemTitle, { color: isDark ? colors.text : '#173D3B' }]}>Sair da conta</Text>
+            <Text style={[styles.itemSubtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
               Encerrar sessão neste dispositivo
             </Text>
           </View>
@@ -513,7 +557,7 @@ export default function ProfileScreen() {
 
         <View style={[styles.rowDivider, { backgroundColor: isDark ? colors.border : '#F0F5F3' }]} />
 
-        {/* Linha 3: Excluir conta e dados */}
+        {/* Linha 2: Excluir conta e dados */}
         <TouchableOpacity
           onPress={() => setIsDeleteDialogOpen(true)}
           activeOpacity={0.7}
@@ -533,39 +577,6 @@ export default function ProfileScreen() {
             </Text>
           </View>
           <ChevronRight size={18} color="#D9534F" />
-        </TouchableOpacity>
-      </View>
-
-      {/* 6. Seção "Sessões e dispositivos" (Posicionada abaixo de Conta) */}
-      <View
-        style={[
-          styles.groupedCard,
-          {
-            backgroundColor: isDark ? colors.surface : '#FFFFFF',
-            borderColor: isDark ? colors.border : '#DCE5E2',
-            marginBottom: 28,
-          },
-        ]}
-      >
-        <TouchableOpacity
-          onPress={() => setIsSessionsModalOpen(true)}
-          activeOpacity={0.7}
-          style={styles.itemRow}
-          accessibilityRole="button"
-          accessibilityLabel="Sessões e dispositivos"
-        >
-          <View style={styles.itemIconCircle}>
-            <Laptop size={18} color="#2F7F7C" />
-          </View>
-          <View style={styles.itemTextCol}>
-            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>
-              Sessões e dispositivos
-            </Text>
-            <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
-              {sessions.length} {sessions.length === 1 ? 'dispositivo conectado' : 'dispositivos conectados'}
-            </Text>
-          </View>
-          <ChevronRight size={18} color="#8C9E9B" />
         </TouchableOpacity>
       </View>
 

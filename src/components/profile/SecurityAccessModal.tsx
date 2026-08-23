@@ -20,6 +20,7 @@ import { AppButton } from '../ui/AppButton';
 import { AppInput } from '../ui/AppInput';
 import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/user/userService';
+import { supabaseAuthService } from '../../services/auth/supabaseAuthService';
 import { useToast } from '../ui/Toast';
 import { validatePasswordStrength } from '../../utils/security';
 
@@ -68,7 +69,8 @@ export const SecurityAccessModal: React.FC<SecurityAccessModalProps> = ({
 
     try {
       setIsSavingPassword(true);
-      const res = await userService.changePassword(user.id, currentPassword, newPassword);
+      const res = await supabaseAuthService.updatePassword(newPassword);
+      if (!res.success) throw new Error(res.message);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -85,7 +87,8 @@ export const SecurityAccessModal: React.FC<SecurityAccessModalProps> = ({
     if (!user || !newEmail.trim()) return;
     try {
       setIsRequestingEmail(true);
-      const res = await userService.requestEmailChange(user.id, newEmail.trim(), emailPassword);
+      const res = await supabaseAuthService.updateEmail(newEmail.trim());
+      if (!res.success) throw new Error(res.message);
       setNewEmail('');
       setEmailPassword('');
       showToast({ message: res.message, type: 'info' });

@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { User } from '../types';
 import { authService, LoginCredentials, RegisterData } from '../services/auth/authService';
+import { supabaseAuthService, LogoutScope } from '../services/auth/supabaseAuthService';
+import { supabaseUserService } from '../services/user/supabaseUserService';
+import { isSupabaseConfigured } from '../services/supabase/client';
 
 interface AuthState {
   user: User | null;
@@ -13,7 +16,7 @@ interface AuthState {
   initializeAuth: () => Promise<void>;
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: (scope?: LogoutScope) => Promise<void>;
   setOnboardingCompleted: (completed: boolean) => Promise<void>;
   updateUser: (partial: Partial<User>) => void;
   clearError: () => void;
@@ -29,6 +32,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initializeAuth: async () => {
     try {
       set({ isLoading: true, error: null });
+
+      if (isSupabaseConfigured) {
+        const supabaseUser = await supabaseAuthService.getCurrentUser();
+        if (supabaseUser) {
+          await supabaseUserService.syncCurrentDevice(supabaseUser.id);
+          set({
+            user: supabaseUser,
+            isAuthenticated: true,
+            isOnboardingCompleted: true,
+            isLoading: false,
+          });
+          return;
+        }
+      }
+
       const [user, onboardingCompleted] = await Promise.all([
         authService.getStoredSession(),
         authService.isOnboardingCompleted(),
@@ -48,6 +66,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (credentials: LoginCredentials) => {
     try {
       set({ isLoading: true, error: null });
+
+      if (isSupabaseConfigured) {
+        const res = await supabaseAuthService.signIn(credentials.email, credentials.password);
+        if (res.error || !res.user) {
+          throw new Error(res.error || 'Falha ao autenticar com Supabase');
+        }
+        await supabaseUserService.syncCurrentDevice(res.user.id);
+        set({ user: res.user, isAuthenticated: true, isLoading: false });
+        return;
+      }
+
       const { user } = await authService.login(credentials);
       set({ user, isAuthenticated: true, isLoading: false });
     } catch (err: any) {
@@ -59,6 +88,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   register: async (data: RegisterData) => {
     try {
       set({ isLoading: true, error: null });
+
+      if (isSupabaseConfigured) {
+        const res = await supabaseAuthService.signUp(data.email, data.password, data.name);
+        if (res.error || !res.user) {
+          throw new Error(res.error || 'Falha ao cadastrar com Supabase');
+        }
+        await supabaseUserService.syncCurrentDevice(res.user.id);
+        set({ user: res.user, isAuthenticated: true, isLoading: false });
+        return;
+      }
+
       const { user } = await authService.register(data);
       set({ user, isAuthenticated: true, isLoading: false });
     } catch (err: any) {
@@ -67,12 +107,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  logout: async () => {
+  logout: async (scope: LogoutScope = 'local') => {
     try {
       set({ isLoading: true });
+      if (isSupabaseConfigured) {
+        await supabaseAuthService.signOut(scope);
+      }
       await authService.logout();
-      set({ user: null, isAuthenticated: false, isLoading: false });
-    } catch (err: any) {
+      if (scope === 'local' || scope === 'global') {
+        set({ user: null, isAuthenticated: false, isLoading: false });
+      } else {
+        set({ isLoading: false });
+      }
+    } catch (_err) {
       set({ isLoading: false });
     }
   },

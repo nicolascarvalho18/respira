@@ -12,51 +12,78 @@ import {
   Smartphone,
   Laptop,
   Tablet,
-  CheckCircle2,
-  Trash2,
+  LogOut,
   Shield,
+  Clock,
+  Globe,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { AppButton } from '../ui/AppButton';
 import { UserSession } from '../../types';
 import { formatDateTime } from '../../utils/date';
 import { useToast } from '../ui/Toast';
+import { useAuthStore } from '../../store/authStore';
 
 export interface SessionsModalProps {
   visible: boolean;
   sessions: UserSession[];
   onClose: () => void;
-  onRevokeSession: (sessionId: string) => Promise<void>;
-  onRevokeOthers: () => Promise<void>;
+  onRevokeSession?: (sessionId: string) => Promise<void>;
+  onRevokeOthers?: () => Promise<void>;
 }
 
 export const SessionsModal: React.FC<SessionsModalProps> = ({
   visible,
   sessions,
   onClose,
-  onRevokeSession,
-  onRevokeOthers,
 }) => {
   const { colors, isDark } = useTheme();
   const { showToast } = useToast();
-  const [isRevoking, setIsRevoking] = useState(false);
+  const { logout } = useAuthStore();
+  const [isProcessing, setIsProcessing] = useState(false);
 
   if (!visible) return null;
 
-  const handleRevokeOthers = async () => {
+  const handleLogoutLocal = async () => {
     try {
-      setIsRevoking(true);
-      await onRevokeOthers();
-      showToast({ message: 'Todas as outras sessões foram desconectadas.', type: 'success' });
+      setIsProcessing(true);
+      await logout('local');
+      onClose();
+      showToast({ message: 'Sessão encerrada neste dispositivo.', type: 'info' });
     } catch {
-      showToast({ message: 'Erro ao desconectar outras sessões.', type: 'error' });
+      showToast({ message: 'Erro ao encerrar sessão local.', type: 'error' });
     } finally {
-      setIsRevoking(false);
+      setIsProcessing(false);
+    }
+  };
+
+  const handleLogoutOthers = async () => {
+    try {
+      setIsProcessing(true);
+      await logout('others');
+      showToast({ message: 'Sessões encerradas em todos os outros dispositivos.', type: 'success' });
+    } catch {
+      showToast({ message: 'Erro ao encerrar outras sessões.', type: 'error' });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleLogoutGlobal = async () => {
+    try {
+      setIsProcessing(true);
+      await logout('global');
+      onClose();
+      showToast({ message: 'Todas as sessões foram encerradas com sucesso.', type: 'info' });
+    } catch {
+      showToast({ message: 'Erro ao encerrar todas as sessões.', type: 'error' });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const getDeviceIcon = (type: string) => {
-    if (type === 'desktop') return Laptop;
+    if (type === 'desktop' || type === 'web') return Laptop;
     if (type === 'tablet') return Tablet;
     return Smartphone;
   };
@@ -82,11 +109,11 @@ export const SessionsModal: React.FC<SessionsModalProps> = ({
           {/* Header */}
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.title, { color: '#173D3B' }]}>
+              <Text style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}>
                 Sessões e dispositivos
               </Text>
-              <Text style={[styles.subtitle, { color: '#667775' }]}>
-                {sessions.length} {sessions.length === 1 ? 'dispositivo conectado' : 'dispositivos conectados'}
+              <Text style={[styles.subtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
+                {sessions.length} {sessions.length === 1 ? 'dispositivo registrado' : 'dispositivos registrados'}
               </Text>
             </View>
             <TouchableOpacity
@@ -99,8 +126,8 @@ export const SessionsModal: React.FC<SessionsModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Lista de Sessões */}
-          <ScrollView style={{ maxHeight: 300, marginBottom: 14 }}>
+          {/* Lista de Dispositivos e Sessões */}
+          <ScrollView style={{ maxHeight: 280, marginBottom: 14 }}>
             {sessions.map((sess) => {
               const Icon = getDeviceIcon(sess.deviceType);
               return (
@@ -114,58 +141,75 @@ export const SessionsModal: React.FC<SessionsModalProps> = ({
                     },
                   ]}
                 >
-                  <View style={[styles.deviceIconCircle, { backgroundColor: isDark ? colors.surface : '#E7F3EF' }]}>
+                  <View
+                    style={[
+                      styles.deviceIconCircle,
+                      { backgroundColor: isDark ? colors.surface : '#E7F3EF' },
+                    ]}
+                  >
                     <Icon size={18} color="#2F7F7C" />
                   </View>
 
                   <View style={{ flex: 1, paddingHorizontal: 10 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={[styles.sessionBrowser, { color: '#173D3B' }]}>
-                        {sess.browser} ({sess.os})
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <Text style={[styles.sessionBrowser, { color: isDark ? colors.text : '#173D3B' }]}>
+                        {sess.deviceName || `${sess.browser} (${sess.os})`}
                       </Text>
                       {sess.isCurrent && (
                         <View style={styles.currentBadge}>
-                          <Text style={styles.currentBadgeText}>Este dispositivo</Text>
+                          <Text style={styles.currentBadgeText}>Dispositivo atual</Text>
                         </View>
                       )}
                     </View>
-                    <Text style={[styles.sessionMeta, { color: '#667775' }]}>
-                      Último acesso: {formatDateTime(sess.lastActiveAt)}
+                    <Text style={[styles.sessionMeta, { color: isDark ? colors.textMuted : '#667775' }]}>
+                      SO: {sess.os || 'Desconhecido'} • Navegador: {sess.browser || 'App Nativo'}
+                    </Text>
+                    <Text style={[styles.sessionMetaDate, { color: isDark ? colors.textMuted : '#8C9E9B' }]}>
+                      Última atividade: {formatDateTime(sess.lastActiveAt)}
                     </Text>
                   </View>
-
-                  {!sess.isCurrent && (
-                    <TouchableOpacity
-                      onPress={() => onRevokeSession(sess.id)}
-                      accessibilityRole="button"
-                      accessibilityLabel="Desconectar dispositivo"
-                      style={styles.revokeBtn}
-                    >
-                      <Text style={styles.revokeBtnText}>Desconectar</Text>
-                    </TouchableOpacity>
-                  )}
                 </View>
               );
             })}
           </ScrollView>
 
-          {/* Ações */}
-          <View style={styles.actionsRow}>
+          {/* Aviso Legal de Segurança */}
+          <View style={[styles.infoCallout, { backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF' }]}>
+            <Shield size={14} color="#2F7F7C" style={{ marginRight: 6 }} />
+            <Text style={[styles.infoCalloutText, { color: isDark ? colors.text : '#2F7F7C' }]}>
+              As sessões são gerenciadas e revogadas de forma segura pelo Supabase Auth.
+            </Text>
+          </View>
+
+          {/* Ações com os 3 Escopos Oficiais */}
+          <View style={styles.actionsGroup}>
+            <AppButton
+              title="Encerrar sessão neste dispositivo"
+              variant="outline"
+              size="md"
+              isLoading={isProcessing}
+              onPress={handleLogoutLocal}
+              style={{ marginBottom: 6 }}
+            />
+
             {sessions.length > 1 && (
               <AppButton
-                title="Encerrar Outras Sessões"
+                title="Encerrar sessões nos outros dispositivos"
                 variant="outline"
                 size="md"
-                isLoading={isRevoking}
-                onPress={handleRevokeOthers}
-                style={{ marginBottom: 8 }}
+                isLoading={isProcessing}
+                onPress={handleLogoutOthers}
+                style={{ marginBottom: 6 }}
               />
             )}
+
             <AppButton
-              title="Fechar"
-              variant="primary"
+              title="Encerrar todas as sessões"
+              variant="danger"
               size="md"
-              onPress={onClose}
+              isLoading={isProcessing}
+              onPress={handleLogoutGlobal}
+              style={{ marginBottom: 6 }}
             />
           </View>
         </View>
@@ -198,7 +242,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   title: {
     fontSize: 18,
@@ -242,18 +286,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
   },
-  revokeBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: '#FDF0F0',
+  sessionMetaDate: {
+    fontSize: 10,
+    marginTop: 2,
   },
-  revokeBtnText: {
+  infoCallout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 12,
+  },
+  infoCalloutText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#B84C4C',
+    fontWeight: '500',
+    flex: 1,
   },
-  actionsRow: {
-    marginTop: 4,
+  actionsGroup: {
+    gap: 2,
   },
 });
