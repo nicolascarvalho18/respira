@@ -4,6 +4,8 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -11,24 +13,28 @@ import {
   Trash2,
   Edit2,
   TrendingUp,
-  Heart,
   Smile,
   Activity,
+  SlidersHorizontal,
+  ChevronRight,
   ChevronDown,
   ChevronUp,
+  Frown,
+  Meh,
+  FileText,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
 import { Card } from '../../src/components/ui/Card';
 import { Badge } from '../../src/components/ui/Badge';
 import { AppButton } from '../../src/components/ui/AppButton';
-import { AccessibleChart } from '../../src/components/mood/AccessibleChart';
+import { MoodLineChart } from '../../src/components/mood/MoodLineChart';
 import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
 import { useToast } from '../../src/components/ui/Toast';
 import { useMoodStore } from '../../src/store/moodStore';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
 import { MoodRecord } from '../../src/types';
-import { formatDateTime } from '../../src/utils/date';
+import { formatDate, formatTime } from '../../src/utils/date';
 import { calculateMoodStats } from '../../src/utils/stats';
 
 export default function DiaryScreen() {
@@ -41,22 +47,18 @@ export default function DiaryScreen() {
   const [selectedFilterDays, setSelectedFilterDays] = useState<7 | 30 | 90>(7);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(5);
-  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
+  const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);
 
   const stats = calculateMoodStats(records);
-
-  const toggleExpand = (id: string) => {
-    setExpandedIds((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
 
   const handleDeleteConfirm = async () => {
     if (!recordToDelete) return;
     try {
       setIsDeleting(true);
       await deleteRecord(recordToDelete);
-      showToast({ message: 'Registro removido.', type: 'success' });
+      showToast({ message: 'Registro removido com sucesso.', type: 'success' });
       setRecordToDelete(null);
+      setExpandedRecordId(null);
     } catch {
       showToast({ message: 'Erro ao remover registro.', type: 'error' });
     } finally {
@@ -79,282 +81,424 @@ export default function DiaryScreen() {
     }
   };
 
-  const visibleRecords = records.slice(0, visibleCount);
+  const getMoodFaceIcon = (score: number) => {
+    switch (score) {
+      case 5:
+      case 4:
+        return {
+          icon: Smile,
+          color: '#2F7F7C',
+          bg: '#E2F4F2',
+        };
+      case 3:
+        return {
+          icon: Meh,
+          color: '#D98968',
+          bg: '#FDECE5',
+        };
+      default:
+        return {
+          icon: Frown,
+          color: '#2C5C58',
+          bg: '#DEEBE8',
+        };
+    }
+  };
 
-  // Painel lateral de métricas para Desktop
-  const renderDesktopMetricsSidebar = () => (
+  // Group records by relative date header (Hoje, Ontem, etc.)
+  const groupRecordsByDate = () => {
+    const groups: { title: string; items: MoodRecord[] }[] = [];
+    const now = new Date();
+
+    const isSameDay = (d1: Date, d2: Date) =>
+      d1.getDate() === d2.getDate() &&
+      d1.getMonth() === d2.getMonth() &&
+      d1.getFullYear() === d2.getFullYear();
+
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+
+    records.forEach((record) => {
+      const recordDate = new Date(record.createdAt);
+      let title = formatDate(record.createdAt);
+
+      if (isSameDay(recordDate, now)) {
+        title = `Hoje • ${formatDate(record.createdAt)}`;
+      } else if (isSameDay(recordDate, yesterday)) {
+        title = `Ontem • ${formatDate(record.createdAt)}`;
+      }
+
+      let existingGroup = groups.find((g) => g.title === title);
+      if (!existingGroup) {
+        existingGroup = { title, items: [] };
+        groups.push(existingGroup);
+      }
+      existingGroup.items.push(record);
+    });
+
+    return groups;
+  };
+
+  const groupedRecords = groupRecordsByDate();
+
+  // Desktop right panel
+  const renderDesktopSidebar = () => (
     <View style={styles.metricsSidebar}>
-      <Text style={[styles.sidebarHeading, { color: colors.text }]}>Painel de Evolução</Text>
+      <Text style={[styles.sidebarHeading, { color: '#173D3B' }]}>Painel de Evolução</Text>
 
-      {/* Card Média de Humor */}
       <Card variant="bordered" padding="sm" style={{ marginBottom: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-          <Smile size={16} color={colors.primary} style={{ marginRight: 6 }} />
-          <Text style={[styles.metricTitle, { color: colors.text }]}>Média de Humor</Text>
+          <Smile size={16} color="#2F7F7C" style={{ marginRight: 6 }} />
+          <Text style={[styles.metricTitle, { color: '#173D3B' }]}>Média de Humor</Text>
         </View>
-        <Text style={{ fontSize: 22, fontWeight: '800', color: colors.primary }}>
-          {stats.averageMood.toFixed(1)}{' '}
-          <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>de 5.0</Text>
+        <Text style={{ fontSize: 22, fontWeight: '800', color: '#2F7F7C' }}>
+          {stats.averageMood.toFixed(1).replace('.', ',')}{' '}
+          <Text style={{ fontSize: 12, fontWeight: '500', color: '#667775' }}>de 5.0</Text>
         </Text>
       </Card>
 
-      {/* Card Média de Ansiedade */}
       <Card variant="bordered" padding="sm" style={{ marginBottom: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-          <Activity size={16} color={colors.warning} style={{ marginRight: 6 }} />
-          <Text style={[styles.metricTitle, { color: colors.text }]}>Média de Ansiedade</Text>
+          <Activity size={16} color="#D98968" style={{ marginRight: 6 }} />
+          <Text style={[styles.metricTitle, { color: '#173D3B' }]}>Média de Ansiedade</Text>
         </View>
-        <Text style={{ fontSize: 22, fontWeight: '800', color: colors.warning }}>
-          {stats.averageAnxiety.toFixed(1)}{' '}
-          <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>de 10.0</Text>
+        <Text style={{ fontSize: 22, fontWeight: '800', color: '#D98968' }}>
+          {stats.averageAnxiety.toFixed(1).replace('.', ',')}{' '}
+          <Text style={{ fontSize: 12, fontWeight: '500', color: '#667775' }}>de 10.0</Text>
         </Text>
       </Card>
-
-      {/* Emoções Recorrentes */}
-      <Card variant="bordered" padding="sm" style={{ marginBottom: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-          <Heart size={15} color={colors.primary} style={{ marginRight: 6 }} />
-          <Text style={[styles.metricTitle, { color: colors.text }]}>Emoções Recorrentes</Text>
-        </View>
-        <View style={styles.chipsWrap}>
-          {stats.topEmotions.map((emo, idx) => (
-            <Badge key={idx} label={emo.emotion} variant="primary" size="sm" style={{ marginRight: 4, marginBottom: 4 }} />
-          ))}
-        </View>
-      </Card>
-
-      {/* Botão Novo Registro */}
-      <AppButton
-        title="Novo Registro"
-        leftIcon={<Plus size={16} color="#FFFFFF" />}
-        onPress={() => router.push('/mood/new')}
-        size="sm"
-        style={{ marginTop: 4 }}
-      />
     </View>
   );
 
   return (
-    <AppShell rightPanel={renderDesktopMetricsSidebar()}>
-      {/* Cabeçalho da Página */}
-      <View style={styles.headerRow}>
-        <View style={{ flex: 1, paddingRight: 8 }}>
-          <Text style={[styles.pageTitle, { color: colors.text }]}>Diário de Humor</Text>
-          <Text style={[styles.pageSubtitle, { color: colors.textSecondary }]}>
-            Acompanhe suas emoções e níveis de ansiedade ao longo dos dias.
+    <AppShell rightPanel={renderDesktopSidebar()}>
+      {/* 1. Cabeçalho Superior */}
+      <View style={styles.pageHeaderRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.pageTitle, { color: '#173D3B' }]}>Diário de Humor</Text>
+          <Text style={[styles.pageSubtitle, { color: '#667775' }]}>
+            Acompanhe como você tem se sentido
           </Text>
         </View>
 
-        {!isDesktop && (
-          <AppButton
-            title="Novo"
-            leftIcon={<Plus size={16} color="#FFFFFF" />}
-            onPress={() => router.push('/mood/new')}
-            size="sm"
-          />
-        )}
+        <TouchableOpacity
+          onPress={() => router.push('/mood/new')}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Criar novo registro de humor"
+          style={styles.newRecordBtn}
+        >
+          <Plus size={16} color="#FFFFFF" strokeWidth={2.5} />
+          <Text style={styles.newRecordBtnText}>Novo registro</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Card do Gráfico de Evolução com Filtros em Segmented Control */}
-      <Card variant="bordered" style={styles.chartCard}>
-        <View style={styles.chartTitleRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TrendingUp size={16} color={colors.primary} style={{ marginRight: 6 }} />
-            <Text style={[styles.chartTitle, { color: colors.text }]}>Evolução Recente</Text>
-          </View>
+      {/* 2. Card "Evolução recente" */}
+      <View
+        style={[
+          styles.evolutionCard,
+          {
+            backgroundColor: isDark ? colors.surface : '#FFFFFF',
+            borderColor: isDark ? colors.border : '#DCE5E2',
+          },
+        ]}
+      >
+        {/* Título do Card */}
+        <View style={styles.evolutionHeaderRow}>
+          <TrendingUp size={18} color="#2F7F7C" style={{ marginRight: 8 }} />
+          <Text style={[styles.evolutionTitle, { color: '#173D3B' }]}>
+            Evolução recente
+          </Text>
         </View>
 
-        {/* 3 Botões de Filtro Iguais Dispostos Abaixo do Título */}
+        {/* Filtros em Segmented Control (7 dias, 30 dias, 90 dias) */}
         <View
           style={[
-            styles.filterSegmentedRow,
-            {
-              backgroundColor: isDark ? colors.surfaceSecondary : '#F0F5F4',
-              borderColor: colors.border,
-            },
+            styles.segmentedControlWrap,
+            { backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5' },
           ]}
         >
-          {([7, 30, 90] as const).map((days) => {
-            const isSelected = selectedFilterDays === days;
+          {([7, 30, 90] as const).map((period) => {
+            const isSelected = selectedFilterDays === period;
             return (
               <TouchableOpacity
-                key={days}
-                onPress={() => setSelectedFilterDays(days)}
+                key={period}
+                onPress={() => setSelectedFilterDays(period)}
                 accessibilityRole="button"
-                accessibilityLabel={`Filtrar por ${days} dias`}
+                accessibilityLabel={`Filtrar por ${period} dias`}
                 style={[
-                  styles.filterSegmentBtn,
-                  isSelected && {
-                    backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.08,
-                    shadowRadius: 2,
-                    elevation: 2,
-                  },
+                  styles.segmentBtn,
+                  isSelected && [
+                    styles.segmentBtnActive,
+                    {
+                      backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                      shadowColor: '#173D3B',
+                    },
+                  ],
                 ]}
               >
                 <Text
                   style={[
-                    styles.filterSegmentText,
+                    styles.segmentBtnText,
                     {
-                      color: isSelected ? colors.primary : colors.textMuted,
+                      color: isSelected ? '#2F7F7C' : '#667775',
                       fontWeight: isSelected ? '700' : '500',
                     },
                   ]}
                 >
-                  {days} dias
+                  {period} dias
                 </Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        {/* Gráfico Acessível com Tooltip */}
-        <AccessibleChart records={records} days={selectedFilterDays} />
-      </Card>
+        {/* 3 Indicadores Compactos */}
+        <View style={styles.indicatorsRow}>
+          {/* 1. Humor Médio */}
+          <View
+            style={[
+              styles.indicatorCard,
+              {
+                backgroundColor: isDark ? colors.surfaceSecondary : '#F9FBFA',
+                borderColor: isDark ? colors.border : '#EEF3F1',
+              },
+            ]}
+          >
+            <View style={styles.indicatorHeader}>
+              <View style={[styles.dotIndicator, { backgroundColor: '#2F7F7C' }]} />
+              <Text style={styles.indicatorLabel}>Humor médio</Text>
+            </View>
+            <Text style={[styles.indicatorBigVal, { color: '#173D3B' }]}>
+              {stats.averageMood > 0 ? stats.averageMood.toFixed(1).replace('.', ',') : '0,0'}
+              <Text style={styles.indicatorSubVal}> /5</Text>
+            </Text>
+          </View>
 
-      {/* Seção do Histórico Compacto */}
-      <View style={styles.historySectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          Histórico ({records.length})
-        </Text>
+          {/* 2. Ansiedade Média */}
+          <View
+            style={[
+              styles.indicatorCard,
+              {
+                backgroundColor: isDark ? colors.surfaceSecondary : '#F9FBFA',
+                borderColor: isDark ? colors.border : '#EEF3F1',
+              },
+            ]}
+          >
+            <View style={styles.indicatorHeader}>
+              <View style={[styles.dotIndicator, { backgroundColor: '#D98968' }]} />
+              <Text style={styles.indicatorLabel}>Ansiedade média</Text>
+            </View>
+            <Text style={[styles.indicatorBigVal, { color: '#173D3B' }]}>
+              {stats.averageAnxiety > 0 ? stats.averageAnxiety.toFixed(1).replace('.', ',') : '0,0'}
+              <Text style={styles.indicatorSubVal}> /10</Text>
+            </Text>
+          </View>
+
+          {/* 3. Registros */}
+          <View
+            style={[
+              styles.indicatorCard,
+              {
+                backgroundColor: isDark ? colors.surfaceSecondary : '#F9FBFA',
+                borderColor: isDark ? colors.border : '#EEF3F1',
+              },
+            ]}
+          >
+            <View style={styles.indicatorHeader}>
+              <Text style={styles.indicatorLabel}>Registros</Text>
+              <FileText size={14} color="#2F7F7C" style={{ marginLeft: 'auto' }} />
+            </View>
+            <Text style={[styles.indicatorBigVal, { color: '#173D3B' }]}>
+              {records.length}
+              <Text style={styles.indicatorSubVal}> registros</Text>
+            </Text>
+          </View>
+        </View>
+
+        {/* Gráfico de Linhas Interativo */}
+        <MoodLineChart
+          records={records}
+          days={selectedFilterDays}
+        />
       </View>
 
-      {visibleRecords.length === 0 ? (
-        <Card variant="bordered" style={styles.emptyCard}>
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>
-            Nenhum check-in registrado ainda
+      {/* 3. Seção "Histórico" */}
+      <View style={styles.historyHeaderRow}>
+        <Text style={[styles.historyTitle, { color: '#173D3B' }]}>Histórico</Text>
+
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Filtrar histórico"
+          style={[
+            styles.filterActionBtn,
+            {
+              backgroundColor: isDark ? colors.surface : '#FFFFFF',
+              borderColor: isDark ? colors.border : '#DCE5E2',
+            },
+          ]}
+        >
+          <SlidersHorizontal size={14} color="#173D3B" />
+          <Text style={[styles.filterActionBtnText, { color: '#173D3B' }]}>Filtrar</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Lista de Registros Agrupada por Data */}
+      {groupedRecords.length === 0 ? (
+        <View
+          style={[
+            styles.emptyWrap,
+            { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: '#DCE5E2' },
+          ]}
+        >
+          <Text style={[styles.emptyTitle, { color: '#173D3B' }]}>Nenhum registro ainda</Text>
+          <Text style={[styles.emptySubtitle, { color: '#667775' }]}>
+            Comece registrando como você está se sentindo hoje.
           </Text>
-          <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-            Registre como você está se sentindo hoje para começar a acompanhar seu histórico.
-          </Text>
-          <AppButton
-            title="Fazer Primeiro Registro"
-            leftIcon={<Plus size={16} color="#FFFFFF" />}
+          <TouchableOpacity
             onPress={() => router.push('/mood/new')}
-            size="sm"
-            style={{ marginTop: 12 }}
-          />
-        </Card>
+            style={styles.emptyButton}
+          >
+            <Text style={styles.emptyButtonText}>+ Criar primeiro check-in</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
-        <View style={styles.recordsList}>
-          {visibleRecords.map((item: MoodRecord) => {
-            const isExpanded = !!expandedIds[item.id];
+        <View style={styles.historyListWrap}>
+          {groupedRecords.map((group, gIdx) => (
+            <View key={gIdx} style={styles.groupContainer}>
+              <Text style={styles.groupHeaderLabel}>{group.title}</Text>
 
-            return (
-              <Card key={item.id} variant="bordered" style={styles.recordCard}>
-                {/* Linha Superior: Data, Humor e Nível de Ansiedade */}
-                <View style={styles.recordHeader}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.recordDate, { color: colors.text }]}>
-                      {formatDateTime(item.createdAt)}
-                    </Text>
-                    <Text style={[styles.recordMoodSummary, { color: colors.primary }]}>
-                      {getMoodLabel(item.mood)} • Nível informado: {item.anxietyLevel}/10
-                    </Text>
-                  </View>
-                </View>
+              {group.items.map((item) => {
+                const face = getMoodFaceIcon(item.mood);
+                const IconComponent = face.icon;
+                const isExpanded = expandedRecordId === item.id;
 
-                {/* Emoções do Registro */}
-                {item.emotions && item.emotions.length > 0 && (
-                  <Text style={[styles.emotionsSummary, { color: colors.textSecondary }]} numberOfLines={isExpanded ? undefined : 1}>
-                    {item.emotions.join(', ')}
-                  </Text>
-                )}
+                return (
+                  <View
+                    key={item.id}
+                    style={[
+                      styles.recordCard,
+                      {
+                        backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                        borderColor: isDark ? colors.border : '#EBF1EF',
+                      },
+                    ]}
+                  >
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() =>
+                        setExpandedRecordId(isExpanded ? null : item.id)
+                      }
+                      style={styles.recordCardMain}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${getMoodLabel(item.mood)}, Ansiedade ${item.anxietyLevel} de 10`}
+                    >
+                      {/* Ícone Redondo com Expressão */}
+                      <View style={[styles.faceCircle, { backgroundColor: face.bg }]}>
+                        <IconComponent size={20} color={face.color} strokeWidth={2.2} />
+                      </View>
 
-                {/* Área Expandida (Anotações, Atividades e Ações) */}
-                {isExpanded && (
-                  <View style={styles.expandedContent}>
-                    {item.activities && item.activities.length > 0 && (
-                      <View style={styles.activitiesRow}>
-                        <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Atividades: </Text>
-                        <Text style={[styles.detailValue, { color: colors.text }]}>
-                          {item.activities.join(', ')}
+                      {/* Informações Principais */}
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.recordHeading, { color: '#173D3B' }]}>
+                          {getMoodLabel(item.mood)} • Ansiedade {item.anxietyLevel}/10
+                        </Text>
+                        <Text style={[styles.recordMeta, { color: '#667775' }]}>
+                          {item.emotions && item.emotions.length > 0
+                            ? item.emotions.slice(0, 3).join(', ')
+                            : 'Sem tags'}{' '}
+                          • {formatTime(item.createdAt)}
                         </Text>
                       </View>
-                    )}
 
-                    {item.notes && (
+                      {/* Seta */}
+                      {isExpanded ? (
+                        <ChevronUp size={16} color="#8C9E9B" />
+                      ) : (
+                        <ChevronRight size={16} color="#8C9E9B" />
+                      )}
+                    </TouchableOpacity>
+
+                    {/* Detalhes Expansíveis com Ações Reais de Edição e Exclusão */}
+                    {isExpanded && (
                       <View
                         style={[
-                          styles.notesBox,
+                          styles.expandedDetails,
                           {
-                            backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFC',
-                            borderColor: colors.border,
+                            borderTopColor: isDark ? colors.border : '#F0F4F3',
+                            backgroundColor: isDark ? colors.surfaceSecondary : '#FAFDFD',
                           },
                         ]}
                       >
-                        <Text style={[styles.notesText, { color: colors.text }]}>{item.notes}</Text>
+                        {item.notes ? (
+                          <View style={{ marginBottom: 10 }}>
+                            <Text style={[styles.detailSectionTitle, { color: '#173D3B' }]}>
+                              Anotações
+                            </Text>
+                            <Text style={[styles.detailBody, { color: '#567571' }]}>
+                              {item.notes}
+                            </Text>
+                          </View>
+                        ) : null}
+
+                        {item.activities && item.activities.length > 0 && (
+                          <View style={{ marginBottom: 10 }}>
+                            <Text style={[styles.detailSectionTitle, { color: '#173D3B' }]}>
+                              Atividades
+                            </Text>
+                            <View style={styles.tagsRow}>
+                              {item.activities.map((act, aIdx) => (
+                                <View key={aIdx} style={styles.activityBadge}>
+                                  <Text style={styles.activityBadgeText}>{act}</Text>
+                                </View>
+                              ))}
+                            </View>
+                          </View>
+                        )}
+
+                        {/* Botões de Ação */}
+                        <View style={styles.recordActionButtonsRow}>
+                          <TouchableOpacity
+                            onPress={() => router.push(`/mood/edit/${item.id}` as any)}
+                            style={[
+                              styles.actionBtnOutline,
+                              { borderColor: isDark ? colors.border : '#DCE5E2' },
+                            ]}
+                          >
+                            <Edit2 size={13} color="#2F7F7C" style={{ marginRight: 5 }} />
+                            <Text style={[styles.actionBtnOutlineText, { color: '#2F7F7C' }]}>
+                              Editar
+                            </Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            onPress={() => setRecordToDelete(item.id)}
+                            style={[
+                              styles.actionBtnOutline,
+                              { borderColor: isDark ? '#4D2424' : '#FCE8E8' },
+                            ]}
+                          >
+                            <Trash2 size={13} color={colors.error} style={{ marginRight: 5 }} />
+                            <Text style={[styles.actionBtnOutlineText, { color: colors.error }]}>
+                              Excluir
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     )}
-
-                    <View style={styles.recordActionsRow}>
-                      <TouchableOpacity
-                        onPress={() => router.push(`/mood/edit/${item.id}`)}
-                        accessibilityRole="button"
-                        accessibilityLabel="Editar registro"
-                        style={[styles.recordActionBtn, { backgroundColor: colors.surfaceSecondary }]}
-                      >
-                        <Edit2 size={13} color={colors.primary} />
-                        <Text style={[styles.recordActionText, { color: colors.primary }]}>Editar</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        onPress={() => setRecordToDelete(item.id)}
-                        accessibilityRole="button"
-                        accessibilityLabel="Excluir registro"
-                        style={[styles.recordActionBtn, { backgroundColor: isDark ? '#3D1C1C' : '#FDF0F0' }]}
-                      >
-                        <Trash2 size={13} color={colors.error} />
-                        <Text style={[styles.recordActionText, { color: colors.error }]}>Excluir</Text>
-                      </TouchableOpacity>
-                    </View>
                   </View>
-                )}
-
-                {/* Botão Ver Detalhes / Recolher */}
-                <TouchableOpacity
-                  onPress={() => toggleExpand(item.id)}
-                  accessibilityRole="button"
-                  accessibilityLabel={isExpanded ? 'Recolher detalhes' : 'Ver detalhes do registro'}
-                  style={styles.expandBtn}
-                >
-                  <Text style={[styles.expandBtnText, { color: colors.primary }]}>
-                    {isExpanded ? 'Recolher' : 'Ver detalhes'}
-                  </Text>
-                  {isExpanded ? (
-                    <ChevronUp size={14} color={colors.primary} />
-                  ) : (
-                    <ChevronDown size={14} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
-              </Card>
-            );
-          })}
-
-          {/* Carregar mais */}
-          {records.length > visibleCount && (
-            <TouchableOpacity
-              onPress={() => setVisibleCount((prev) => prev + 5)}
-              style={[styles.loadMoreBtn, { borderColor: colors.border }]}
-              accessibilityRole="button"
-              accessibilityLabel="Carregar mais registros anteriores"
-            >
-              <Text style={[styles.loadMoreText, { color: colors.primary }]}>
-                Carregar registros anteriores
-              </Text>
-              <ChevronDown size={15} color={colors.primary} />
-            </TouchableOpacity>
-          )}
+                );
+              })}
+            </View>
+          ))}
         </View>
       )}
 
-      {/* Diálogo de Confirmação */}
+      {/* Modal de Confirmação de Exclusão */}
       <ConfirmDialog
         visible={!!recordToDelete}
-        title="Excluir registro?"
-        message="Tem certeza que deseja apagar este check-in? Esta ação não pode ser desfeita."
+        title="Excluir Registro"
+        message="Tem certeza de que deseja remover este check-in? Esta ação não pode ser desfeita."
         confirmTitle="Excluir"
         cancelTitle="Cancelar"
         isDestructive
@@ -367,184 +511,294 @@ export default function DiaryScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerRow: {
+  // Cabeçalho
+  pageHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 18,
+    paddingTop: 4,
+    gap: 12,
   },
   pageTitle: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '800',
-    lineHeight: 32,
+    letterSpacing: -0.3,
   },
   pageSubtitle: {
-    fontSize: 15,
-    marginTop: 4,
-    lineHeight: 22,
-  },
-  chartCard: {
-    padding: 16,
-    marginBottom: 20,
-    gap: 10,
-  },
-  chartTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  chartTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  filterSegmentedRow: {
-    flexDirection: 'row',
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 3,
-    gap: 4,
-    marginVertical: 4,
-  },
-  filterSegmentBtn: {
-    flex: 1,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterSegmentText: {
-    fontSize: 12,
-  },
-  historySectionHeader: {
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  recordsList: {
-    gap: 10,
-    marginBottom: 24,
-  },
-  recordCard: {
-    padding: 14,
-    gap: 6,
-  },
-  recordHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  recordDate: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  recordMoodSummary: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
     marginTop: 2,
   },
-  emotionsSummary: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  expandedContent: {
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F4F4',
-    gap: 8,
-  },
-  activitiesRow: {
+  newRecordBtn: {
+    backgroundColor: '#2F7F7C',
+    height: 40,
+    paddingHorizontal: 14,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    shadowColor: '#2F7F7C',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  detailLabel: {
+  newRecordBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  // Card Evolução Recente
+  evolutionCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 22,
+    shadowColor: '#173D3B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  evolutionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  evolutionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+
+  // Segmented Control
+  segmentedControlWrap: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 14,
+  },
+  segmentBtn: {
+    flex: 1,
+    paddingVertical: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  segmentBtnActive: {
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  segmentBtnText: {
+    fontSize: 12,
+  },
+
+  // 3 Indicadores
+  indicatorsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  indicatorCard: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
+  },
+  indicatorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 6,
+  },
+  dotIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  indicatorLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#567571',
+  },
+  indicatorBigVal: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  indicatorSubVal: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#667775',
+  },
+
+  // Histórico
+  historyHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  historyTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  filterActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  filterActionBtnText: {
     fontSize: 12,
     fontWeight: '600',
   },
-  detailValue: {
+
+  // Listagem Agrupada
+  historyListWrap: {
+    gap: 6,
+    paddingBottom: 24,
+  },
+  groupContainer: {
+    marginBottom: 12,
+  },
+  groupHeaderLabel: {
     fontSize: 12,
+    fontWeight: '600',
+    color: '#667775',
+    marginBottom: 8,
+    paddingLeft: 2,
   },
-  notesBox: {
-    padding: 10,
-    borderRadius: 10,
+  recordCard: {
+    borderRadius: 14,
     borderWidth: 1,
+    marginBottom: 8,
+    overflow: 'hidden',
+    shadowColor: '#173D3B',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  notesText: {
+  recordCardMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 12,
+  },
+  faceCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recordHeading: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  recordMeta: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+
+  // Detalhes Expansíveis
+  expandedDetails: {
+    borderTopWidth: 1,
+    padding: 12,
+    paddingTop: 10,
+  },
+  detailSectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 3,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  detailBody: {
     fontSize: 13,
     lineHeight: 18,
   },
-  recordActionsRow: {
+  tagsRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-  },
-  recordActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    gap: 4,
-  },
-  recordActionText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  expandBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 4,
-    gap: 4,
-    marginTop: 2,
-  },
-  expandBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  loadMoreBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    marginVertical: 8,
+    flexWrap: 'wrap',
     gap: 6,
   },
-  loadMoreText: {
-    fontSize: 13,
+  activityBadge: {
+    backgroundColor: '#E7F3EF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  activityBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#2F7F7C',
+  },
+  recordActionButtonsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 6,
+  },
+  actionBtnOutline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  actionBtnOutlineText: {
+    fontSize: 12,
     fontWeight: '700',
   },
-  emptyCard: {
+
+  // Estado Vazio
+  emptyWrap: {
+    borderRadius: 14,
+    borderWidth: 1,
     padding: 24,
     alignItems: 'center',
+    marginBottom: 20,
   },
   emptyTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     marginBottom: 4,
   },
   emptySubtitle: {
     fontSize: 13,
     textAlign: 'center',
-    lineHeight: 18,
+    marginBottom: 14,
   },
+  emptyButton: {
+    backgroundColor: '#2F7F7C',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  emptyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  // Desktop Sidebar
   metricsSidebar: {
-    gap: 6,
+    gap: 12,
   },
   sidebarHeading: {
-    fontSize: 17,
-    fontWeight: '700',
-    marginBottom: 10,
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 4,
   },
   metricTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  chipsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
