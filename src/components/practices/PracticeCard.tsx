@@ -1,129 +1,154 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Wind, Heart, Square, Compass, Activity, Clock, Bookmark, Play } from 'lucide-react-native';
-import { Practice } from '../../types';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+} from 'react-native';
+import {
+  Wind,
+  Square,
+  Heart,
+  Compass,
+  Activity,
+  Clock,
+  Bookmark,
+  Play,
+  Sparkles,
+} from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
+import { Practice } from '../../types';
 import { formatTimesRealized } from '../../utils/grammar';
 
 export interface PracticeCardProps {
   practice: Practice;
-  onToggleFavorite?: (id: string) => void;
-  onPress?: () => void;
+  onPress: () => void;
+  onToggleFavorite: (id: string) => void;
 }
 
 export const PracticeCard: React.FC<PracticeCardProps> = ({
   practice,
-  onToggleFavorite,
   onPress,
+  onToggleFavorite,
 }) => {
-  const router = useRouter();
   const { colors, isDark } = useTheme();
 
-  const getIcon = () => {
-    const size = 18;
-    const color = colors.primary;
-    switch (practice.icon) {
-      case 'wind':
-        return <Wind size={size} color={color} />;
-      case 'heart':
-        return <Heart size={size} color={color} />;
-      case 'square':
-        return <Square size={size} color={color} />;
-      case 'compass':
-        return <Compass size={size} color={color} />;
-      case 'activity':
-        return <Activity size={size} color={color} />;
-      case 'clock':
+  const getIconConfig = () => {
+    switch (practice.id) {
+      case 'practice-breathing-478':
+        return {
+          icon: Wind,
+          color: '#2F7F7C',
+          bg: '#E2F4F2',
+        };
+      case 'practice-breathing-box':
+        return {
+          icon: Square,
+          color: '#2C648E',
+          bg: '#E3EEF8',
+        };
+      case 'practice-breathing-cardiac':
+        return {
+          icon: Heart,
+          color: '#D98968',
+          bg: '#FDECE5',
+        };
+      case 'practice-grounding-54321':
+        return {
+          icon: Compass,
+          color: '#4A7A3E',
+          bg: '#E9F2E6',
+        };
+      case 'practice-pmr-relaxation':
+        return {
+          icon: Activity,
+          color: '#634E99',
+          bg: '#EAE6F2',
+        };
+      case 'practice-quick-pause':
+        return {
+          icon: Clock,
+          color: '#C87A24',
+          bg: '#FBF1E6',
+        };
       default:
-        return <Clock size={size} color={color} />;
+        return {
+          icon: Sparkles,
+          color: '#2F7F7C',
+          bg: '#E2F4F2',
+        };
     }
   };
 
-  const handlePress = () => {
-    if (onPress) {
-      onPress();
-      return;
-    }
-
-    if (practice.category === 'breathing') {
-      router.push('/practices/breathing');
-    } else if (practice.id === 'practice-grounding-54321') {
-      router.push('/practices/grounding' as any);
-    } else if (practice.id === 'practice-pmr-relaxation') {
-      router.push('/practices/relaxation' as any);
-    } else {
-      router.push(`/practices/player/${practice.id}`);
-    }
-  };
+  const { icon: IconComponent, color: iconColor, bg: iconBg } = getIconConfig();
 
   return (
     <TouchableOpacity
-      activeOpacity={0.75}
-      onPress={handlePress}
+      activeOpacity={0.8}
+      onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`Prática: ${practice.title}, duração ${practice.durationMinutes} minutos`}
+      accessibilityLabel={`${practice.title}: ${practice.durationMinutes} minutos, ${practice.level}`}
       style={[
-        styles.card,
+        styles.cardContainer,
         {
           backgroundColor: isDark ? colors.surface : '#FFFFFF',
-          borderColor: colors.border,
+          borderColor: isDark ? colors.border : '#EBF1EF',
         },
+        Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined,
       ]}
     >
-      {/* Top row: Icon + Duration + Level + Favorite */}
-      <View style={styles.topRow}>
-        <View style={styles.topLeft}>
-          <View style={[styles.iconWrap, { backgroundColor: colors.highlight }]}>
-            {getIcon()}
-          </View>
-          <View style={[styles.badge, { backgroundColor: isDark ? colors.surfaceSecondary : '#F0F5F4' }]}>
-            <Text style={[styles.badgeText, { color: colors.textSecondary }]}>
-              {practice.durationMinutes} min
-            </Text>
-          </View>
-          <View style={[styles.badge, { backgroundColor: isDark ? colors.surfaceSecondary : '#F0F5F4' }]}>
-            <Text style={[styles.badgeText, { color: colors.textMuted }]}>{practice.level}</Text>
-          </View>
-        </View>
-
-        {onToggleFavorite && (
-          <TouchableOpacity
-            onPress={(e) => {
-              e.stopPropagation();
-              onToggleFavorite(practice.id);
-            }}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityRole="button"
-            accessibilityLabel={practice.isFavorite ? 'Remover dos favoritos' : 'Favoritar'}
-            style={styles.favBtn}
-          >
-            <Bookmark
-              size={17}
-              color={practice.isFavorite ? colors.primary : colors.textLight}
-              fill={practice.isFavorite ? colors.primary : 'none'}
-            />
-          </TouchableOpacity>
-        )}
+      {/* 1. Ícone Quadrado Arredondado */}
+      <View style={[styles.iconBox, { backgroundColor: isDark ? colors.surfaceSecondary : iconBg }]}>
+        <IconComponent size={22} color={iconColor} strokeWidth={2.2} />
       </View>
 
-      {/* Title & Subtitle */}
-      <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
-        {practice.title}
-      </Text>
-      <Text style={[styles.subtitle, { color: colors.textSecondary }]} numberOfLines={2}>
-        {practice.subtitle || practice.description}
-      </Text>
-
-      {/* Footer: Completion count + Play button */}
-      <View style={styles.footerRow}>
-        <Text style={[styles.completionsText, { color: colors.textMuted }]}>
-          {formatTimesRealized(practice.completedCount || 0)}
+      {/* 2. Conteúdo Central */}
+      <View style={styles.centerCol}>
+        <Text style={[styles.title, { color: '#173D3B' }]} numberOfLines={1}>
+          {practice.title}
         </Text>
 
-        <View style={[styles.playBtn, { backgroundColor: colors.primary }]}>
-          <Play size={12} color="#FFFFFF" fill="#FFFFFF" />
-          <Text style={styles.playBtnText}>Iniciar</Text>
+        <Text style={[styles.subtitle, { color: '#667775' }]} numberOfLines={1}>
+          {practice.subtitle || practice.description}
+        </Text>
+
+        <View style={styles.metaRow}>
+          <Text style={[styles.metaTimeLevel, { color: '#567571' }]}>
+            {practice.durationMinutes} min • {practice.level}
+          </Text>
+
+          <Text style={[styles.metaCompletions, { color: '#8C9E9B' }]}>
+            {formatTimesRealized(practice.completedCount || 0)}
+          </Text>
+        </View>
+      </View>
+
+      {/* 3. Ações Direitas (Favorito + Botão Circular Iniciar) */}
+      <View style={styles.rightActionsCol}>
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation();
+            onToggleFavorite(practice.id);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={
+            practice.isFavorite
+              ? `Remover ${practice.title} dos favoritos`
+              : `Adicionar ${practice.title} aos favoritos`
+          }
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={styles.favBtn}
+        >
+          <Bookmark
+            size={18}
+            color="#2F7F7C"
+            fill={practice.isFavorite ? '#2F7F7C' : 'transparent'}
+          />
+        </TouchableOpacity>
+
+        <View style={styles.circlePlayBtn}>
+          <Play size={14} color="#FFFFFF" fill="#FFFFFF" style={{ marginLeft: 2 }} />
         </View>
       </View>
     </TouchableOpacity>
@@ -131,77 +156,69 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({
 };
 
 const styles = StyleSheet.create({
-  card: {
-    padding: 16,
+  cardContainer: {
     borderRadius: 16,
-    borderWidth: 1.5,
-    marginBottom: 12,
-    width: '100%',
-  },
-  topRow: {
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    gap: 12,
+    shadowColor: '#173D3B',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  topLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  iconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+  iconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+  centerCol: {
+    flex: 1,
+    justifyContent: 'center',
   },
-  badgeText: {
+  title: {
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  subtitle: {
+    fontSize: 12,
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 2,
+  },
+  metaTimeLevel: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  metaCompletions: {
+    fontSize: 11,
+  },
+  rightActionsCol: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 52,
+    paddingLeft: 4,
   },
   favBtn: {
     padding: 2,
   },
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
-    lineHeight: 22,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 10,
-  },
-  footerRow: {
-    flexDirection: 'row',
+  circlePlayBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#2F7F7C',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F4F4',
-  },
-  completionsText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  playBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    gap: 4,
-  },
-  playBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
+    justifyContent: 'center',
   },
 });
