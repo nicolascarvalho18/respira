@@ -106,3 +106,5 @@ export const AVAILABLE_ACTIVITIES = [
   'Natureza',
   'Tarefas de Casa',
 ];
+
+export const MOCK_MOODS = MOCK_MOOD_RECORDS;

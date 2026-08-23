@@ -7,12 +7,15 @@ export const MOCK_USERS: User[] = [
     email: 'ana@exemplo.com',
     role: 'user',
     avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+    isEmailVerified: true,
     createdAt: '2024-01-15T10:00:00Z',
+    updatedAt: '2024-01-15T10:00:00Z',
     consents: {
       termsAccepted: true,
       privacyAccepted: true,
       personalizationAccepted: true,
       analyticsAccepted: true,
+      chatRetentionAccepted: true,
       acceptedAt: '2024-01-15T10:00:00Z',
     },
     preferences: {
@@ -31,12 +34,15 @@ export const MOCK_USERS: User[] = [
     email: 'admin@respira.app',
     role: 'admin',
     avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+    isEmailVerified: true,
     createdAt: '2023-11-01T08:00:00Z',
+    updatedAt: '2023-11-01T08:00:00Z',
     consents: {
       termsAccepted: true,
       privacyAccepted: true,
       personalizationAccepted: true,
       analyticsAccepted: true,
+      chatRetentionAccepted: true,
       acceptedAt: '2023-11-01T08:00:00Z',
     },
     preferences: {

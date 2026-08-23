@@ -20,6 +20,7 @@ export interface ConfirmDialogProps {
   isDestructive?: boolean;
   isLoading?: boolean;
   icon?: 'warning' | 'info' | 'delete';
+  children?: React.ReactNode;
   onConfirm: () => void | Promise<void>;
   onCancel: () => void;
 }
@@ -33,6 +34,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   isDestructive = false,
   isLoading = false,
   icon = isDestructive ? 'delete' : 'info',
+  children,
   onConfirm,
   onCancel,
 }) => {
@@ -114,6 +116,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
               {title}
             </Text>
             <Text style={[styles.message, { color: colors.textMuted }]}>{message}</Text>
+            {children}
           </View>
 
           <View style={styles.actionsRow}>

@@ -93,13 +93,65 @@ export interface Article {
 
 export type Role = 'user' | 'admin';
 
+export interface UserSession {
+  id: string;
+  userId: string;
+  deviceType: 'mobile' | 'desktop' | 'tablet';
+  browser: string;
+  os: string;
+  lastActiveAt: string;
+  ipAddressMasked: string;
+  isCurrent: boolean;
+}
+
+export interface NotificationPreferences {
+  dailyReminder: boolean;
+  reminderTime: string; // "20:00"
+  reminderDays: number[]; // [1, 2, 3, 4, 5, 6, 0] (0 = Domingo, 1 = Segunda, etc.)
+  newContentAlerts: boolean;
+  favoritePracticesAlerts: boolean;
+  securityAlerts: boolean; // Sempre true (não desativável)
+  emailChannel: boolean;
+  pushChannel: boolean;
+}
+
+export interface AccessibilityPreferences {
+  reducedMotion: boolean;
+  largeText: boolean;
+  highContrast: boolean;
+  reduceTransparency: boolean;
+}
+
+export interface ConsentItem {
+  type: 'terms' | 'privacy' | 'personalization' | 'ai_chat_retention' | 'analytics';
+  title: string;
+  description: string;
+  version: string;
+  isAccepted: boolean;
+  isRequired: boolean;
+  acceptedAt?: string;
+  revokedAt?: string;
+  documentUrl: string;
+}
+
+export interface SecurityEvent {
+  id: string;
+  eventType: 'login' | 'logout' | 'password_change' | 'email_change_request' | 'session_revoked' | 'data_exported';
+  description: string;
+  timestamp: string;
+  ipAddressMasked: string;
+}
+
 export interface User {
   id: string;
   name: string;
   email: string;
   role: Role;
   avatarUrl?: string;
+  isEmailVerified: boolean;
   createdAt: string;
+  updatedAt: string;
+  lastPasswordChangeAt?: string;
   consents: {
     termsAccepted: boolean;
     privacyAccepted: boolean;
@@ -111,11 +163,15 @@ export interface User {
   preferences: {
     theme: 'light' | 'dark' | 'system';
     reducedMotion: boolean;
+    largeText?: boolean;
+    highContrast?: boolean;
+    reduceTransparency?: boolean;
     dailyReminder: boolean;
     reminderTime: string; // "20:00"
     vibrationEnabled: boolean;
     soundEnabled: boolean;
     countryHelpline: string; // "BR"
+    notifications?: NotificationPreferences;
   };
 }
 

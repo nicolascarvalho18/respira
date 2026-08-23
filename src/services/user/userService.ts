@@ -1,93 +1,92 @@
-import { User } from '../../types';
+import { User, UserSession, SecurityEvent } from '../../types';
 import { storage } from '../storage/asyncStorage';
 import { secureStorage } from '../storage/secureStorage';
-import { apiClient, isMockMode } from '../api/apiClient';
+import { userAccountService } from '../../server/services/userAccountService';
 import { logger } from '../../utils/logger';
 
 const CURRENT_USER_KEY = 'respira_current_user';
 
 class UserService {
   async updateProfile(userId: string, partial: Partial<User>): Promise<User> {
-    if (!isMockMode) {
-      return apiClient.put<User>(`/users/${userId}`, partial);
+    let updatedUser: User;
+    if (partial.name) {
+      updatedUser = await userAccountService.updateProfileName(userId, partial.name);
+    } else if (partial.avatarUrl !== undefined) {
+      updatedUser = await userAccountService.updateAvatar(userId, partial.avatarUrl || null);
+    } else {
+      const current = (await storage.getItem<User>(CURRENT_USER_KEY)) || ({} as User);
+      updatedUser = { ...current, ...partial, id: userId };
     }
 
-    const current = (await storage.getItem<User>(CURRENT_USER_KEY)) || ({} as User);
-    const updated: User = {
-      ...current,
-      ...partial,
-      id: userId,
-    };
+    await storage.setItem(CURRENT_USER_KEY, updatedUser);
+    return updatedUser;
+  }
 
+  async updateAvatar(userId: string, avatarUrl: string | null): Promise<User> {
+    const updated = await userAccountService.updateAvatar(userId, avatarUrl);
     await storage.setItem(CURRENT_USER_KEY, updated);
     return updated;
   }
 
-  async updatePreferences(userId: string, preferences: Partial<User['preferences']>): Promise<User> {
-    const current = (await storage.getItem<User>(CURRENT_USER_KEY)) || ({} as User);
-    const updated: User = {
-      ...current,
-      preferences: {
-        ...current.preferences,
-        ...preferences,
-      },
-    };
+  async requestEmailChange(
+    userId: string,
+    newEmail: string,
+    currentPassword?: string
+  ): Promise<{ message: string }> {
+    return await userAccountService.requestEmailChange(userId, newEmail, currentPassword);
+  }
 
+  async changePassword(
+    userId: string,
+    currentPassword?: string,
+    newPassword?: string
+  ): Promise<{ message: string }> {
+    return await userAccountService.changePassword(userId, currentPassword, newPassword);
+  }
+
+  async getActiveSessions(userId: string): Promise<UserSession[]> {
+    return await userAccountService.getActiveSessions(userId);
+  }
+
+  async revokeSession(userId: string, sessionId: string): Promise<UserSession[]> {
+    return await userAccountService.revokeSession(userId, sessionId);
+  }
+
+  async revokeAllOtherSessions(userId: string, currentSessionId: string): Promise<UserSession[]> {
+    return await userAccountService.revokeAllOtherSessions(userId, currentSessionId);
+  }
+
+  async getSecurityEvents(userId: string): Promise<SecurityEvent[]> {
+    return await userAccountService.getSecurityEvents(userId);
+  }
+
+  async updatePreferences(userId: string, preferences: Partial<User['preferences']>): Promise<User> {
+    const updated = await userAccountService.updatePreferences(userId, preferences);
     await storage.setItem(CURRENT_USER_KEY, updated);
     return updated;
   }
 
   async updateConsents(userId: string, consents: Partial<User['consents']>): Promise<User> {
-    const current = (await storage.getItem<User>(CURRENT_USER_KEY)) || ({} as User);
-    const updated: User = {
-      ...current,
-      consents: {
-        ...current.consents,
-        ...consents,
-        acceptedAt: new Date().toISOString(),
-      },
-    };
-
+    const updated = await userAccountService.updateConsents(userId, consents);
     await storage.setItem(CURRENT_USER_KEY, updated);
     return updated;
   }
 
   async exportUserData(userId: string): Promise<string> {
     logger.info(`Exporting data package for user ${userId}`);
-    const user = await storage.getItem<User>(CURRENT_USER_KEY);
-    const moods = (await storage.getItem<any[]>('respira_mood_records')) || [];
-    const favorites = (await storage.getItem<string[]>('respira_favorite_practices')) || [];
-    const chatHistory = (await storage.getItem<any[]>('respira_chat_history')) || [];
-
-    const exportPackage = {
-      exportTimestamp: new Date().toISOString(),
-      appVersion: '1.0.0 (Respira)',
-      user: {
-        id: user?.id,
-        name: user?.name,
-        email: user?.email,
-        createdAt: user?.createdAt,
-        preferences: user?.preferences,
-        consents: user?.consents,
-      },
-      moodRecords: moods,
-      favoritePractices: favorites,
-      chatMessagesCount: chatHistory.length,
-      legalNotice:
-        'Este arquivo contém seus dados de bem-estar exportados em conformidade com as diretrizes de privacidade e LGPD.',
-    };
-
-    return JSON.stringify(exportPackage, null, 2);
+    return await userAccountService.exportUserDataPackage(userId);
   }
 
-  async deleteAccount(userId: string): Promise<boolean> {
+  async deleteAccount(
+    userId: string,
+    confirmationPhrase: string = 'EXCLUIR MINHA CONTA',
+    currentPassword?: string
+  ): Promise<boolean> {
     logger.info(`Deleting account and local data for user ${userId}`);
-    if (!isMockMode) {
-      await apiClient.delete(`/users/${userId}`);
-    }
-
+    await userAccountService.requestAccountDeletion(userId, confirmationPhrase, currentPassword);
     await storage.clear();
     await secureStorage.deleteItem('auth_token');
+    await secureStorage.deleteItem('auth_refresh_token');
     return true;
   }
 }

@@ -74,7 +74,9 @@ class AuthService {
         name: credentials.email.split('@')[0],
         email: credentials.email,
         role: emailLower.includes('admin') ? 'admin' : 'user',
+        isEmailVerified: true,
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         consents: {
           termsAccepted: true,
           privacyAccepted: true,
@@ -98,14 +100,15 @@ class AuthService {
     // Reset failed attempts on success
     this.failedAttemptsMap.delete(emailLower);
 
-    const mockToken = `mock-jwt-token-${user.id}-${Date.now()}`;
-    const mockRefreshToken = `mock-refresh-token-${user.id}-${Date.now()}`;
+    const currentUser: User = user;
+    const mockToken = `mock-jwt-token-${currentUser.id}-${Date.now()}`;
+    const mockRefreshToken = `mock-refresh-token-${currentUser.id}-${Date.now()}`;
     await secureStorage.setItem(TOKEN_KEY, mockToken);
     await secureStorage.setItem(REFRESH_TOKEN_KEY, mockRefreshToken);
-    await storage.setItem(CURRENT_USER_KEY, user);
+    await storage.setItem(CURRENT_USER_KEY, currentUser);
 
-    logger.info(`Simulated login success for: ${user.email}`);
-    return { user, token: mockToken, refreshToken: mockRefreshToken };
+    logger.info(`Simulated login success for: ${currentUser.email}`);
+    return { user: currentUser, token: mockToken, refreshToken: mockRefreshToken };
   }
 
   async register(data: RegisterData): Promise<AuthResponse> {
@@ -127,7 +130,9 @@ class AuthService {
       name: data.name.trim(),
       email: data.email.trim(),
       role: 'user',
+      isEmailVerified: true,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       consents: {
         termsAccepted: data.termsAccepted,
         privacyAccepted: true,
