@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -11,29 +12,25 @@ import {
   Wind,
   Smile,
   Bot,
-  HeartHandshake,
-  Sparkles,
-  ChevronRight,
+  Heart,
   Bookmark,
-  Bell,
-  Clock,
   CheckCircle2,
-  Calendar,
+  Play,
   Layers,
+  Clock,
+  Calendar,
+  HeartHandshake,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
 import { Card } from '../../src/components/ui/Card';
-import { Badge } from '../../src/components/ui/Badge';
-import { AppButton } from '../../src/components/ui/AppButton';
 import { useAuth } from '../../src/hooks/useAuth';
 import { useMoodStore } from '../../src/store/moodStore';
 import { usePracticeStore } from '../../src/store/practiceStore';
-import { useContentStore } from '../../src/store/contentStore';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
 import { getGreeting, formatDate, getRelativeDateLabel } from '../../src/utils/date';
-import { formatPracticesCompleted, formatTimesRealized } from '../../src/utils/grammar';
-import { LEGAL_TEXTS } from '../../src/constants/legal';
+import { BotanicalLeaves } from '../../src/components/illustrations/BotanicalLeaves';
+import { PeacefulLandscape } from '../../src/components/illustrations/PeacefulLandscape';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -43,35 +40,33 @@ export default function HomeScreen() {
 
   const { records } = useMoodStore();
   const { practices, toggleFavorite: togglePracticeFavorite } = usePracticeStore();
-  const { articles, toggleFavorite: toggleArticleFavorite } = useContentStore();
 
   const lastRecord = records.length > 0 ? records[0] : null;
-  const recommendedPractice = practices[0] || null;
-  const featuredArticle = articles[0] || null;
+  const recommendedPractice = practices.find((p) => p.id === 'practice-breathing-478') || practices[0] || null;
 
   const quickActions = [
     {
       title: 'Respirar',
-      desc: 'Técnica 4-7-8 guiada',
+      desc: 'Técnica 4-7-8',
       icon: Wind,
-      color: colors.primary,
-      bg: isDark ? colors.highlight : '#EBF6F4',
+      color: '#2F7F7C',
+      bg: isDark ? colors.surfaceSecondary : '#E2F4F2',
       onPress: () => router.push('/practices/breathing'),
     },
     {
       title: 'Relaxar',
-      desc: 'Relaxamento muscular guiado',
+      desc: 'Relaxamento guiado',
       icon: Layers,
-      color: colors.secondary,
-      bg: isDark ? colors.surfaceSecondary : '#EBF6F0',
+      color: '#2F7F7C',
+      bg: isDark ? colors.surfaceSecondary : '#E2F4ED',
       onPress: () => router.push('/practices/relaxation' as any),
     },
     {
-      title: 'Registrar humor',
+      title: 'Humor',
       desc: 'Check-in do seu momento',
       icon: Smile,
-      color: '#D47754',
-      bg: isDark ? colors.surfaceSecondary : '#FDF2EC',
+      color: '#D98968',
+      bg: isDark ? colors.surfaceSecondary : '#FDECE5',
       onPress: () => router.push('/mood/new'),
     },
     {
@@ -79,7 +74,7 @@ export default function HomeScreen() {
       desc: 'Acolhimento e orientações',
       icon: Bot,
       color: '#426E91',
-      bg: isDark ? colors.surfaceSecondary : '#EDF4F9',
+      bg: isDark ? colors.surfaceSecondary : '#E8EEF5',
       onPress: () => router.push('/chat'),
     },
   ];
@@ -107,13 +102,13 @@ export default function HomeScreen() {
         padding="sm"
         style={{
           backgroundColor: isDark ? '#2D1F1A' : '#FFF4EE',
-          borderColor: colors.warning,
+          borderColor: '#E8A58C',
           marginBottom: 12,
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-          <HeartHandshake size={15} color={colors.warning} style={{ marginRight: 6 }} />
-          <Text style={[styles.sideCardHeading, { color: colors.warning }]}>Precisa de Escuta?</Text>
+          <HeartHandshake size={15} color="#D98968" style={{ marginRight: 6 }} />
+          <Text style={[styles.sideCardHeading, { color: '#D98968' }]}>Precisa de Escuta?</Text>
         </View>
         <Text style={[styles.sideCardText, { color: isDark ? '#F5DDD6' : '#733722' }]}>
           O CVV oferece apoio emocional gratuito pelo número{' '}
@@ -125,7 +120,7 @@ export default function HomeScreen() {
           accessibilityRole="button"
           accessibilityLabel="Ver canais de apoio"
         >
-          <Text style={{ fontSize: 12, fontWeight: '700', color: colors.warning }}>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: '#D98968' }}>
             Ver canais de apoio →
           </Text>
         </TouchableOpacity>
@@ -144,517 +139,506 @@ export default function HomeScreen() {
     </View>
   );
 
-  const userName = user?.name === 'ama' ? 'Ana' : user?.name || 'Ana';
+  const userName = user?.name || 'Ana';
+  const userInitial = userName.trim().charAt(0).toUpperCase() || 'A';
 
   return (
     <AppShell rightPanel={renderDesktopRightPanel()}>
-      {/* 1. Cabeçalho Superior Compacto */}
+      {/* 1. Cabeçalho Superior Redesenhado */}
       <View style={styles.topHeader}>
         <View style={styles.userGreetingRow}>
-          <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
-            <Text style={styles.avatarLetter}>
-              {userName.charAt(0).toUpperCase()}
-            </Text>
+          <View style={[styles.avatarCircle, { backgroundColor: '#173D3B' }]}>
+            <Text style={styles.avatarLetter}>{userInitial}</Text>
           </View>
-          <View>
-            <Text style={[styles.greetingTitle, { color: colors.text }]}>
+          <View style={{ marginLeft: 12 }}>
+            <Text style={[styles.greetingTitle, { color: '#173D3B' }]}>
               {getGreeting(userName)}
             </Text>
-            <Text style={[styles.dateSubtitle, { color: colors.textSecondary }]}>
+            <Text style={[styles.dateSubtitle, { color: '#607174' }]}>
               {formatDate(new Date().toISOString())}
             </Text>
           </View>
         </View>
 
-        <View style={styles.headerRightActions}>
+        <TouchableOpacity
+          onPress={() => router.push('/support')}
+          accessibilityRole="button"
+          accessibilityLabel="Apoio imediato e escuta gratuita"
+          style={[
+            styles.sosHeaderBtn,
+            {
+              backgroundColor: isDark ? '#3D251C' : '#FFF5F0',
+              borderColor: '#F2B5A0',
+            },
+          ]}
+        >
+          <Heart size={15} color="#D98968" strokeWidth={2.2} />
+          <Text style={[styles.sosHeaderText, { color: '#D98968' }]}>Apoio imediato</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 2. Card "Momento atual" com Ilustração Botânica */}
+      <View
+        style={[
+          styles.heroCard,
+          {
+            backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
+            borderColor: isDark ? colors.border : '#D8EBE4',
+          },
+        ]}
+      >
+        {/* Ilustração Botânica sutil à direita */}
+        <BotanicalLeaves
+          width={135}
+          height={145}
+          style={styles.botanicalBg}
+        />
+
+        <View style={styles.heroCardContent}>
+          {/* Badge MOMENTO ATUAL */}
+          <View style={[styles.heroBadge, { backgroundColor: '#D4EAE3' }]}>
+            <Text style={styles.heroBadgeText}>MOMENTO ATUAL</Text>
+          </View>
+
+          {/* Pergunta Principal */}
+          <Text style={[styles.heroQuestion, { color: '#173D3B' }]}>
+            Como você está agora?
+          </Text>
+
+          {/* Último Registro */}
+          <View style={styles.lastRecordRow}>
+            <CheckCircle2 size={16} color="#2F7F7C" style={{ marginRight: 6, marginTop: 2 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.lastRecordTitle, { color: '#173D3B' }]}>
+                Último registro: {lastRecord ? getRelativeDateLabel(lastRecord.createdAt) : 'Nenhum ainda hoje'}
+              </Text>
+              <Text style={[styles.lastRecordMeta, { color: '#567571' }]}>
+                {lastRecord
+                  ? `(Humor ${lastRecord.mood}/5 • Ansiedade ${lastRecord.anxietyLevel}/10)`
+                  : 'Faça um check-in para registrar suas emoções'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Botão Primário "Registrar meu momento" */}
           <TouchableOpacity
-            onPress={() => router.push('/support')}
+            onPress={() => router.push('/mood/new')}
+            activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Canais de apoio e escuta humana"
-            style={[
-              styles.sosHeaderBtn,
-              {
-                backgroundColor: isDark ? '#3D251C' : '#FFF2EB',
-                borderColor: colors.warning,
-              },
-            ]}
+            accessibilityLabel="Registrar meu momento"
+            style={styles.primaryActionButton}
           >
-            <HeartHandshake size={15} color={colors.warning} />
-            <Text style={[styles.sosHeaderText, { color: colors.warning }]}>Apoio Imediato</Text>
+            <Smile size={18} color="#FFFFFF" strokeWidth={2.2} />
+            <Text style={styles.primaryActionText}>Registrar meu momento</Text>
+          </TouchableOpacity>
+
+          {/* Link para o Diário */}
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/diary')}
+            accessibilityRole="link"
+            accessibilityLabel="Ver histórico de evolução"
+            style={styles.historyLinkBtn}
+          >
+            <Text style={styles.historyLinkText}>Ver histórico de evolução →</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* 2. Bloco Principal: "Como você está agora?" */}
-      <Card variant="bordered" style={styles.checkinHeroCard}>
-        <View style={styles.heroContent}>
-          <View style={styles.heroTextCol}>
-            <Badge label="Momento Atual" variant="primary" size="sm" style={{ marginBottom: 6 }} />
-            <Text style={[styles.heroQuestion, { color: colors.text }]}>
-              Como você está agora?
-            </Text>
+      {/* 3. Ações Rápidas (4 Cards Compactos) */}
+      <View style={styles.sectionHeaderRow}>
+        <Text style={[styles.sectionTitle, { color: '#173D3B' }]}>Ações rápidas</Text>
+      </View>
 
-            {lastRecord ? (
-              <View style={styles.lastRecordRow}>
-                <CheckCircle2 size={14} color={colors.success} style={{ marginRight: 6 }} />
-                <Text style={[styles.lastRecordText, { color: colors.textSecondary }]}>
-                  Último registro: {getRelativeDateLabel(lastRecord.createdAt)} (Humor{' '}
-                  {lastRecord.mood}/5 • Ansiedade {lastRecord.anxietyLevel}/10)
-                </Text>
-              </View>
-            ) : (
-              <Text style={[styles.lastRecordText, { color: colors.textSecondary }]}>
-                Registre suas emoções para acompanhar sua rotina com mais clareza.
-              </Text>
-            )}
-          </View>
-
-          <View style={styles.heroActionsCol}>
-            <AppButton
-              title="Registrar meu momento"
-              leftIcon={<Smile size={16} color="#FFFFFF" />}
-              onPress={() => router.push('/mood/new')}
-              size="md"
-            />
-            <TouchableOpacity
-              onPress={() => router.push('/(tabs)/diary')}
-              accessibilityRole="link"
-              accessibilityLabel="Ver histórico completo do diário"
-              style={styles.historyLinkBtn}
-            >
-              <Text style={[styles.historyLinkText, { color: colors.primary }]}>
-                Ver histórico de evolução →
-              </Text>
-            </TouchableOpacity>
-          </View>
+      {isDesktop ? (
+        <View style={styles.quickActionsGridDesktop}>
+          {quickActions.map((action, idx) => {
+            const Icon = action.icon;
+            return (
+              <TouchableOpacity
+                key={idx}
+                activeOpacity={0.8}
+                onPress={action.onPress}
+                accessibilityRole="button"
+                accessibilityLabel={`${action.title}: ${action.desc}`}
+                style={[
+                  styles.quickActionCard,
+                  {
+                    backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                    borderColor: isDark ? colors.border : '#EEF3F1',
+                    flex: 1,
+                  },
+                ]}
+              >
+                <View style={[styles.quickActionIconCircle, { backgroundColor: action.bg }]}>
+                  <Icon size={20} color={action.color} strokeWidth={2} />
+                </View>
+                <Text style={[styles.quickActionTitle, { color: '#173D3B' }]}>{action.title}</Text>
+                <Text style={[styles.quickActionDesc, { color: '#687E7B' }]}>{action.desc}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
-      </Card>
+      ) : (
+        <View style={styles.quickActionsRowMobile}>
+          {quickActions.map((action, idx) => {
+            const Icon = action.icon;
+            return (
+              <TouchableOpacity
+                key={idx}
+                activeOpacity={0.8}
+                onPress={action.onPress}
+                accessibilityRole="button"
+                accessibilityLabel={`${action.title}: ${action.desc}`}
+                style={[
+                  styles.quickActionCard,
+                  {
+                    backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                    borderColor: isDark ? colors.border : '#EEF3F1',
+                  },
+                ]}
+              >
+                <View style={[styles.quickActionIconCircle, { backgroundColor: action.bg }]}>
+                  <Icon size={20} color={action.color} strokeWidth={2} />
+                </View>
+                <Text style={[styles.quickActionTitle, { color: '#173D3B' }]}>{action.title}</Text>
+                <Text style={[styles.quickActionDesc, { color: '#687E7B' }]}>{action.desc}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
 
-      {/* 3. Ações Rápidas (Grid 2x2 no mobile, 4 cols no desktop) */}
-      <View style={styles.sectionHeaderWrap}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Ações Rápidas</Text>
-      </View>
-
-      <View
-        style={[
-          styles.quickActionsGrid,
-          (isDesktop || isTablet) && styles.quickActionsGridDesktop,
-        ]}
-      >
-        {quickActions.map((action, idx) => {
-          const Icon = action.icon;
-          return (
-            <TouchableOpacity
-              key={idx}
-              activeOpacity={0.8}
-              onPress={action.onPress}
-              accessibilityRole="button"
-              accessibilityLabel={`${action.title}: ${action.desc}`}
-              style={[
-                styles.quickActionItem,
-                (isDesktop || isTablet) && styles.quickActionItemDesktop,
-                {
-                  backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                  borderColor: colors.border,
-                },
-                Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined,
-              ]}
-            >
-              <View style={[styles.quickActionIconWrap, { backgroundColor: action.bg }]}>
-                <Icon size={20} color={action.color} />
-              </View>
-              <Text style={[styles.quickActionTitle, { color: colors.text }]}>{action.title}</Text>
-              <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]} numberOfLines={2}>
-                {action.desc}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* 4. Recomendação do Dia Compacta */}
+      {/* 4. Recomendação para Hoje */}
       {recommendedPractice && (
-        <View style={styles.sectionWrap}>
+        <View style={styles.recSectionWrap}>
           <View style={styles.sectionHeaderRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Sparkles size={16} color={colors.primary} style={{ marginRight: 6 }} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                Recomendação para Hoje
-              </Text>
-            </View>
-            <Badge label="Sugerido" variant="success" size="sm" />
+            <Text style={[styles.sectionTitle, { color: '#173D3B' }]}>
+              Recomendação para hoje
+            </Text>
           </View>
 
-          <Card variant="bordered" style={styles.recommendationCard}>
-            <View style={styles.recHeaderRow}>
-              <Badge
-                label={`${recommendedPractice.durationMinutes} min • ${recommendedPractice.level}`}
-                variant="primary"
-                size="sm"
-              />
-              <TouchableOpacity
-                onPress={() => togglePracticeFavorite(recommendedPractice.id)}
-                accessibilityRole="button"
-                accessibilityLabel="Favoritar prática recomendada"
-                style={styles.favBtn}
-              >
-                <Bookmark
-                  size={17}
-                  color={recommendedPractice.isFavorite ? colors.primary : colors.textMuted}
-                  fill={recommendedPractice.isFavorite ? colors.primary : 'none'}
-                />
-              </TouchableOpacity>
-            </View>
+          <View
+            style={[
+              styles.recommendationCard,
+              {
+                backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                borderColor: isDark ? colors.border : '#EEF3F1',
+              },
+            ]}
+          >
+            {/* Ilustração Artística da Paisagem */}
+            <PeacefulLandscape
+              width={88}
+              height={88}
+              borderRadius={14}
+              style={{ alignSelf: 'center' }}
+            />
 
-            <Text style={[styles.recTitle, { color: colors.text }]}>
-              {recommendedPractice.title}
-            </Text>
-            <Text style={[styles.recSubtitle, { color: colors.textSecondary }]}>
-              {recommendedPractice.subtitle || recommendedPractice.description}
-            </Text>
-
-            <View style={styles.recActionRow}>
-              <Text style={[styles.recCompletedText, { color: colors.textMuted }]}>
-                {formatTimesRealized(recommendedPractice.completedCount || 0)}
-              </Text>
-              <AppButton
-                title="Iniciar Prática"
-                onPress={() => {
-                  if (recommendedPractice.category === 'breathing') {
-                    router.push('/practices/breathing');
-                  } else {
-                    router.push(`/practices/player/${recommendedPractice.id}`);
-                  }
-                }}
-                size="sm"
-              />
-            </View>
-          </Card>
-        </View>
-      )}
-
-      {/* 5. Conteúdo em Destaque Compacto */}
-      {featuredArticle && (
-        <View style={styles.sectionWrap}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Conteúdo em Destaque
-            </Text>
-            <TouchableOpacity
-              onPress={() => router.push('/(tabs)/content')}
-              accessibilityRole="button"
-              accessibilityLabel="Ver todos os artigos"
-            >
-              <Text style={[styles.seeAllLink, { color: colors.primary }]}>Ver todos →</Text>
-            </TouchableOpacity>
-          </View>
-
-          <Card variant="bordered" style={styles.editorialCard}>
-            <View style={styles.articleBadgeRow}>
-              <Badge label={featuredArticle.category || featuredArticle.categoryName || 'Artigo'} variant="info" size="sm" />
-              <Text style={[styles.readTimeText, { color: colors.textMuted }]}>
-                {featuredArticle.readingTimeMinutes || featuredArticle.readTimeMinutes || 4} min de leitura
-              </Text>
-            </View>
-
-            <Text style={[styles.editorialTitle, { color: colors.text }]}>
-              {featuredArticle.title}
-            </Text>
-            <Text
-              style={[styles.editorialSummary, { color: colors.textSecondary }]}
-              numberOfLines={2}
-            >
-              {featuredArticle.summary}
-            </Text>
-
-            <View style={styles.editorialFooter}>
-              <TouchableOpacity
-                onPress={() => router.push(`/contents/${featuredArticle.slug || featuredArticle.id}` as any)}
-                style={styles.continueReadBtn}
-                accessibilityRole="link"
-                accessibilityLabel={`Ler artigo ${featuredArticle.title}`}
-              >
-                <Text style={[styles.continueReadText, { color: colors.primary }]}>
-                  Ler artigo
+            {/* Conteúdo da Recomendação */}
+            <View style={styles.recContentCol}>
+              <View style={styles.recTopLine}>
+                <Text style={[styles.recTitle, { color: '#173D3B' }]}>
+                  {recommendedPractice.title}
                 </Text>
-                <ChevronRight size={15} color={colors.primary} />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => togglePracticeFavorite(recommendedPractice.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Favoritar prática recomendada"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Bookmark
+                    size={18}
+                    color="#2F7F7C"
+                    fill={recommendedPractice.isFavorite ? '#2F7F7C' : 'transparent'}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.recMetaText}>
+                {recommendedPractice.durationMinutes} min • {recommendedPractice.level}
+              </Text>
+
+              <Text style={[styles.recDesc, { color: '#687E7B' }]} numberOfLines={2}>
+                {recommendedPractice.description}
+              </Text>
 
               <TouchableOpacity
-                onPress={() => toggleArticleFavorite(featuredArticle.id)}
+                onPress={() => router.push('/practices/breathing')}
+                activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel="Favoritar artigo"
-                style={styles.favBtn}
+                accessibilityLabel={`Iniciar ${recommendedPractice.title}`}
+                style={styles.startPracticeBtn}
               >
-                <Bookmark
-                  size={17}
-                  color={featuredArticle.isFavorite ? colors.primary : colors.textMuted}
-                  fill={featuredArticle.isFavorite ? colors.primary : 'none'}
-                />
+                <Play size={12} color="#FFFFFF" fill="#FFFFFF" />
+                <Text style={styles.startPracticeBtnText}>Iniciar</Text>
               </TouchableOpacity>
             </View>
-          </Card>
+          </View>
         </View>
       )}
-
-      {/* 6. Aviso Institucional */}
-      <View
-        style={[
-          styles.disclaimerBox,
-          {
-            backgroundColor: isDark ? colors.surfaceSecondary : '#F0F5F4',
-            borderColor: colors.border,
-          },
-        ]}
-      >
-        <Text style={[styles.disclaimerText, { color: colors.textMuted }]}>
-          {LEGAL_TEXTS.MEDICAL_DISCLAIMER}
-        </Text>
-      </View>
     </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
+  // 1. Header Superior
   topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 20,
+    paddingTop: 4,
   },
   userGreetingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
   },
   avatarCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarLetter: {
     color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
   },
   greetingTitle: {
     fontSize: 18,
     fontWeight: '800',
-    lineHeight: 22,
+    letterSpacing: -0.2,
   },
   dateSubtitle: {
     fontSize: 12,
-    marginTop: 2,
-  },
-  headerRightActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    marginTop: 1,
   },
   sosHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1.5,
     gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
   },
   sosHeaderText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
   },
-  checkinHeroCard: {
-    padding: 16,
-    marginBottom: 20,
+
+  // 2. Card "Momento Atual"
+  heroCard: {
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 22,
+    borderWidth: 1,
+    overflow: 'hidden',
+    position: 'relative',
+    shadowColor: '#173D3B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  heroContent: {
-    gap: 10,
+  botanicalBg: {
+    position: 'absolute',
+    right: -8,
+    top: 10,
+    zIndex: 0,
   },
-  heroTextCol: {
-    gap: 4,
+  heroCardContent: {
+    zIndex: 1,
+  },
+  heroBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+  },
+  heroBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#2F7F7C',
+    letterSpacing: 0.6,
   },
   heroQuestion: {
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: '800',
-    lineHeight: 26,
+    marginBottom: 12,
+    letterSpacing: -0.3,
   },
   lastRecordRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    maxWidth: '75%',
   },
-  lastRecordText: {
+  lastRecordTitle: {
     fontSize: 13,
-    lineHeight: 18,
+    fontWeight: '600',
   },
-  heroActionsCol: {
-    marginTop: 4,
-    gap: 8,
+  lastRecordMeta: {
+    fontSize: 12,
+    marginTop: 1,
   },
-  historyLinkBtn: {
-    alignSelf: 'flex-start',
-    paddingVertical: 4,
-  },
-  historyLinkText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  sectionHeaderWrap: {
-    marginBottom: 10,
-  },
-  sectionWrap: {
-    marginBottom: 20,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  seeAllLink: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  quickActionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 20,
-  },
-  quickActionsGridDesktop: {
-    flexWrap: 'nowrap',
-  },
-  quickActionItem: {
-    width: '48%',
-    flexGrow: 1,
-    padding: 14,
+  primaryActionButton: {
+    backgroundColor: '#2F7F7C',
     borderRadius: 14,
-    borderWidth: 1.5,
-    gap: 4,
-  },
-  quickActionItemDesktop: {
-    width: '23%',
-    flexGrow: 1,
-  },
-  quickActionIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    height: 46,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    gap: 8,
+    shadowColor: '#2F7F7C',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  quickActionTitle: {
+  primaryActionText: {
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
   },
+  historyLinkBtn: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
+  },
+  historyLinkText: {
+    color: '#2F7F7C',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  // 3. Ações Rápidas
+  sectionHeaderRow: {
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  quickActionsRowMobile: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 22,
+  },
+  quickActionsGridDesktop: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  quickActionCard: {
+    flex: 1,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    shadowColor: '#173D3B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  quickActionIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  quickActionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
   quickActionDesc: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: 2,
+    lineHeight: 13,
+  },
+
+  // 4. Recomendação para Hoje
+  recSectionWrap: {
+    marginBottom: 16,
   },
   recommendationCard: {
-    padding: 16,
-    gap: 8,
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderWidth: 1,
+    shadowColor: '#173D3B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
-  recHeaderRow: {
+  recContentCol: {
+    flex: 1,
+  },
+  recTopLine: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  favBtn: {
-    padding: 4,
   },
   recTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
-  recSubtitle: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  recActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 4,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F4F4',
-  },
-  recCompletedText: {
+  recMetaText: {
     fontSize: 12,
+    fontWeight: '700',
+    color: '#2F7F7C',
+    marginTop: 2,
+    marginBottom: 4,
   },
-  editorialCard: {
-    padding: 16,
-    gap: 8,
-  },
-  articleBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  readTimeText: {
+  recDesc: {
     fontSize: 12,
-  },
-  editorialTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    lineHeight: 22,
-  },
-  editorialSummary: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  editorialFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 4,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F4F4',
-  },
-  continueReadBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  continueReadText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  disclaimerBox: {
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginTop: 6,
-    marginBottom: 20,
-  },
-  disclaimerText: {
-    fontSize: 11,
-    textAlign: 'center',
     lineHeight: 16,
-  },
-  sidePanelWrap: {
-    gap: 6,
-  },
-  sidePanelTitle: {
-    fontSize: 17,
-    fontWeight: '700',
     marginBottom: 10,
   },
-  sideCardHeading: {
+  startPracticeBtn: {
+    backgroundColor: '#2F7F7C',
+    height: 32,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+  },
+  startPracticeBtnText: {
+    color: '#FFFFFF',
     fontSize: 12,
+    fontWeight: '700',
+  },
+
+  // Desktop Side Panel
+  sidePanelWrap: {
+    gap: 12,
+  },
+  sidePanelTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  sideCardHeading: {
+    fontSize: 13,
     fontWeight: '700',
   },
   sideCardText: {
     fontSize: 12,
-    lineHeight: 16,
+    lineHeight: 17,
   },
 });
