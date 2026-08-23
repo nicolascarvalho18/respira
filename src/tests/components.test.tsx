@@ -1,11 +1,13 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import { AppButton } from '../components/ui/AppButton';
+import { Chip } from '../components/ui/Chip';
+import { Badge } from '../components/ui/Badge';
 import { MoodSelector } from '../components/mood/MoodSelector';
 import { AnxietySlider } from '../components/mood/AnxietySlider';
 
-describe('Core UI Components Accessibility and Interaction Tests', () => {
-  it('renders AppButton with title and handles press events', () => {
+describe('Core UI Design System Accessibility and Interaction Tests', () => {
+  it('renders AppButton and triggers onPress event', () => {
     const onPressMock = jest.fn();
     const { getByText } = render(
       <AppButton title="Iniciar Respiração" onPress={onPressMock} />
@@ -18,7 +20,25 @@ describe('Core UI Components Accessibility and Interaction Tests', () => {
     expect(onPressMock).toHaveBeenCalledTimes(1);
   });
 
-  it('renders MoodSelector with 1-5 scale and calls onChange when clicked', () => {
+  it('renders Chip with selected state and calls onPress', () => {
+    const onPressMock = jest.fn();
+    const { getByText } = render(
+      <Chip label="Respiração" selected={true} count={4} onPress={onPressMock} />
+    );
+
+    const chipText = getByText('Respiração');
+    expect(chipText).toBeTruthy();
+
+    fireEvent.press(chipText);
+    expect(onPressMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders Badge with text and uppercase label', () => {
+    const { getByText } = render(<Badge label="Personalizado" variant="success" />);
+    expect(getByText('Personalizado')).toBeTruthy();
+  });
+
+  it('renders MoodSelector and handles selection', () => {
     const onChangeMock = jest.fn();
     const { getByLabelText } = render(
       <MoodSelector value={3} onChange={onChangeMock} />
@@ -31,7 +51,7 @@ describe('Core UI Components Accessibility and Interaction Tests', () => {
     expect(onChangeMock).toHaveBeenCalledWith(5);
   });
 
-  it('renders AnxietySlider and allows changing anxiety level', () => {
+  it('renders AnxietySlider and handles change', () => {
     const onChangeMock = jest.fn();
     const { getByLabelText } = render(
       <AnxietySlider value={2} onChange={onChangeMock} />

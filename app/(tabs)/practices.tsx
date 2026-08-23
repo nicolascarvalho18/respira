@@ -1,219 +1,240 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { Wind, Search, Bookmark, Play, Sparkles } from 'lucide-react-native';
-import { ScreenContainer } from '../../src/components/ui/ScreenContainer';
-import { AppHeader } from '../../src/components/ui/AppHeader';
-import { AppInput } from '../../src/components/ui/AppInput';
+import {
+  Wind,
+} from 'lucide-react-native';
+import { AppShell } from '../../src/components/layout/AppShell';
+import { SearchInput } from '../../src/components/ui/SearchInput';
+import { Chip } from '../../src/components/ui/Chip';
 import { PracticeCard } from '../../src/components/practices/PracticeCard';
 import { EmptyState } from '../../src/components/ui/EmptyState';
+import { Card } from '../../src/components/ui/Card';
+import { Badge } from '../../src/components/ui/Badge';
+import { AppButton } from '../../src/components/ui/AppButton';
 import { usePracticeStore } from '../../src/store/practiceStore';
 import { useTheme } from '../../src/hooks/useTheme';
-import { PracticeCategory } from '../../src/types';
-
-const CATEGORIES: { id: PracticeCategory | 'all' | 'favorites'; name: string }[] = [
-  { id: 'all', name: 'Todas' },
-  { id: 'breathing', name: 'Respiração' },
-  { id: 'relaxation', name: 'Relaxamento' },
-  { id: 'mindfulness', name: 'Atenção Plena' },
-  { id: 'quick_routine', name: 'Rotinas Rápidas' },
-  { id: 'favorites', name: 'Favoritas' },
-];
+import { useBreakpoint } from '../../src/hooks/useBreakpoint';
 
 export default function PracticesScreen() {
   const router = useRouter();
-  const { colors, isDark } = useTheme();
-  const {
-    selectedCategory,
-    setSelectedCategory,
-    searchQuery,
-    setSearchQuery,
-    toggleFavorite,
-    getFilteredPractices,
-  } = usePracticeStore();
+  const { colors } = useTheme();
+  const { isDesktop, isTablet } = useBreakpoint();
 
-  const filteredPractices = getFilteredPractices();
+  const { practices, toggleFavorite } = usePracticeStore();
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
+  const categories = [
+    { id: 'all', label: 'Todas as Práticas' },
+    { id: 'breathing', label: 'Respiração' },
+    { id: 'relaxation', label: 'Relaxamento' },
+    { id: 'mindfulness', label: 'Atenção Plena' },
+    { id: 'quick', label: 'Rotinas Rápidas' },
+    { id: 'favorites', label: 'Favoritas' },
+  ];
+
+  const filteredPractices = practices.filter((item) => {
+    const matchesSearch =
+      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.description.toLowerCase().includes(searchQuery.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    if (selectedCategory === 'all') return true;
+    if (selectedCategory === 'favorites') return item.isFavorite;
+    return item.category === selectedCategory;
+  });
+
+  const featured = practices[0] || null;
 
   return (
-    <ScreenContainer scrollable>
-      <AppHeader
-        title="Práticas e Ferramentas"
-        subtitle="Exercícios guiados para acalmar o corpo e a mente"
-      />
+    <AppShell>
+      {/* Cabeçalho da Página */}
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.text }]}>Práticas e Ferramentas</Text>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+          Exercícios guiados com base científica para regulação e relaxamento.
+        </Text>
+      </View>
 
-      {/* Destaque: Exercício de Respiração Imersivo */}
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={() => router.push('/practices/breathing')}
-        accessibilityRole="button"
-        accessibilityLabel="Iniciar Exercício de Respiração Imersivo"
-        style={[
-          styles.breathingHero,
-          {
-            backgroundColor: colors.primary,
-            shadowColor: colors.primary,
-          },
-        ]}
-      >
-        <View style={{ flex: 1, paddingRight: 12 }}>
-          <View style={styles.heroBadge}>
-            <Sparkles size={12} color={colors.primary} />
-            <Text style={[styles.heroBadgeText, { color: colors.primary }]}>Destaque Interativo</Text>
+      {/* Destaque Principal Único */}
+      {featured && selectedCategory === 'all' && !searchQuery && (
+        <Card variant="bordered" style={styles.heroFeaturedCard}>
+          <View style={styles.heroBadgeRow}>
+            <Badge label="Destaque do Dia" variant="primary" size="sm" />
+            <Text style={[styles.heroDuration, { color: colors.textMuted }]}>
+              {featured.durationMinutes} min • {featured.level}
+            </Text>
           </View>
-          <Text style={styles.heroTitle}>Exercício de Respiração</Text>
-          <Text style={styles.heroSubtitle}>
-            Animação guiada com as técnicas 4-7-8, Respiração Quadrada e Coerência Cardíaca.
-          </Text>
-        </View>
 
-        <View style={styles.heroPlayCircle}>
-          <Play size={22} color={colors.primary} fill={colors.primary} style={{ marginLeft: 3 }} />
-        </View>
-      </TouchableOpacity>
+          <Text style={[styles.heroTitle, { color: colors.text }]}>{featured.title}</Text>
+          <Text style={[styles.heroDesc, { color: colors.textMuted }]}>{featured.description}</Text>
 
-      {/* Campo de Busca */}
-      <AppInput
-        placeholder="Buscar prática por nome ou objetivo..."
+          <View style={styles.heroActionRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.heroCompletions, { color: colors.primary }]}>
+                ✓ Concluído {featured.completedCount || 0} vezes
+              </Text>
+            </View>
+            <AppButton
+              title="Praticar Agora"
+              leftIcon={<Wind size={18} color="#FFFFFF" />}
+              onPress={() => {
+                if (featured.category === 'breathing') {
+                  router.push('/practices/breathing');
+                } else {
+                  router.push(`/practices/player/${featured.id}`);
+                }
+              }}
+              size="md"
+            />
+          </View>
+        </Card>
+      )}
+
+      {/* Barra de Busca com Debounce */}
+      <SearchInput
         value={searchQuery}
         onChangeText={setSearchQuery}
-        leftIcon={<Search size={18} color={colors.textMuted} />}
-        containerStyle={{ marginBottom: 12 }}
+        placeholder="Buscar exercícios, meditação, 4-7-8..."
       />
 
-      {/* Barra de Categorias */}
+      {/* Filtros Horizontais com Rolagem no Mobile e Inline no Desktop */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoriesRow}
+        contentContainerStyle={styles.categoryScroll}
       >
-        {CATEGORIES.map((cat) => {
-          const isSelected = selectedCategory === cat.id;
-
-          return (
-            <TouchableOpacity
-              key={cat.id}
-              onPress={() => setSelectedCategory(cat.id)}
-              style={[
-                styles.categoryChip,
-                {
-                  backgroundColor: isSelected
-                    ? colors.primary
-                    : isDark
-                      ? colors.surfaceSubtle
-                      : '#FFFFFF',
-                  borderColor: isSelected ? colors.primary : colors.border,
-                },
-              ]}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: isSelected }}
-              accessibilityLabel={`Categoria: ${cat.name}`}
-            >
-              <Text
-                style={[
-                  styles.categoryText,
-                  {
-                    color: isSelected ? '#FFFFFF' : colors.text,
-                    fontWeight: isSelected ? '700' : '500',
-                  },
-                ]}
-              >
-                {cat.name}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+        {categories.map((cat) => (
+          <Chip
+            key={cat.id}
+            label={cat.label}
+            selected={selectedCategory === cat.id}
+            onPress={() => setSelectedCategory(cat.id)}
+          />
+        ))}
       </ScrollView>
 
-      {/* Lista de Práticas */}
-      <View style={styles.listSection}>
-        {filteredPractices.length === 0 ? (
-          <EmptyState
-            title="Nenhuma prática encontrada"
-            description="Tente buscar com outras palavras ou selecione outra categoria."
-            actionTitle="Ver todas as práticas"
-            onActionPress={() => {
-              setSelectedCategory('all');
-              setSearchQuery('');
-            }}
-          />
-        ) : (
-          filteredPractices.map((practice) => (
-            <PracticeCard
+      {/* Grid de Práticas (2 a 3 colunas no desktop) */}
+      {filteredPractices.length === 0 ? (
+        <EmptyState
+          title="Nenhuma prática encontrada"
+          description="Tente ajustar sua busca ou selecionar outra categoria acima."
+          actionTitle="Limpar Filtros"
+          onActionPress={() => {
+            setSearchQuery('');
+            setSelectedCategory('all');
+          }}
+        />
+      ) : (
+        <View
+          style={[
+            styles.practiceGrid,
+            (isDesktop || isTablet) && styles.practiceGridDesktop,
+          ]}
+        >
+          {filteredPractices.map((practice) => (
+            <View
               key={practice.id}
-              practice={practice}
-              onToggleFavorite={toggleFavorite}
-            />
-          ))
-        )}
-      </View>
-    </ScreenContainer>
+              style={[
+                styles.gridCol,
+                (isDesktop || isTablet) && styles.gridColDesktop,
+              ]}
+            >
+              <PracticeCard
+                practice={practice}
+                onPress={() => {
+                  if (practice.category === 'breathing') {
+                    router.push('/practices/breathing');
+                  } else if (practice.id === 'practice-grounding-54321') {
+                    router.push('/practices/grounding' as any);
+                  } else if (practice.id === 'practice-pmr-relaxation') {
+                    router.push('/practices/relaxation' as any);
+                  } else {
+                    router.push(`/practices/player/${practice.id}`);
+                  }
+                }}
+                onToggleFavorite={() => toggleFavorite(practice.id)}
+              />
+            </View>
+          ))}
+        </View>
+      )}
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  breathingHero: {
+  header: {
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
+    lineHeight: 28,
+  },
+  subtitle: {
+    fontSize: 14,
+    marginTop: 2,
+    lineHeight: 20,
+  },
+  heroFeaturedCard: {
+    gap: 10,
+    marginBottom: 20,
+  },
+  heroBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 20,
-    borderRadius: 24,
-    marginBottom: 16,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 5,
   },
-  heroBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    gap: 4,
-    marginBottom: 8,
-  },
-  heroBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
+  heroDuration: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   heroTitle: {
-    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '800',
-    marginBottom: 4,
   },
-  heroSubtitle: {
-    color: '#DDEFE9',
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  heroPlayCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoriesRow: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingVertical: 4,
-    marginBottom: 16,
-  },
-  categoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  categoryText: {
+  heroDesc: {
     fontSize: 13,
+    lineHeight: 18,
   },
-  listSection: {
-    paddingBottom: 24,
+  heroActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
+  heroCompletions: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  categoryScroll: {
+    flexDirection: 'row',
+    paddingVertical: 10,
+    gap: 4,
+  },
+  practiceGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 14,
+    marginVertical: 14,
+  },
+  practiceGridDesktop: {
+    flexWrap: 'wrap',
+  },
+  gridCol: {
+    width: '100%',
+  },
+  gridColDesktop: {
+    width: '48%',
+    flexGrow: 1,
   },
 });

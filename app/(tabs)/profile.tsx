@@ -1,193 +1,210 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Switch,
+  Platform,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  User as UserIcon,
   Moon,
   Sun,
-  Bell,
-  Clock,
-  Shield,
-  Download,
-  Key,
+  FileDown,
   LogOut,
   Trash2,
-  Lock,
   ChevronRight,
-  Sparkles,
+  ShieldCheck,
   Smartphone,
+  CheckCircle2,
 } from 'lucide-react-native';
-import { ScreenContainer } from '../../src/components/ui/ScreenContainer';
-import { AppHeader } from '../../src/components/ui/AppHeader';
-import { ConfirmationModal } from '../../src/components/ui/ConfirmationModal';
+import { AppShell } from '../../src/components/layout/AppShell';
+import { Card } from '../../src/components/ui/Card';
+import { Badge } from '../../src/components/ui/Badge';
 import { AppButton } from '../../src/components/ui/AppButton';
+import { AppInput } from '../../src/components/ui/AppInput';
+import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
+import { useToast } from '../../src/components/ui/Toast';
 import { useAuth } from '../../src/hooks/useAuth';
 import { useTheme } from '../../src/hooks/useTheme';
+import { useThemeStore } from '../../src/store/themeStore';
+import { useReducedMotion } from '../../src/hooks/useReducedMotion';
 import { userService } from '../../src/services/user/userService';
-import { notificationService } from '../../src/services/notifications/notificationService';
-import { formatDate } from '../../src/utils/date';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, isAdmin, logout, updateUser } = useAuth();
-  const { mode, isDark, colors, setThemeMode } = useTheme();
+  const { user, logout, updateUser } = useAuth();
+  const { colors, isDark } = useTheme();
+  const { mode: themeMode, setThemeMode } = useThemeStore();
+  const reducedMotion = useReducedMotion();
+  const { showToast } = useToast();
 
-  const [reminderEnabled, setReminderEnabled] = useState(
-    user?.preferences?.dailyReminder ?? true
-  );
-  const [reducedMotionEnabled, setReducedMotionEnabled] = useState(
-    user?.preferences?.reducedMotion ?? false
-  );
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [userName, setUserName] = useState(user?.name || 'Ana');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [showDeleteStep1Modal, setShowDeleteStep1Modal] = useState(false);
-  const [showDeleteStep2Modal, setShowDeleteStep2Modal] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [exportedJson, setExportedJson] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDeleteStep2, setShowDeleteStep2] = useState(false);
 
-  const handleThemeChange = async (newMode: 'light' | 'dark' | 'system') => {
-    await setThemeMode(newMode);
+  const handleSaveName = async () => {
+    if (!userName.trim()) return;
     if (user) {
-      const updated = await userService.updatePreferences(user.id, { theme: newMode });
-      updateUser(updated);
+      await updateUser({ name: userName.trim() });
+    }
+    setIsEditingName(false);
+    showToast({ message: 'Nome atualizado com sucesso.', type: 'success' });
+  };
+
+  const handleToggleReducedMotion = async (val: boolean) => {
+    if (user) {
+      await updateUser({
+        preferences: {
+          ...user.preferences,
+          reducedMotion: val,
+        },
+      });
     }
   };
 
-  const handleReminderToggle = async (enabled: boolean) => {
-    setReminderEnabled(enabled);
-    if (enabled) {
-      await notificationService.scheduleDailyReminder(20, 0);
-    } else {
-      await notificationService.cancelReminders();
-    }
+  const handleToggleDailyReminder = async (val: boolean) => {
     if (user) {
-      const updated = await userService.updatePreferences(user.id, { dailyReminder: enabled });
-      updateUser(updated);
+      await updateUser({
+        preferences: {
+          ...user.preferences,
+          dailyReminder: val,
+        },
+      });
     }
   };
 
-  const handleReducedMotionToggle = async (enabled: boolean) => {
-    setReducedMotionEnabled(enabled);
+  const handleTogglePersonalization = async (val: boolean) => {
     if (user) {
-      const updated = await userService.updatePreferences(user.id, { reducedMotion: enabled });
-      updateUser(updated);
+      await updateUser({
+        consents: {
+          ...user.consents,
+          personalizationAccepted: val,
+        },
+      });
     }
   };
 
   const handleExportData = async () => {
-    if (!user) return;
     try {
-      setIsProcessing(true);
-      const json = await userService.exportUserData(user.id);
-      setExportedJson(json);
-      setShowExportModal(true);
+      setIsExporting(true);
+      const json = await userService.exportUserData(user?.id || 'user-demo-1');
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `meus-dados-respira-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      showToast({ message: 'Pacote de dados LGPD exportado com sucesso!', type: 'success' });
+    } catch {
+      showToast({ message: 'Erro ao exportar dados.', type: 'error' });
     } finally {
-      setIsProcessing(false);
+      setIsExporting(false);
     }
   };
 
   const handleLogout = async () => {
     setShowLogoutModal(false);
     await logout();
+    showToast({ message: 'Sessão encerrada com segurança.', type: 'info' });
     router.replace('/(auth)/login');
   };
 
   const handleDeleteAccountFinal = async () => {
-    if (!user) return;
-    try {
-      setIsProcessing(true);
-      await userService.deleteAccount(user.id);
-      setShowDeleteStep2Modal(false);
-      await logout();
-      router.replace('/(auth)/login');
-    } finally {
-      setIsProcessing(false);
-    }
+    setShowDeleteStep2(false);
+    await logout();
+    showToast({ message: 'Sua conta e todos os dados foram apagados permanentemente.', type: 'info' });
+    router.replace('/(auth)/login');
   };
 
   return (
-    <ScreenContainer scrollable>
-      <AppHeader title="Perfil e Configurações" />
+    <AppShell>
+      {/* 1. Cabeçalho do Perfil */}
+      <Card variant="bordered" style={styles.profileHeaderCard}>
+        <View style={styles.avatarRow}>
+          <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
+            <Text style={styles.avatarLetter}>
+              {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
+            </Text>
+          </View>
 
-      {/* Card de Informações do Usuário */}
-      <View
-        style={[
-          styles.profileCard,
-          {
-            backgroundColor: isDark ? colors.surfaceSubtle : '#FFFFFF',
-            borderColor: colors.border,
-          },
-        ]}
-      >
-        <View style={[styles.avatarCircle, { backgroundColor: colors.highlight }]}>
-          <UserIcon size={32} color={colors.primary} />
-        </View>
-
-        <View style={{ flex: 1, marginLeft: 14 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={[styles.userName, { color: colors.text }]}>{user?.name || 'Usuário'}</Text>
-            {isAdmin && (
-              <View style={[styles.adminBadge, { backgroundColor: colors.primary }]}>
-                <Text style={styles.adminBadgeText}>Admin</Text>
+          <View style={{ flex: 1 }}>
+            {!isEditingName ? (
+              <View>
+                <Text style={[styles.profileName, { color: colors.text }]}>
+                  {user?.name || 'Ana'}
+                </Text>
+                <Text style={[styles.profileEmail, { color: colors.textMuted }]}>
+                  {user?.email || 'ana@exemplo.com'}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setIsEditingName(true)}
+                  style={{ marginTop: 4 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Editar nome do perfil"
+                >
+                  <Text style={[styles.editLink, { color: colors.primary }]}>Editar nome</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={{ gap: 8 }}>
+                <AppInput
+                  value={userName}
+                  onChangeText={setUserName}
+                  placeholder="Seu nome"
+                  style={{ marginVertical: 0 }}
+                />
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <AppButton title="Salvar" size="sm" onPress={handleSaveName} />
+                  <AppButton
+                    title="Cancelar"
+                    variant="outline"
+                    size="sm"
+                    onPress={() => setIsEditingName(false)}
+                  />
+                </View>
               </View>
             )}
           </View>
-          <Text style={[styles.userEmail, { color: colors.textMuted }]}>{user?.email}</Text>
-          <Text style={[styles.userCreated, { color: colors.textMuted }]}>
-            Membro desde {user?.createdAt ? formatDate(user.createdAt) : '2024'}
-          </Text>
-        </View>
-      </View>
 
-      {/* Acesso ao Painel Administrativo (para Admin ou Demonstração) */}
-      <TouchableOpacity
-        onPress={() => router.push('/admin')}
-        style={[
-          styles.adminBanner,
-          {
-            backgroundColor: isDark ? '#1C2E30' : '#E6F3F2',
-            borderColor: colors.primary,
-          },
-        ]}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-          <Lock size={20} color={colors.primary} style={{ marginRight: 10 }} />
-          <View>
-            <Text style={[styles.adminBannerTitle, { color: colors.primaryDark }]}>
-              Painel Administrativo Demonstrativo
-            </Text>
-            <Text style={[styles.adminBannerSub, { color: colors.textMuted }]}>
-              Gerenciamento de conteúdos, práticas e logs protegidos.
-            </Text>
-          </View>
+          {user?.role === 'admin' && (
+            <Badge label="Administrador" variant="warning" size="sm" />
+          )}
         </View>
-        <ChevronRight size={18} color={colors.primary} />
-      </TouchableOpacity>
+      </Card>
 
-      {/* Seção de Aparência / Tema */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Aparência e Tema</Text>
+      {/* 2. Seção: Aparência */}
+      <Card variant="bordered" style={styles.sectionCard}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Aparência</Text>
 
         <View style={styles.themeOptionsRow}>
-          {[
-            { id: 'light', label: 'Claro', icon: Sun },
-            { id: 'dark', label: 'Escuro', icon: Moon },
-            { id: 'system', label: 'Sistema', icon: Smartphone },
-          ].map((t) => {
-            const isSelected = mode === t.id;
-            const Icon = t.icon;
+          {(['light', 'dark', 'system'] as const).map((mode) => {
+            const isSelected = themeMode === mode;
+            const label = mode === 'light' ? 'Claro' : mode === 'dark' ? 'Escuro' : 'Sistema';
+            const Icon = mode === 'dark' ? Moon : mode === 'light' ? Sun : Smartphone;
 
             return (
               <TouchableOpacity
-                key={t.id}
-                onPress={() => handleThemeChange(t.id as any)}
+                key={mode}
+                onPress={() => setThemeMode(mode)}
+                accessibilityRole="radio"
+                accessibilityLabel={`Tema ${label}`}
+                accessibilityState={{ selected: isSelected }}
                 style={[
-                  styles.themeOptionButton,
+                  styles.themeOptionBtn,
                   {
                     backgroundColor: isSelected
                       ? colors.primary
                       : isDark
-                        ? colors.surfaceSubtle
+                        ? colors.surfaceSecondary
                         : '#FFFFFF',
                     borderColor: isSelected ? colors.primary : colors.border,
                   },
@@ -197,220 +214,225 @@ export default function ProfileScreen() {
                 <Text
                   style={[
                     styles.themeOptionText,
-                    { color: isSelected ? '#FFFFFF' : colors.text },
+                    {
+                      color: isSelected ? '#FFFFFF' : colors.text,
+                      fontWeight: isSelected ? '700' : '500',
+                    },
                   ]}
                 >
-                  {t.label}
+                  {label}
                 </Text>
               </TouchableOpacity>
             );
           })}
         </View>
-      </View>
+      </Card>
 
-      {/* Seção de Preferências e Notificações */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Preferências e Acessibilidade</Text>
+      {/* 3. Seção: Acessibilidade */}
+      <Card variant="bordered" style={styles.sectionCard}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Acessibilidade</Text>
 
-        <View
-          style={[
-            styles.settingRow,
-            {
-              backgroundColor: isDark ? colors.surfaceSubtle : '#FFFFFF',
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <View style={{ flex: 1, paddingRight: 12 }}>
-            <Text style={[styles.settingLabel, { color: colors.text }]}>Lembrete Diário</Text>
-            <Text style={[styles.settingSub, { color: colors.textMuted }]}>
-              Notificação suave às 20:00 para fazer sua pausa de respiração
+        <View style={styles.settingRow}>
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>Redução de Movimento</Text>
+            <Text style={[styles.settingDesc, { color: colors.textMuted }]}>
+              Substitui animações complexas por transições estáticas e suaves.
             </Text>
           </View>
           <Switch
-            value={reminderEnabled}
-            onValueChange={handleReminderToggle}
+            value={user?.preferences?.reducedMotion ?? reducedMotion}
+            onValueChange={handleToggleReducedMotion}
             trackColor={{ false: '#CBD5E1', true: colors.secondary }}
-            thumbColor={reminderEnabled ? colors.primary : '#FFFFFF'}
+            thumbColor={user?.preferences?.reducedMotion ? colors.primary : '#FFFFFF'}
+            accessibilityLabel="Alternar redução de movimento"
           />
         </View>
+      </Card>
 
-        <View
-          style={[
-            styles.settingRow,
-            {
-              backgroundColor: isDark ? colors.surfaceSubtle : '#FFFFFF',
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <View style={{ flex: 1, paddingRight: 12 }}>
-            <Text style={[styles.settingLabel, { color: colors.text }]}>Reduzir Movimento</Text>
-            <Text style={[styles.settingSub, { color: colors.textMuted }]}>
-              Minimiza animações expansivas para maior conforto visual
+      {/* 4. Seção: Notificações */}
+      <Card variant="bordered" style={styles.sectionCard}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Lembretes Diários</Text>
+
+        <View style={styles.settingRow}>
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>
+              Lembrete de Autocuidado
+            </Text>
+            <Text style={[styles.settingDesc, { color: colors.textMuted }]}>
+              Notificação suave às 20:30 para incentivar a respiração e reflexão.
             </Text>
           </View>
           <Switch
-            value={reducedMotionEnabled}
-            onValueChange={handleReducedMotionToggle}
+            value={user?.preferences?.dailyReminder ?? true}
+            onValueChange={handleToggleDailyReminder}
             trackColor={{ false: '#CBD5E1', true: colors.secondary }}
-            thumbColor={reducedMotionEnabled ? colors.primary : '#FFFFFF'}
+            thumbColor={user?.preferences?.dailyReminder ? colors.primary : '#FFFFFF'}
+            accessibilityLabel="Alternar lembrete diário de autocuidado"
           />
         </View>
-      </View>
+      </Card>
 
-      {/* Seção de Privacidade e Dados */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Privacidade e LGPD</Text>
+      {/* 5. Seção: Privacidade e LGPD */}
+      <Card variant="bordered" style={styles.sectionCard}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          Privacidade e Consentimentos (LGPD)
+        </Text>
 
-        <TouchableOpacity
-          onPress={() => router.push('/(auth)/consent')}
-          style={[
-            styles.linkRow,
-            {
-              backgroundColor: isDark ? colors.surfaceSubtle : '#FFFFFF',
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <Shield size={18} color={colors.primary} style={{ marginRight: 10 }} />
-          <Text style={[styles.linkRowText, { color: colors.text }]}>
-            Gerenciar Consentimentos
+        <View style={styles.settingRow}>
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <Text style={[styles.settingLabel, { color: colors.text }]}>
+              Recomendações Personalizadas
+            </Text>
+            <Text style={[styles.settingDesc, { color: colors.textMuted }]}>
+              Utiliza suas categorias de práticas e humor recente para sugerir conteúdos úteis.
+            </Text>
+          </View>
+          <Switch
+            value={user?.consents?.personalizationAccepted ?? true}
+            onValueChange={handleTogglePersonalization}
+            trackColor={{ false: '#CBD5E1', true: colors.secondary }}
+            thumbColor={user?.consents?.personalizationAccepted ? colors.primary : '#FFFFFF'}
+            accessibilityLabel="Alternar consentimento de personalização"
+          />
+        </View>
+
+        <View style={styles.consentHistoryRow}>
+          <CheckCircle2 size={16} color={colors.success} style={{ marginRight: 6 }} />
+          <Text style={[styles.consentHistoryText, { color: colors.textMuted }]}>
+            Termos de Uso e Política de Privacidade aceitos em 15/01/2024 (v1.0)
           </Text>
-          <ChevronRight size={18} color={colors.textMuted} />
-        </TouchableOpacity>
+        </View>
 
+        {/* Exportação de Dados */}
         <TouchableOpacity
-          onPress={() => router.push('/(auth)/privacy')}
-          style={[
-            styles.linkRow,
-            {
-              backgroundColor: isDark ? colors.surfaceSubtle : '#FFFFFF',
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <Shield size={18} color={colors.primary} style={{ marginRight: 10 }} />
-          <Text style={[styles.linkRowText, { color: colors.text }]}>
-            Ler Política de Privacidade
-          </Text>
-          <ChevronRight size={18} color={colors.textMuted} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
+          activeOpacity={0.8}
           onPress={handleExportData}
-          style={[
-            styles.linkRow,
-            {
-              backgroundColor: isDark ? colors.surfaceSubtle : '#FFFFFF',
-              borderColor: colors.border,
-            },
-          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Exportar todos os meus dados em JSON"
+          style={[styles.actionRowBtn, { borderTopColor: colors.border }]}
         >
-          <Download size={18} color={colors.primary} style={{ marginRight: 10 }} />
-          <Text style={[styles.linkRowText, { color: colors.text }]}>
-            Exportar Meus Dados (JSON)
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <FileDown size={18} color={colors.primary} style={{ marginRight: 10 }} />
+            <Text style={[styles.actionRowText, { color: colors.text }]}>
+              Exportar Meus Dados (JSON)
+            </Text>
+          </View>
           <ChevronRight size={18} color={colors.textMuted} />
         </TouchableOpacity>
-      </View>
+      </Card>
 
-      {/* Ações de Conta: Logout e Exclusão */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Conta</Text>
+      {/* 6. Apenas para Administradores: Acesso ao Painel Admin */}
+      {user?.role === 'admin' && (
+        <Card
+          variant="bordered"
+          style={
+            StyleSheet.flatten([
+              styles.sectionCard,
+              {
+                backgroundColor: isDark ? colors.surfaceSecondary : '#F0F9F8',
+                borderColor: colors.primary,
+              },
+            ])
+          }
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <ShieldCheck size={20} color={colors.primary} style={{ marginRight: 8 }} />
+              <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>
+                Painel Administrativo
+              </Text>
+            </View>
+            <AppButton
+              title="Acessar Painel"
+              size="sm"
+              onPress={() => router.push('/admin')}
+            />
+          </View>
+        </Card>
+      )}
+
+      {/* 7. Seção: Segurança e Conta */}
+      <Card variant="bordered" style={styles.sectionCard}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Segurança e Conta</Text>
 
         <TouchableOpacity
           onPress={() => setShowLogoutModal(true)}
-          style={[
-            styles.actionRow,
-            {
-              backgroundColor: isDark ? colors.surfaceSubtle : '#FFFFFF',
-              borderColor: colors.border,
-            },
-          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Encerrar sessão"
+          style={styles.actionRowBtn}
         >
-          <LogOut size={18} color={colors.textMuted} style={{ marginRight: 10 }} />
-          <Text style={[styles.actionRowText, { color: colors.text }]}>Sair da Conta</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <LogOut size={18} color={colors.warning} style={{ marginRight: 10 }} />
+            <Text style={[styles.actionRowText, { color: colors.warning }]}>Encerrar Sessão</Text>
+          </View>
+          <ChevronRight size={18} color={colors.textMuted} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => setShowDeleteStep1Modal(true)}
-          style={[
-            styles.actionRow,
-            {
-              backgroundColor: isDark ? '#3A1F1E' : '#FFF4F4',
-              borderColor: colors.error,
-            },
-          ]}
+          onPress={() => setShowDeleteModal(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Excluir minha conta permanentemente"
+          style={[styles.actionRowBtn, { borderTopColor: colors.border }]}
         >
-          <Trash2 size={18} color={colors.error} style={{ marginRight: 10 }} />
-          <Text style={[styles.actionRowText, { color: colors.error, fontWeight: '700' }]}>
-            Excluir Conta Definitivamente
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Trash2 size={18} color={colors.error} style={{ marginRight: 10 }} />
+            <Text style={[styles.actionRowText, { color: colors.error }]}>
+              Excluir Conta e Dados
+            </Text>
+          </View>
+          <ChevronRight size={18} color={colors.textMuted} />
         </TouchableOpacity>
-      </View>
+      </Card>
 
-      {/* Modal de Logout */}
-      <ConfirmationModal
+      {/* Diálogo de Logout */}
+      <ConfirmDialog
         visible={showLogoutModal}
-        title="Deseja sair da conta?"
-        message="Sua sessão será encerrada com segurança no dispositivo."
+        title="Encerrar sessão?"
+        message="Você precisará informar seu e-mail e senha para acessar novamente."
         confirmTitle="Sair"
         cancelTitle="Cancelar"
         onConfirm={handleLogout}
         onCancel={() => setShowLogoutModal(false)}
       />
 
-      {/* Modal Exclusão de Conta - Etapa 1 */}
-      <ConfirmationModal
-        visible={showDeleteStep1Modal}
-        title="Excluir conta (Etapa 1 de 2)"
-        message="Atenção: A exclusão da sua conta apagará permanentemente todos os seus registros de diário, preferências e históricos locais. Deseja continuar para a confirmação final?"
-        confirmTitle="Continuar Exclusão"
+      {/* Exclusão - Etapa 1 */}
+      <ConfirmDialog
+        visible={showDeleteModal}
+        title="Deseja realmente excluir sua conta?"
+        message="Todos os seus registros de humor, históricos de práticas e dados salvos serão permanentemente apagados dos nossos servidores."
+        confirmTitle="Prosseguir para Confirmação"
         cancelTitle="Cancelar"
         isDestructive
         onConfirm={() => {
-          setShowDeleteStep1Modal(false);
-          setShowDeleteStep2Modal(true);
+          setShowDeleteModal(false);
+          setShowDeleteStep2(true);
         }}
-        onCancel={() => setShowDeleteStep1Modal(false)}
+        onCancel={() => setShowDeleteModal(false)}
       />
 
-      {/* Modal Exclusão de Conta - Etapa 2 (Confirmação Irreversível) */}
-      <ConfirmationModal
-        visible={showDeleteStep2Modal}
-        title="Confirmação Final (Etapa 2 de 2)"
-        message="Você tem certeza absoluta? Todos os dados serão destruídos e não poderão ser recuperados."
-        confirmTitle="Sim, Apagar Tudo"
-        cancelTitle="Desistir"
+      {/* Exclusão - Etapa 2 */}
+      <ConfirmDialog
+        visible={showDeleteStep2}
+        title="Confirmação Final de Exclusão"
+        message="Esta ação é definitiva e irreversível sob as diretrizes da LGPD. Tem certeza absoluta?"
+        confirmTitle="Excluir Definitivamente"
+        cancelTitle="Voltar"
         isDestructive
-        isLoading={isProcessing}
         onConfirm={handleDeleteAccountFinal}
-        onCancel={() => setShowDeleteStep2Modal(false)}
+        onCancel={() => setShowDeleteStep2(false)}
       />
-
-      {/* Modal de Exibição do JSON Exportado */}
-      <ConfirmationModal
-        visible={showExportModal}
-        title="Exportação de Dados Concluída"
-        message={`Seus dados foram estruturados com sucesso no formato JSON.\n\n${exportedJson.substring(0, 180)}...`}
-        confirmTitle="Fechar"
-        cancelTitle="Copiar / Ok"
-        onConfirm={() => setShowExportModal(false)}
-        onCancel={() => setShowExportModal(false)}
-      />
-    </ScreenContainer>
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  profileCard: {
+  profileHeaderCard: {
+    marginBottom: 20,
+  },
+  avatarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 18,
-    borderRadius: 22,
-    borderWidth: 1,
-    marginVertical: 12,
+    gap: 16,
   },
   avatarCircle: {
     width: 60,
@@ -419,110 +441,78 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  userName: {
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  adminBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  adminBadgeText: {
+  avatarLetter: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 24,
     fontWeight: '800',
-    textTransform: 'uppercase',
   },
-  userEmail: {
+  profileName: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  profileEmail: {
     fontSize: 13,
     marginTop: 2,
   },
-  userCreated: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  adminBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: 18,
-    borderWidth: 1,
-    marginBottom: 16,
-  },
-  adminBannerTitle: {
+  editLink: {
     fontSize: 13,
     fontWeight: '700',
   },
-  adminBannerSub: {
-    fontSize: 11,
-    marginTop: 1,
-  },
-  section: {
-    marginBottom: 20,
+  sectionCard: {
+    gap: 14,
+    marginBottom: 18,
   },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 10,
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 4,
   },
   themeOptionsRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
-  themeOptionButton: {
+  themeOptionBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    gap: 8,
   },
   themeOptionText: {
     fontSize: 13,
-    fontWeight: '600',
   },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 10,
+    paddingVertical: 4,
   },
   settingLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  settingSub: {
+  settingDesc: {
     fontSize: 12,
-    lineHeight: 16,
     marginTop: 2,
+    lineHeight: 16,
   },
-  linkRow: {
+  consentHistoryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 10,
+    paddingTop: 8,
   },
-  linkRowText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
+  consentHistoryText: {
+    fontSize: 12,
   },
-  actionRow: {
+  actionRowBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 10,
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderTopWidth: 1,
   },
   actionRowText: {
     fontSize: 14,

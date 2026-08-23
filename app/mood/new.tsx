@@ -1,24 +1,43 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { Check, Sparkles, Wind, Heart } from 'lucide-react-native';
-import { ScreenContainer } from '../../src/components/ui/ScreenContainer';
-import { AppHeader } from '../../src/components/ui/AppHeader';
-import { MoodSelector } from '../../src/components/mood/MoodSelector';
-import { AnxietySlider } from '../../src/components/mood/AnxietySlider';
-import { EmotionChip } from '../../src/components/mood/EmotionChip';
-import { AppInput } from '../../src/components/ui/AppInput';
+import {
+  Check,
+  Sparkles,
+  Wind,
+  Heart,
+  Smile,
+  Meh,
+  Frown,
+  AlertCircle,
+} from 'lucide-react-native';
+import { AppShell } from '../../src/components/layout/AppShell';
+import { PageHeader } from '../../src/components/ui/PageHeader';
+import { Card } from '../../src/components/ui/Card';
 import { AppButton } from '../../src/components/ui/AppButton';
+import { AppTextarea } from '../../src/components/ui/AppTextarea';
+import { Chip } from '../../src/components/ui/Chip';
+import { AnxietySlider } from '../../src/components/mood/AnxietySlider';
+import { useToast } from '../../src/components/ui/Toast';
 import { useMoodStore } from '../../src/store/moodStore';
 import { useTheme } from '../../src/hooks/useTheme';
 import { AVAILABLE_EMOTIONS, AVAILABLE_ACTIVITIES } from '../../src/mocks/moods.mock';
 import { MoodValue } from '../../src/types';
 import { formatDateTime } from '../../src/utils/date';
+import { storage } from '../../src/services/storage/asyncStorage';
+
+const DRAFT_STORAGE_KEY = 'respira_mood_draft';
 
 export default function NewMoodScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { addRecord } = useMoodStore();
+  const { showToast } = useToast();
 
   const [mood, setMood] = useState<MoodValue>(4);
   const [anxietyLevel, setAnxietyLevel] = useState<number>(3);
@@ -27,6 +46,41 @@ export default function NewMoodScreen() {
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+
+  // Recupera rascunho salvo anteriormente
+  useEffect(() => {
+    async function loadDraft() {
+      const draft = await storage.getItem<{
+        mood: MoodValue;
+        anxietyLevel: number;
+        emotions: string[];
+        activities: string[];
+        notes: string;
+      }>(DRAFT_STORAGE_KEY);
+
+      if (draft) {
+        setMood(draft.mood || 4);
+        setAnxietyLevel(draft.anxietyLevel ?? 3);
+        setSelectedEmotions(draft.emotions || ['Calmo']);
+        setSelectedActivities(draft.activities || ['Descanso']);
+        setNotes(draft.notes || '');
+      }
+    }
+    loadDraft();
+  }, []);
+
+  // Salva rascunho automaticamente conforme usuário altera os dados
+  useEffect(() => {
+    if (!isSaved) {
+      storage.setItem(DRAFT_STORAGE_KEY, {
+        mood,
+        anxietyLevel,
+        emotions: selectedEmotions,
+        activities: selectedActivities,
+        notes,
+      });
+    }
+  }, [mood, anxietyLevel, selectedEmotions, selectedActivities, notes, isSaved]);
 
   const toggleEmotion = (emotion: string) => {
     if (selectedEmotions.includes(emotion)) {
@@ -45,6 +99,7 @@ export default function NewMoodScreen() {
   };
 
   const handleSave = async () => {
+    if (isSaving) return;
     try {
       setIsSaving(true);
       await addRecord({
@@ -55,15 +110,27 @@ export default function NewMoodScreen() {
         activities: selectedActivities,
         notes: notes.trim() || undefined,
       });
+      await storage.removeItem(DRAFT_STORAGE_KEY);
       setIsSaved(true);
+      showToast({ message: 'Registro de humor salvo com sucesso!', type: 'success' });
+    } catch {
+      showToast({ message: 'Erro ao salvar check-in.', type: 'error' });
     } finally {
       setIsSaving(false);
     }
   };
 
+  const moodOptions: { value: MoodValue; label: string; icon: any; color: string }[] = [
+    { value: 5, label: 'Muito bem', icon: Smile, color: colors.primary },
+    { value: 4, label: 'Bem', icon: Smile, color: colors.secondary },
+    { value: 3, label: 'Neutro', icon: Meh, color: colors.info },
+    { value: 2, label: 'Difícil', icon: Frown, color: colors.warning },
+    { value: 1, label: 'Muito difícil', icon: AlertCircle, color: colors.error },
+  ];
+
   return (
-    <ScreenContainer scrollable>
-      <AppHeader
+    <AppShell>
+      <PageHeader
         showBack
         title={isSaved ? 'Registro Salvo' : 'Como você está?'}
         subtitle={formatDateTime(new Date().toISOString())}
@@ -71,20 +138,72 @@ export default function NewMoodScreen() {
 
       {!isSaved ? (
         <View style={styles.formContainer}>
-          {/* Seletor de Humor 1-5 */}
-          <MoodSelector value={mood} onChange={setMood} />
+          {/* 1. Bloco de Humor Geral (1 a 5) */}
+          <Card variant="bordered" style={styles.sectionCard}>
+            <Text style={[styles.blockTitle, { color: colors.text }]}>
+              1. Como você descreve seu estado geral agora?
+            </Text>
+            <View style={styles.moodSelectorRow}>
+              {moodOptions.map((opt) => {
+                const isSelected = mood === opt.value;
+                const Icon = opt.icon;
 
-          {/* Slider de Ansiedade 0-10 */}
-          <AnxietySlider value={anxietyLevel} onChange={setAnxietyLevel} />
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    onPress={() => setMood(opt.value)}
+                    accessibilityRole="radio"
+                    accessibilityLabel={`Humor ${opt.value} de 5: ${opt.label}`}
+                    accessibilityState={{ selected: isSelected }}
+                    style={[
+                      styles.moodOptionItem,
+                      {
+                        backgroundColor: isSelected
+                          ? colors.primary
+                          : isDark
+                            ? colors.surfaceSecondary
+                            : '#FFFFFF',
+                        borderColor: isSelected ? colors.primary : colors.border,
+                      },
+                    ]}
+                  >
+                    <Icon
+                      size={24}
+                      color={isSelected ? '#FFFFFF' : opt.color}
+                    />
+                    <Text
+                      style={[
+                        styles.moodOptionText,
+                        {
+                          color: isSelected ? '#FFFFFF' : colors.text,
+                          fontWeight: isSelected ? '700' : '500',
+                        },
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </Card>
 
-          {/* Emoções */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              O que melhor descreve seus sentimentos?
+          {/* 2. Bloco de Ansiedade (0 a 10 Slider) */}
+          <Card variant="bordered" style={styles.sectionCard}>
+            <Text style={[styles.blockTitle, { color: colors.text }]}>
+              2. Qual o seu nível de ansiedade ou agitação? (0 a 10)
+            </Text>
+            <AnxietySlider value={anxietyLevel} onChange={setAnxietyLevel} />
+          </Card>
+
+          {/* 3. Bloco de Emoções */}
+          <Card variant="bordered" style={styles.sectionCard}>
+            <Text style={[styles.blockTitle, { color: colors.text }]}>
+              3. O que melhor descreve seus sentimentos?
             </Text>
             <View style={styles.chipsWrap}>
               {AVAILABLE_EMOTIONS.map((emo) => (
-                <EmotionChip
+                <Chip
                   key={emo}
                   label={emo}
                   selected={selectedEmotions.includes(emo)}
@@ -92,16 +211,16 @@ export default function NewMoodScreen() {
                 />
               ))}
             </View>
-          </View>
+          </Card>
 
-          {/* Atividades Relacionadas */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              O que você estava fazendo?
+          {/* 4. Bloco de Atividades / Contexto */}
+          <Card variant="bordered" style={styles.sectionCard}>
+            <Text style={[styles.blockTitle, { color: colors.text }]}>
+              4. O que você estava fazendo?
             </Text>
             <View style={styles.chipsWrap}>
               {AVAILABLE_ACTIVITIES.map((act) => (
-                <EmotionChip
+                <Chip
                   key={act}
                   label={act}
                   selected={selectedActivities.includes(act)}
@@ -109,35 +228,35 @@ export default function NewMoodScreen() {
                 />
               ))}
             </View>
-          </View>
+          </Card>
 
-          {/* Anotações Pessoais Opcionais */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Observações ou reflexões (opcional)
+          {/* 5. Observações com Contador de Caracteres */}
+          <Card variant="bordered" style={styles.sectionCard}>
+            <Text style={[styles.blockTitle, { color: colors.text }]}>
+              5. Observações ou reflexões (opcional)
             </Text>
-            <AppInput
-              placeholder="Escreva livremente sobre o que está vivenciando agora..."
+            <AppTextarea
+              placeholder="Escreva livremente sobre pensamentos, gatilhos ou o que vivenciou..."
               value={notes}
               onChangeText={setNotes}
-              multiline
-              numberOfLines={3}
-              inputStyle={{ minHeight: 80, textAlignVertical: 'top' }}
+              maxLength={500}
+              minHeight={90}
             />
-          </View>
+          </Card>
 
+          {/* Botão Salvar */}
           <AppButton
             title="Salvar Registro"
             leftIcon={<Check size={18} color="#FFFFFF" />}
             onPress={handleSave}
             isLoading={isSaving}
             size="lg"
-            style={{ marginTop: 12 }}
+            style={{ marginTop: 8, marginBottom: 24 }}
           />
         </View>
       ) : (
-        /* Confirmação Acolhedora Pós-Salvar (Sem diagnóstico, sugerindo prática simples) */
-        <View style={styles.savedContainer}>
+        /* Confirmação e Recomendação Acolhedora */
+        <Card variant="bordered" style={styles.savedCard}>
           <View style={[styles.savedIconCircle, { backgroundColor: colors.highlight }]}>
             <Heart size={44} color={colors.primary} />
           </View>
@@ -146,133 +265,139 @@ export default function NewMoodScreen() {
             Registro salvo com sucesso!
           </Text>
           <Text style={[styles.savedDesc, { color: colors.textMuted }]}>
-            Reconhecer suas emoções é um passo valioso para o seu bem-estar.
+            Reconhecer suas emoções é um passo essencial para o autocuidado.
           </Text>
 
-          {/* Sugestão de Prática Baseada no Registro */}
+          {/* Sugestão de Prática Customizada */}
           <View
             style={[
-              styles.suggestionCard,
+              styles.careSuggestionCard,
               {
-                backgroundColor: isDark ? colors.surfaceSubtle : '#FFFFFF',
+                backgroundColor: isDark ? colors.surfaceSecondary : colors.highlight,
                 borderColor: colors.border,
               },
             ]}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
               <Sparkles size={16} color={colors.primary} style={{ marginRight: 6 }} />
-              <Text style={[styles.suggestionHeader, { color: colors.primary }]}>
-                Sugestão de Cuidado para Agora
+              <Text style={[styles.careHeading, { color: colors.primary }]}>
+                Sugestão para o seu momento
               </Text>
             </View>
 
-            <Text style={[styles.suggestionTitle, { color: colors.text }]}>
+            <Text style={[styles.careTitle, { color: colors.text }]}>
               {anxietyLevel >= 6
-                ? 'Respiração 4-7-8 para alívio da tensão'
-                : 'Pausa Consciente de 2 Minutos'}
+                ? 'Exercício de Respiração 4-7-8'
+                : 'Pausa Consciente de 3 Minutos'}
             </Text>
-            <Text style={[styles.suggestionBody, { color: colors.textMuted }]}>
+            <Text style={[styles.careBody, { color: colors.textMuted }]}>
               {anxietyLevel >= 6
-                ? 'Como seu nível de ansiedade está mais elevado, 3 minutos de respiração compassada ajudam o sistema nervoso a reencontrar a calma.'
-                : 'Uma breve pausa de presença para integrar o seu momento e continuar o dia com clareza.'}
+                ? 'Seus batimentos e agitação podem se beneficiar de 4 ciclos de respiração compassada agora.'
+                : 'Uma breve pausa de presença ajuda a ancorar os sentimentos e seguir o dia com clareza.'}
             </Text>
 
-            <TouchableOpacity
+            <AppButton
+              title="Fazer Prática Agora"
+              leftIcon={<Wind size={18} color="#FFFFFF" />}
               onPress={() => router.replace('/practices/breathing')}
-              activeOpacity={0.8}
-              style={[styles.startPracticeBtn, { backgroundColor: colors.primary }]}
-            >
-              <Wind size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-              <Text style={styles.startPracticeText}>Fazer Prática Agora</Text>
-            </TouchableOpacity>
+              size="md"
+              style={{ marginTop: 8 }}
+            />
           </View>
 
           <AppButton
-            title="Voltar para o Início"
+            title="Voltar ao Início"
             variant="outline"
-            size="lg"
+            size="md"
             onPress={() => router.replace('/(tabs)')}
-            style={{ marginTop: 16 }}
+            style={{ marginTop: 14 }}
           />
-        </View>
+        </Card>
       )}
-    </ScreenContainer>
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
   formContainer: {
-    paddingVertical: 12,
+    gap: 16,
   },
-  section: {
-    marginVertical: 10,
+  sectionCard: {
+    gap: 12,
   },
-  sectionTitle: {
-    fontSize: 14,
+  blockTitle: {
+    fontSize: 15,
     fontWeight: '700',
-    marginBottom: 10,
+    lineHeight: 22,
+  },
+  moodSelectorRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  moodOptionItem: {
+    flex: 1,
+    minWidth: 90,
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    gap: 6,
+  },
+  moodOptionText: {
+    fontSize: 12,
+    textAlign: 'center',
   },
   chipsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
-  savedContainer: {
+  savedCard: {
     alignItems: 'center',
-    paddingVertical: 32,
-    paddingHorizontal: 8,
+    padding: 28,
+    marginVertical: 16,
   },
   savedIconCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   savedTitle: {
     fontSize: 22,
     fontWeight: '800',
-    marginBottom: 8,
+    marginBottom: 6,
     textAlign: 'center',
   },
   savedDesc: {
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: 24,
+    marginBottom: 20,
   },
-  suggestionCard: {
-    padding: 18,
-    borderRadius: 22,
-    borderWidth: 1,
+  careSuggestionCard: {
     width: '100%',
-    marginBottom: 12,
+    padding: 18,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    marginBottom: 10,
   },
-  suggestionHeader: {
+  careHeading: {
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
   },
-  suggestionTitle: {
+  careTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
     marginBottom: 6,
   },
-  suggestionBody: {
+  careBody: {
     fontSize: 13,
     lineHeight: 18,
-    marginBottom: 14,
-  },
-  startPracticeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 14,
-  },
-  startPracticeText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
+    marginBottom: 12,
   },
 });

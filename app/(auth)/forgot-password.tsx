@@ -1,33 +1,56 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Mail, CheckCircle2, ArrowRight } from 'lucide-react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { KeyRound, ArrowLeft, MailCheck } from 'lucide-react-native';
 import { ScreenContainer } from '../../src/components/ui/ScreenContainer';
-import { AppHeader } from '../../src/components/ui/AppHeader';
 import { AppInput } from '../../src/components/ui/AppInput';
 import { AppButton } from '../../src/components/ui/AppButton';
-import { authService } from '../../src/services/auth/authService';
 import { useTheme } from '../../src/hooks/useTheme';
+import { useToast } from '../../src/components/ui/Toast';
+
+const forgotSchema = z.object({
+  email: z.string().min(1, 'Informe seu e-mail').email('Insira um e-mail válido'),
+});
+
+type ForgotFormData = z.infer<typeof forgotSchema>;
 
 export default function ForgotPasswordScreen() {
-  const [email, setEmail] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSent, setIsSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { showToast } = useToast();
 
-  const handleSend = async () => {
-    if (!email.trim() || !email.includes('@')) {
-      setError('Por favor, insira um e-mail válido');
-      return;
-    }
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ForgotFormData>({
+    resolver: zodResolver(forgotSchema),
+    defaultValues: {
+      email: '',
+    },
+  });
+
+  const onSubmit = async () => {
     try {
-      setError(null);
       setIsLoading(true);
-      await authService.forgotPassword(email);
-      setIsSent(true);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao enviar e-mail de recuperação');
+      // Simula chamada segura de recuperação
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      setIsSubmitted(true);
+      showToast({
+        message: 'Instruções enviadas se o e-mail estiver cadastrado.',
+        type: 'info',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -35,74 +58,78 @@ export default function ForgotPasswordScreen() {
 
   return (
     <ScreenContainer scrollable>
-      <AppHeader showBack title="Recuperar Senha" />
+      {/* Botão Voltar */}
+      <TouchableOpacity
+        onPress={() => router.back()}
+        accessibilityRole="button"
+        accessibilityLabel="Voltar para a tela de login"
+        style={[styles.backBtn, { backgroundColor: colors.surfaceSecondary }]}
+      >
+        <ArrowLeft size={20} color={colors.text} />
+      </TouchableOpacity>
 
-      {!isSent ? (
+      {!isSubmitted ? (
         <View style={styles.content}>
-          <View style={[styles.iconBox, { backgroundColor: colors.highlight }]}>
-            <Mail size={40} color={colors.primary} />
+          <View style={[styles.iconCircle, { backgroundColor: colors.highlight }]}>
+            <KeyRound size={36} color={colors.primary} />
           </View>
 
-          <Text style={[styles.title, { color: colors.text }]}>Redefinir sua senha</Text>
-          <Text style={[styles.description, { color: colors.textMuted }]}>
-            Digite o e-mail cadastrado na sua conta. Nós enviaremos um link seguro para você
-            redefinir sua senha com tranquilidade.
+          <Text style={[styles.title, { color: colors.text }]}>Recuperar Acesso</Text>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+            Informe seu e-mail cadastrado para receber as orientações seguras de redefinição de
+            senha.
           </Text>
 
-          {error && (
-            <View style={[styles.errorBox, { backgroundColor: isDark ? '#3A1F1E' : '#FDF2F2' }]}>
-              <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
-            </View>
-          )}
+          <View style={styles.form}>
+            <Controller
+              control={control}
+              name="email"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <AppInput
+                  label="E-mail cadastrado"
+                  placeholder="seuemail@exemplo.com"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  error={errors.email?.message}
+                />
+              )}
+            />
 
-          <AppInput
-            label="E-mail cadastrado"
-            placeholder="seuemail@exemplo.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={email}
-            onChangeText={(text) => {
-              setEmail(text);
-              if (error) setError(null);
-            }}
-          />
-
-          <AppButton
-            title="Enviar instruções"
-            rightIcon={<ArrowRight size={18} color="#FFFFFF" />}
-            onPress={handleSend}
-            isLoading={isLoading}
-            size="lg"
-            style={{ marginTop: 8 }}
-          />
+            <AppButton
+              title="Enviar Instruções de Recuperação"
+              onPress={handleSubmit(onSubmit)}
+              isLoading={isLoading}
+              size="lg"
+              style={{ marginTop: 14 }}
+            />
+          </View>
         </View>
       ) : (
-        <View style={styles.successContent}>
-          <View style={[styles.successIconBox, { backgroundColor: colors.highlight }]}>
-            <CheckCircle2 size={56} color={colors.primary} />
+        /* Resposta Neutra de Segurança */
+        <View style={styles.submittedCard}>
+          <View style={[styles.iconCircle, { backgroundColor: colors.highlight }]}>
+            <MailCheck size={36} color={colors.primary} />
           </View>
 
-          <Text style={[styles.title, { color: colors.text }]}>Instruções enviadas!</Text>
-          <Text style={[styles.description, { color: colors.textMuted }]}>
-            Enviamos um e-mail de recuperação para <Text style={{ fontWeight: '700' }}>{email}</Text>.
-            Verifique também a caixa de spam ou lixo eletrônico.
+          <Text style={[styles.title, { color: colors.text }]}>Verifique sua Caixa de Entrada</Text>
+          <Text style={[styles.neutralMessage, { color: colors.text }]}>
+            Se existir uma conta associada a este endereço de e-mail, enviamos as instruções
+            detalhadas com um link seguro de redefinição válido por 30 minutos.
           </Text>
-
-          <View style={[styles.infoBox, { backgroundColor: colors.surfaceSubtle }]}>
-            <Text style={[styles.infoText, { color: colors.textMuted }]}>
-              Em ambiente simulado/demonstração, você pode retornar ao login e usar a senha cadastrada.
-            </Text>
-          </View>
+          <Text style={[styles.tipMessage, { color: colors.textMuted }]}>
+            Lembre-se de checar também sua pasta de spam ou lixo eletrônico.
+          </Text>
 
           <AppButton
             title="Voltar para o Login"
-            variant="outline"
+            variant="primary"
             size="lg"
-            onPress={() => {
-              setIsSent(false);
-              setEmail('');
-            }}
-            style={{ marginTop: 24 }}
+            onPress={() => router.replace('/(auth)/login')}
+            style={{ width: '100%', marginTop: 24 }}
           />
         </View>
       )}
@@ -111,61 +138,55 @@ export default function ForgotPasswordScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingVertical: 24,
-  },
-  iconBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: 20,
+    marginVertical: 12,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    textAlign: 'center',
-    marginBottom: 10,
+  content: {
+    alignItems: 'center',
+    marginVertical: 24,
   },
-  description: {
-    fontSize: 14,
-    lineHeight: 22,
-    textAlign: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 8,
-  },
-  errorBox: {
-    padding: 12,
-    borderRadius: 12,
+  iconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
   },
-  errorText: {
-    fontSize: 13,
+  title: {
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 8,
     textAlign: 'center',
-    fontWeight: '600',
   },
-  successContent: {
-    alignItems: 'center',
-    paddingVertical: 40,
+  subtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
     paddingHorizontal: 12,
   },
-  successIconBox: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  infoBox: {
-    padding: 14,
-    borderRadius: 14,
-    marginTop: 16,
+  form: {
     width: '100%',
   },
-  infoText: {
+  submittedCard: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 8,
+  },
+  neutralMessage: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  tipMessage: {
     fontSize: 12,
     textAlign: 'center',
     lineHeight: 18,

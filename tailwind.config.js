@@ -1,42 +1,69 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: [
-    "./app/**/*.{js,jsx,ts,tsx}",
-    "./src/**/*.{js,jsx,ts,tsx}",
-  ],
-  darkMode: 'class',
+  content: ['./app/**/*.{js,jsx,ts,tsx}', './src/**/*.{js,jsx,ts,tsx}'],
   theme: {
+    screens: {
+      sm: '640px',
+      md: '768px',
+      lg: '1024px',
+      xl: '1200px',
+      '2xl': '1320px',
+    },
     extend: {
       colors: {
-        brand: {
-          primary: '#2E6F73',
-          'primary-dark': '#23575A',
-          'primary-light': '#3B898E',
-          secondary: '#79B8A4',
-          'secondary-dark': '#5DA58E',
-          'secondary-light': '#9AC8B9',
-          bg: '#F7FAF9',
-          'bg-dark': '#12181B',
-          surface: '#FFFFFF',
-          'surface-dark': '#1E262B',
-          'surface-card': '#FFFFFF',
-          'surface-card-dark': '#253037',
-          highlight: '#DDEFE9',
-          'highlight-dark': '#23383B',
-          text: '#1F2933',
-          'text-dark': '#F0F4F8',
-          muted: '#66737D',
-          'muted-dark': '#9AA5B1',
-          warning: '#D97757',
-          error: '#B94A48',
-          border: '#DCE5E2',
-          'border-dark': '#2D3740',
+        primary: {
+          DEFAULT: '#2E7477',
+          dark: '#20595C',
+          light: '#DDEFEA',
+          muted: '#B8DBD7',
+        },
+        secondary: {
+          DEFAULT: '#79B8A4',
+          light: '#E4F2EC',
+        },
+        bg: {
+          DEFAULT: '#F5F8F7',
+          dark: '#111718',
+        },
+        surface: {
+          DEFAULT: '#FFFFFF',
+          secondary: '#EEF4F2',
+          dark: '#1A2325',
+          'dark-sec': '#232F31',
+        },
+        content: {
+          primary: '#172B2D',
+          secondary: '#607174',
+          muted: '#8A9A9D',
+          dark: '#F0F5F5',
+          'dark-sec': '#9CB0B3',
+        },
+        appBorder: {
+          DEFAULT: '#D8E3E0',
+          strong: '#BDCCC8',
+          dark: '#2D3D40',
+        },
+        appSuccess: {
+          DEFAULT: '#428568',
+          light: '#E8F5EF',
+        },
+        appWarning: {
+          DEFAULT: '#D47754',
+          light: '#FDF2EC',
+        },
+        appError: {
+          DEFAULT: '#B84C4C',
+          light: '#FDF0F0',
+        },
+        appInfo: {
+          DEFAULT: '#426E91',
+          light: '#EDF4F9',
         },
       },
       borderRadius: {
-        'xl': '16px',
-        '2xl': '20px',
+        '2xl': '16px',
         '3xl': '24px',
+        '4xl': '32px',
       },
     },
   },

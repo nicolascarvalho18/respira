@@ -1,5 +1,15 @@
 module.exports = {
   root: true,
+  ignorePatterns: [
+    'dist/**',
+    'dist-test/**',
+    '.expo/**',
+    'web-build/**',
+    'node_modules/**',
+    'coverage/**',
+    '.system_generated/**',
+    '*.bundle.js',
+  ],
   extends: [
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',

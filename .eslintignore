@@ -1,0 +1,15 @@
+dist
+dist/**
+dist-test
+dist-test/**
+.expo
+.expo/**
+web-build
+web-build/**
+node_modules
+node_modules/**
+coverage
+coverage/**
+.system_generated
+.system_generated/**
+*.bundle.js

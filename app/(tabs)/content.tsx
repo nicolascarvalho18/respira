@@ -1,131 +1,159 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { Search } from 'lucide-react-native';
-import { ScreenContainer } from '../../src/components/ui/ScreenContainer';
-import { AppHeader } from '../../src/components/ui/AppHeader';
-import { AppInput } from '../../src/components/ui/AppInput';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { AppShell } from '../../src/components/layout/AppShell';
+import { SearchInput } from '../../src/components/ui/SearchInput';
+import { Chip } from '../../src/components/ui/Chip';
 import { ContentCard } from '../../src/components/content/ContentCard';
 import { EmptyState } from '../../src/components/ui/EmptyState';
 import { useContentStore } from '../../src/store/contentStore';
 import { useTheme } from '../../src/hooks/useTheme';
+import { useBreakpoint } from '../../src/hooks/useBreakpoint';
 
 export default function ContentScreen() {
-  const { colors, isDark } = useTheme();
-  const {
-    categories,
-    selectedCategory,
-    setSelectedCategory,
-    searchQuery,
-    setSearchQuery,
-    toggleFavorite,
-    getFilteredArticles,
-  } = useContentStore();
+  const router = useRouter();
+  const { colors } = useTheme();
+  const { isDesktop, isTablet } = useBreakpoint();
 
-  const filteredArticles = getFilteredArticles();
+  const { articles, toggleFavorite } = useContentStore();
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
+  const categories = [
+    { id: 'all', label: 'Todos' },
+    { id: 'Fundamentos', label: 'Fundamentos' },
+    { id: 'Regulação', label: 'Regulação' },
+    { id: 'Sono', label: 'Sono' },
+    { id: 'Mitos e Fatos', label: 'Mitos e Fatos' },
+    { id: 'Estilo de Vida', label: 'Estilo de Vida' },
+    { id: 'favorites', label: 'Favoritos' },
+  ];
+
+  const filteredArticles = articles.filter((item) => {
+    const matchesSearch =
+      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.content.toLowerCase().includes(searchQuery.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    if (selectedCategory === 'all') return true;
+    if (selectedCategory === 'favorites') return item.isFavorite;
+    return item.categoryName.toLowerCase().includes(selectedCategory.toLowerCase());
+  });
 
   return (
-    <ScreenContainer scrollable>
-      <AppHeader
-        title="Conteúdos Educativos"
-        subtitle="Psicoeducação baseada em ciência e acolhimento"
-      />
+    <AppShell>
+      {/* Cabeçalho */}
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.text }]}>Conteúdos Educativos</Text>
+        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+          Informação clara e baseada em evidências para desmistificar a ansiedade.
+        </Text>
+      </View>
 
-      {/* Busca */}
-      <AppInput
-        placeholder="Buscar artigos por tema ou palavra-chave..."
+      {/* Busca com Debounce */}
+      <SearchInput
         value={searchQuery}
         onChangeText={setSearchQuery}
-        leftIcon={<Search size={18} color={colors.textMuted} />}
-        containerStyle={{ marginBottom: 12 }}
+        placeholder="Buscar artigos sobre sono, fisiologia, respiração..."
       />
 
-      {/* Categorias */}
+      {/* Chips Horizontais de Categorias (36-42px sem quebra vertical) */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoriesRow}
+        contentContainerStyle={styles.categoriesScroll}
       >
-        {categories.map((cat) => {
-          const isSelected = selectedCategory === cat.id;
-
-          return (
-            <TouchableOpacity
-              key={cat.id}
-              onPress={() => setSelectedCategory(cat.id)}
-              style={[
-                styles.categoryChip,
-                {
-                  backgroundColor: isSelected
-                    ? colors.primary
-                    : isDark
-                      ? colors.surfaceSubtle
-                      : '#FFFFFF',
-                  borderColor: isSelected ? colors.primary : colors.border,
-                },
-              ]}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: isSelected }}
-              accessibilityLabel={`Categoria: ${cat.name}`}
-            >
-              <Text
-                style={[
-                  styles.categoryText,
-                  {
-                    color: isSelected ? '#FFFFFF' : colors.text,
-                    fontWeight: isSelected ? '700' : '500',
-                  },
-                ]}
-              >
-                {cat.name}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+        {categories.map((cat) => (
+          <Chip
+            key={cat.id}
+            label={cat.label}
+            selected={selectedCategory === cat.id}
+            onPress={() => setSelectedCategory(cat.id)}
+          />
+        ))}
       </ScrollView>
 
-      {/* Lista de Artigos */}
-      <View style={styles.listSection}>
-        {filteredArticles.length === 0 ? (
-          <EmptyState
-            title="Nenhum artigo encontrado"
-            description="Tente pesquisar com outros termos ou selecione outra categoria de conteúdo."
-            actionTitle="Ver todos os conteúdos"
-            onActionPress={() => {
-              setSelectedCategory('all');
-              setSearchQuery('');
-            }}
-          />
-        ) : (
-          filteredArticles.map((article) => (
-            <ContentCard
+      {/* Grid de Artigos */}
+      {filteredArticles.length === 0 ? (
+        <EmptyState
+          title="Nenhum artigo encontrado"
+          description="Tente buscar por outro termo ou selecione a categoria 'Todos' acima."
+          actionTitle="Limpar Filtros"
+          onActionPress={() => {
+            setSearchQuery('');
+            setSelectedCategory('all');
+          }}
+        />
+      ) : (
+        <View
+          style={[
+            styles.articlesGrid,
+            (isDesktop || isTablet) && styles.articlesGridDesktop,
+          ]}
+        >
+          {filteredArticles.map((article) => (
+            <View
               key={article.id}
-              article={article}
-              onToggleFavorite={toggleFavorite}
-            />
-          ))
-        )}
-      </View>
-    </ScreenContainer>
+              style={[
+                styles.gridCol,
+                (isDesktop || isTablet) && styles.gridColDesktop,
+              ]}
+            >
+              <ContentCard
+                article={article}
+                onPress={() => router.push(`/content/${article.id}`)}
+                onToggleFavorite={() => toggleFavorite(article.id)}
+              />
+            </View>
+          ))}
+        </View>
+      )}
+    </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  categoriesRow: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingVertical: 4,
+  header: {
     marginBottom: 16,
   },
-  categoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 14,
-    borderWidth: 1,
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
+    lineHeight: 28,
   },
-  categoryText: {
-    fontSize: 13,
+  subtitle: {
+    fontSize: 14,
+    marginTop: 2,
+    lineHeight: 20,
   },
-  listSection: {
-    paddingBottom: 24,
+  categoriesScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    gap: 4,
+  },
+  articlesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 14,
+    marginVertical: 12,
+  },
+  articlesGridDesktop: {
+    flexWrap: 'wrap',
+  },
+  gridCol: {
+    width: '100%',
+  },
+  gridColDesktop: {
+    width: '48%',
+    flexGrow: 1,
   },
 });
