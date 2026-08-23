@@ -1,9 +1,15 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { BookOpen, Bookmark, Clock, CheckCircle2 } from 'lucide-react-native';
+import { Clock, Bookmark, CheckCircle2 } from 'lucide-react-native';
 import { Article } from '../../types';
 import { useTheme } from '../../hooks/useTheme';
+import {
+  NightSkyMoonThumb,
+  SageLeavesThumb,
+  WarmSunHillsThumb,
+  RiverHillsThumb,
+} from '../illustrations/ArticleThumbnails';
 
 export interface ContentCardProps {
   article: Article;
@@ -30,38 +36,102 @@ export const ContentCard: React.FC<ContentCardProps> = ({
   const progress = article.readProgress || 0;
   const isCompleted = progress >= 90;
 
+  // Choose the thumbnail matching the topic
+  const renderThumbnail = () => {
+    const slug = (article.slug || article.id || '').toLowerCase();
+    const cat = (article.category || '').toLowerCase();
+
+    if (slug.includes('dormir') || slug.includes('sono') || cat.includes('sono')) {
+      return <NightSkyMoonThumb size={62} borderRadius={12} />;
+    }
+    if (slug.includes('5-4-3-2-1') || slug.includes('grounding') || cat.includes('regulação')) {
+      return <SageLeavesThumb size={62} borderRadius={12} />;
+    }
+    if (slug.includes('mitos') || slug.includes('ansiedade') || cat.includes('ansiedade')) {
+      return <WarmSunHillsThumb size={62} borderRadius={12} />;
+    }
+    return <RiverHillsThumb size={62} borderRadius={12} />;
+  };
+
+  const getCategoryDisplay = () => {
+    const cat = (article.category || article.categoryName || 'Geral').toUpperCase();
+    if (cat.includes('SONO')) return 'SONO';
+    if (cat.includes('ANSIEDADE')) return 'ANSIEDADE';
+    if (cat.includes('REGULAÇÃO') || cat.includes('ATENÇÃO')) return 'REGULAÇÃO';
+    if (cat.includes('BEM-ESTAR')) return 'BEM-ESTAR';
+    return cat;
+  };
+
   return (
     <TouchableOpacity
-      activeOpacity={0.75}
+      activeOpacity={0.8}
       onPress={handlePress}
       accessibilityRole="button"
       accessibilityLabel={`Artigo: ${article.title}, tempo de leitura ${article.readingTimeMinutes || article.readTimeMinutes || 4} minutos`}
       style={[
-        styles.card,
+        styles.cardRow,
         {
           backgroundColor: isDark ? colors.surface : '#FFFFFF',
-          borderColor: colors.border,
+          borderBottomColor: isDark ? colors.border : '#EBF1EF',
         },
+        Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined,
       ]}
     >
-      {/* Linha superior: Categoria e Metadados */}
-      <View style={styles.topRow}>
-        <View style={[styles.categoryBadge, { backgroundColor: colors.highlight }]}>
-          <BookOpen size={12} color={colors.primary} style={{ marginRight: 4 }} />
-          <Text style={[styles.categoryText, { color: colors.primaryDark }]}>
-            {article.category || article.categoryName || 'Geral'}
-          </Text>
-        </View>
+      {/* 1. Miniatura Artística */}
+      <View style={styles.thumbWrapper}>
+        {renderThumbnail()}
+      </View>
 
-        <View style={styles.topRightRow}>
-          <View style={styles.readTime}>
-            <Clock size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
-            <Text style={[styles.readTimeText, { color: colors.textMuted }]}>
+      {/* 2. Conteúdo Central Editorial */}
+      <View style={styles.centerContent}>
+        <Text style={styles.categoryLabel}>
+          {getCategoryDisplay()}
+        </Text>
+
+        <Text style={[styles.title, { color: '#173D3B' }]} numberOfLines={1}>
+          {article.title}
+        </Text>
+
+        <Text style={[styles.summary, { color: '#667775' }]} numberOfLines={1}>
+          {article.summary}
+        </Text>
+
+        {/* Rodapé: Tempo de leitura e barra de progresso */}
+        <View style={styles.footerRow}>
+          <View style={styles.readTimeRow}>
+            <Clock size={11} color="#8C9E9B" style={{ marginRight: 3 }} />
+            <Text style={styles.readTimeText}>
               {article.readingTimeMinutes || article.readTimeMinutes || 4} min
             </Text>
           </View>
 
-          {onToggleFavorite && (
+          {/* Progresso Parcial (ex: 60% concluído) */}
+          {progress > 0 && !isCompleted && (
+            <View style={styles.progressPartialRow}>
+              <View style={styles.progressBarTrack}>
+                <View
+                  style={[
+                    styles.progressBarFill,
+                    { width: `${Math.min(100, progress)}%` },
+                  ]}
+                />
+              </View>
+              <Text style={styles.progressPercentText}>
+                {progress}% concluído
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* 3. Ação Direita: Checkmark concluído ou Marcador Favorito */}
+      <View style={styles.rightActionWrap}>
+        {isCompleted ? (
+          <View style={styles.completedBadge}>
+            <CheckCircle2 size={20} color="#2F7F7C" />
+          </View>
+        ) : (
+          onToggleFavorite && (
             <TouchableOpacity
               onPress={(e) => {
                 e.stopPropagation();
@@ -73,140 +143,100 @@ export const ContentCard: React.FC<ContentCardProps> = ({
               style={styles.favButton}
             >
               <Bookmark
-                size={17}
-                color={article.isFavorite ? colors.primary : colors.textLight}
-                fill={article.isFavorite ? colors.primary : 'none'}
+                size={18}
+                color="#2F7F7C"
+                fill={article.isFavorite ? '#2F7F7C' : 'transparent'}
               />
             </TouchableOpacity>
-          )}
-        </View>
+          )
+        )}
       </View>
-
-      {/* Título e Resumo */}
-      <Text style={[styles.title, { color: colors.text }]} numberOfLines={3}>
-        {article.title}
-      </Text>
-      <Text style={[styles.summary, { color: colors.textSecondary }]} numberOfLines={2}>
-        {article.summary}
-      </Text>
-
-      {/* Barra de Progresso quando iniciado */}
-      {progress > 0 && (
-        <View style={styles.progressFooter}>
-          <View style={styles.progressTrackWrap}>
-            <View
-              style={[
-                styles.progressTrack,
-                { backgroundColor: isDark ? colors.surfaceSecondary : '#EAEFF0' },
-              ]}
-            >
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${Math.min(100, progress)}%`,
-                    backgroundColor: isCompleted ? colors.success : colors.primary,
-                  },
-                ]}
-              />
-            </View>
-            <Text style={[styles.progressPercent, { color: colors.textMuted }]}>
-              {isCompleted ? 'Lido' : `${progress}%`}
-            </Text>
-          </View>
-
-          <Text style={[styles.continueText, { color: colors.primary }]}>
-            {isCompleted ? 'Revisitar' : 'Continuar'}
-          </Text>
-        </View>
-      )}
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    marginBottom: 12,
-    width: '100%',
-  },
-  topRow: {
+  cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    gap: 12,
   },
-  categoryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+  thumbWrapper: {
+    width: 62,
+    height: 62,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
-  categoryText: {
-    fontSize: 11,
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  categoryLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#2F7F7C',
+    letterSpacing: 0.6,
+    marginBottom: 2,
+  },
+  title: {
+    fontSize: 14,
     fontWeight: '700',
+    letterSpacing: -0.2,
+    marginBottom: 2,
   },
-  topRightRow: {
+  summary: {
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: 4,
+  },
+  footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
-  readTime: {
+  readTimeRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   readTimeText: {
-    fontSize: 12,
+    fontSize: 11,
+    color: '#8C9E9B',
     fontWeight: '500',
   },
-  favButton: {
-    padding: 2,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
-    lineHeight: 22,
-    marginBottom: 4,
-  },
-  summary: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  progressFooter: {
+  progressPartialRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 10,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F4F4',
-  },
-  progressTrackWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 12,
     gap: 6,
   },
-  progressTrack: {
-    flex: 1,
-    height: 5,
-    borderRadius: 3,
+  progressBarTrack: {
+    width: 60,
+    height: 3.5,
+    backgroundColor: '#E7F1EE',
+    borderRadius: 2,
     overflow: 'hidden',
   },
-  progressFill: {
+  progressBarFill: {
     height: '100%',
-    borderRadius: 3,
+    backgroundColor: '#2F7F7C',
+    borderRadius: 2,
   },
-  progressPercent: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  continueText: {
-    fontSize: 12,
+  progressPercentText: {
+    fontSize: 10,
     fontWeight: '700',
+    color: '#2F7F7C',
+  },
+  rightActionWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingLeft: 4,
+  },
+  favButton: {
+    padding: 4,
+  },
+  completedBadge: {
+    padding: 2,
   },
 });
