@@ -1,16 +1,20 @@
 import { ChatMessage } from '../../types';
-import {
-  INITIAL_CHAT_MESSAGES,
-  CHAT_RESPONSE_RULES,
-  DEFAULT_CHAT_RESPONSE,
-} from '../../mocks/chat.mock';
+import { INITIAL_CHAT_MESSAGES } from '../../mocks/chat.mock';
 import { storage } from '../storage/asyncStorage';
 import { logger } from '../../utils/logger';
+import { aiAssistantService } from '../../server/services/aiAssistantService';
 
 const CHAT_STORAGE_KEY = 'respira_chat_history';
+const CHAT_TEMPORARY_KEY = 'respira_chat_is_temporary';
+const CHAT_CONSENT_KEY = 'respira_chat_retention_consent';
 
 class ChatService {
   async getMessages(): Promise<ChatMessage[]> {
+    const isTemporary = await this.isTemporaryMode();
+    if (isTemporary) {
+      return INITIAL_CHAT_MESSAGES;
+    }
+
     const stored = await storage.getItem<ChatMessage[]>(CHAT_STORAGE_KEY);
     if (!stored || stored.length === 0) {
       return INITIAL_CHAT_MESSAGES;
@@ -19,7 +23,10 @@ class ChatService {
   }
 
   async saveMessages(messages: ChatMessage[]): Promise<void> {
-    await storage.setItem(CHAT_STORAGE_KEY, messages);
+    const isTemporary = await this.isTemporaryMode();
+    if (!isTemporary) {
+      await storage.setItem(CHAT_STORAGE_KEY, messages);
+    }
   }
 
   async clearHistory(): Promise<void> {
@@ -27,7 +34,29 @@ class ChatService {
     logger.info('Chat history reset to initial message');
   }
 
-  async sendMessage(text: string): Promise<{
+  async isTemporaryMode(): Promise<boolean> {
+    return (await storage.getItem<boolean>(CHAT_TEMPORARY_KEY)) ?? false;
+  }
+
+  async setTemporaryMode(val: boolean): Promise<void> {
+    await storage.setItem(CHAT_TEMPORARY_KEY, val);
+  }
+
+  async hasRetentionConsent(): Promise<boolean> {
+    return (await storage.getItem<boolean>(CHAT_CONSENT_KEY)) ?? true;
+  }
+
+  async setRetentionConsent(val: boolean): Promise<void> {
+    await storage.setItem(CHAT_CONSENT_KEY, val);
+    if (!val) {
+      await this.clearHistory();
+    }
+  }
+
+  async sendMessage(
+    text: string,
+    userId: string = 'user-demo-1'
+  ): Promise<{
     userMessage: ChatMessage;
     assistantMessage: ChatMessage;
   }> {
@@ -42,41 +71,34 @@ class ChatService {
     const withUser = [...currentMessages, userMessage];
     await this.saveMessages(withUser);
 
-    // Regra simulada de IA com palavras-chave e guardrails éticos
-    const lower = text
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, ''); // remove acentos para busca robusta
-
-    let matchedRule = CHAT_RESPONSE_RULES.find((rule) =>
-      rule.keywords.some((kw) => {
-        const kwNormalized = kw
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '');
-        return lower.includes(kwNormalized);
-      })
+    // Call backend AI service with PII scrubbing, crisis guardrails and RAG
+    const aiResult = await aiAssistantService.generateResponse(
+      text,
+      userId,
+      currentMessages.map((m) => ({ sender: m.sender as 'user' | 'assistant', text: m.text }))
     );
-
-    if (!matchedRule) {
-      matchedRule = DEFAULT_CHAT_RESPONSE;
-    }
 
     const assistantMessage: ChatMessage = {
       id: `msg-assistant-${Date.now()}`,
       sender: 'assistant',
-      text: matchedRule.response,
-      timestamp: new Date(Date.now() + 500).toISOString(),
-      suggestions: matchedRule.suggestions,
-      isEmergencyAlert: matchedRule.isEmergencyAlert,
-      recommendedPracticeId: matchedRule.recommendedPracticeId,
-      recommendedArticleId: matchedRule.recommendedArticleId,
+      text: aiResult.text,
+      timestamp: new Date(Date.now() + 400).toISOString(),
+      suggestions: aiResult.suggestions,
+      isEmergencyAlert: aiResult.isEmergencyAlert,
+      recommendedPracticeId: aiResult.recommendedPracticeId,
+      recommendedArticleId: aiResult.recommendedArticleId,
     };
 
     const withAssistant = [...withUser, assistantMessage];
     await this.saveMessages(withAssistant);
 
     return { userMessage, assistantMessage };
+  }
+
+  async recordFeedback(messageId: string, feedback: 'helpful' | 'unhelpful'): Promise<void> {
+    const messages = await this.getMessages();
+    const updated = messages.map((m) => (m.id === messageId ? { ...m, feedback } : m));
+    await this.saveMessages(updated);
   }
 }
 

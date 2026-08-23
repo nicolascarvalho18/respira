@@ -1,4 +1,4 @@
-// Domain types for Respira
+// Domain types for Respira - Digital Health Platform
 
 export type MoodValue = 1 | 2 | 3 | 4 | 5;
 
@@ -22,7 +22,12 @@ export interface MoodStats {
   weeklyData: { day: string; date: string; mood: number; anxiety: number }[];
 }
 
-export type PracticeCategory = 'breathing' | 'relaxation' | 'mindfulness' | 'meditation' | 'quick_routine';
+export type PracticeCategory =
+  | 'breathing'
+  | 'relaxation'
+  | 'mindfulness'
+  | 'meditation'
+  | 'quick_routine';
 
 export interface Practice {
   id: string;
@@ -46,8 +51,6 @@ export interface Practice {
   };
 }
 
-export type ArticleCategory = 'basics' | 'regulation' | 'sleep' | 'myths' | 'lifestyle';
-
 export interface ArticleSection {
   title?: string;
   body: string;
@@ -55,28 +58,37 @@ export interface ArticleSection {
   list?: string[];
 }
 
+export interface ArticleCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+}
+
 export interface Article {
   id: string;
   slug: string;
   title: string;
   summary: string;
+  content?: string;
+  sections?: ArticleSection[];
+  categoryId?: string;
   category: string;
   categoryName?: string;
   readingTimeMinutes: number;
-  readTimeMinutes?: number; // legacy alias
-  updatedAt: string;
-  publishedAt?: string;
-  reviewedBy?: string;
-  sections?: ArticleSection[];
-  content?: string; // markdown string fallback
+  readTimeMinutes?: number;
+  keywords?: string[];
+  tags?: string[];
   relatedArticleIds?: string[];
   relatedPracticeId?: string;
   relatedPracticeIds?: string[];
+  reviewedBy?: string;
+  updatedAt: string;
+  publishedAt?: string;
+  author?: string;
   isFavorite?: boolean;
   readProgress?: number; // 0 to 100
-  status?: 'draft' | 'published' | 'archived';
-  tags?: string[];
-  author?: string;
+  status: 'draft' | 'published' | 'archived';
 }
 
 export type Role = 'user' | 'admin';
@@ -93,6 +105,7 @@ export interface User {
     privacyAccepted: boolean;
     personalizationAccepted: boolean;
     analyticsAccepted: boolean;
+    chatRetentionAccepted?: boolean;
     acceptedAt: string;
   };
   preferences: {
@@ -102,12 +115,22 @@ export interface User {
     reminderTime: string; // "20:00"
     vibrationEnabled: boolean;
     soundEnabled: boolean;
-    countryHelpline: string; // "BR" | "US" | "PT" | "OTHER"
+    countryHelpline: string; // "BR"
   };
+}
+
+export interface ChatSession {
+  id: string;
+  userId: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  isTemporary?: boolean;
 }
 
 export interface ChatMessage {
   id: string;
+  sessionId?: string;
   sender: 'user' | 'assistant' | 'system';
   text: string;
   timestamp: string;
@@ -115,6 +138,7 @@ export interface ChatMessage {
   isEmergencyAlert?: boolean;
   recommendedPracticeId?: string;
   recommendedArticleId?: string;
+  feedback?: 'helpful' | 'unhelpful';
 }
 
 export interface AdminLog {
@@ -124,6 +148,16 @@ export interface AdminLog {
   target: string;
   timestamp: string;
   ipAddressMasked: string;
+}
+
+export interface SupportContact {
+  id: string;
+  name: string;
+  number: string;
+  description: string;
+  isFree: boolean;
+  availableHours: string;
+  isCrisisEmergency: boolean;
 }
 
 export interface HelplineInfo {

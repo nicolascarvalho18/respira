@@ -21,16 +21,16 @@ interface BreathingTechnique {
 const TECHNIQUES: BreathingTechnique[] = [
   {
     id: '4-7-8',
-    name: '4-7-8 Relaxante',
-    subtitle: 'Para alívio de tensão e relaxamento',
+    name: 'Respiração 4-7-8',
+    subtitle: 'Exercício guiado para desacelerar',
     inhale: 4,
     hold: 7,
     exhale: 8,
   },
   {
     id: 'box',
-    name: 'Quadrada (4-4-4-4)',
-    subtitle: 'Para foco e clareza mental',
+    name: 'Respiração Quadrada',
+    subtitle: 'Quatro tempos iguais de respiração',
     inhale: 4,
     hold: 4,
     exhale: 4,
@@ -39,7 +39,7 @@ const TECHNIQUES: BreathingTechnique[] = [
   {
     id: 'cardiac',
     name: 'Coerência (5-5)',
-    subtitle: 'Para harmonização do ritmo cardíaco',
+    subtitle: 'Respiração contínua e suave',
     inhale: 5,
     hold: 0,
     exhale: 5,
