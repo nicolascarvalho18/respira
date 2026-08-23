@@ -34,16 +34,16 @@ export const Card: React.FC<CardProps> = ({
       case 'sm':
         return 12;
       case 'lg':
-        return 24;
+        return 20;
       default:
-        return 18;
+        return 16;
     }
   };
 
   const getCardStyle = (): ViewStyle => {
     const base: ViewStyle = {
       backgroundColor: isDark ? colors.surface : '#FFFFFF',
-      borderRadius: 20,
+      borderRadius: 16,
       padding: getPadding(),
     };
 
@@ -52,12 +52,12 @@ export const Card: React.FC<CardProps> = ({
         ...base,
         borderWidth: 1,
         borderColor: colors.border,
-        ...(SHADOWS.md as any),
+        ...(SHADOWS.sm as any),
       };
     } else if (variant === 'bordered' || variant === 'interactive') {
       return {
         ...base,
-        borderWidth: 1.5,
+        borderWidth: 1,
         borderColor: colors.border,
       };
     } else {

@@ -3,134 +3,264 @@ import { Article } from '../types';
 export const MOCK_ARTICLES: Article[] = [
   {
     id: 'article-understanding-anxiety',
-    title: 'O que a ciência nos ensina sobre a ansiedade',
+    slug: 'entendendo-a-ansiedade',
+    title: 'Entendendo a ansiedade no dia a dia',
     summary:
-      'A ansiedade é uma resposta natural de proteção do nosso organismo. Entenda como ela funciona no cérebro e no corpo.',
-    category: 'basics',
-    categoryName: 'Fundamentos',
+      'A ansiedade é uma reação natural do corpo para nos alertar diante de desafios. Entenda como ela age e como identificar seus sinais.',
+    category: 'Entendendo a ansiedade',
+    categoryName: 'Entendendo a ansiedade',
+    readingTimeMinutes: 4,
     readTimeMinutes: 4,
-    publishedAt: '2024-02-10T14:00:00Z',
-    author: 'Equipe Editorial Respira',
+    updatedAt: '2024-03-15T10:00:00Z',
+    publishedAt: '2024-03-15T10:00:00Z',
+    reviewedBy: 'Equipe de Saúde Mental',
+    author: 'Equipe Respira',
+    status: 'published',
     isFavorite: true,
     readProgress: 100,
-    tags: ['Biologia', 'Fisiologia', 'Autoconhecimento'],
-    relatedPracticeIds: ['practice-breathing-478', 'practice-breathing-cardiac'],
-    content: `## A resposta de proteção do corpo
+    tags: ['Ansiedade', 'Autocuidado', 'Rotina'],
+    relatedArticleIds: ['article-myths-about-anxiety', 'article-grounding-skills'],
+    relatedPracticeId: 'practice-breathing-478',
+    relatedPracticeIds: ['practice-breathing-478'],
+    sections: [
+      {
+        title: 'O que é a ansiedade',
+        body: 'A ansiedade é uma resposta biológica esperada do organismo quando nos deparamos com situações novas, incertas ou desafiadoras. Ela prepara o corpo para reagir, aumentando temporariamente o estado de alerta e a circulação sanguínea.',
+      },
+      {
+        title: 'Como ela pode se manifestar',
+        body: 'Cada pessoa percebe a ansiedade de maneira própria. Entre os sinais mais comuns no cotidiano estão pensamentos acelerados, sensação de aperto no peito, respiração mais curta, inquietação nas mãos ou tensão nos ombros.',
+      },
+      {
+        title: 'Reação passageira versus desconforto frequente',
+        body: 'Sentir ansiedade antes de uma apresentação, reunião ou decisão importante é normal e tende a passar logo após o evento. No entanto, quando a preocupação se torna constante, interfere no sono, na alimentação ou nas atividades do dia a dia, é um sinal de que o corpo está sob sobrecarga contínua.',
+        callout: 'Reconhecer seus próprios limites não é fraqueza, mas sim o primeiro passo para reorganizar a rotina.',
+      },
+      {
+        title: 'Quando buscar apoio e orientação',
+        body: 'Se os momentos de tensão estiverem frequentes ou difíceis de manejar sozinho, conversar com pessoas de confiança e buscar apoio profissional de saúde (como psicólogos ou médicos) é fundamental para encontrar caminhos seguros de cuidado.',
+      },
+    ],
+    content: `## O que é a ansiedade
 
-A ansiedade é um mecanismo adaptativo fundamental para a sobrevivência humana. Quando nosso cérebro percebe um possível desafio ou perigo, o sistema nervoso simpático é ativado, liberando neurotransmissores como a adrenalina e o cortisol.
+A ansiedade é uma resposta biológica esperada do organismo quando nos deparamos com situações novas, incertas ou desafiadoras. Ela prepara o corpo para reagir, aumentando temporariamente o estado de alerta e a circulação sanguínea.
 
-Essa reação prepara o corpo para agir: o coração bate mais rápido para enviar oxigênio aos músculos, a respiração fica mais curta e nossos sentidos se aguçam.
+## Como ela pode se manifestar
 
-### Quando o alarme dispara fora de hora
+Cada pessoa percebe a ansiedade de maneira própria. Entre os sinais mais comuns no cotidiano estão pensamentos acelerados, sensação de aperto no peito, respiração mais curta, inquietação nas mãos ou tensão nos ombros.
 
-Em nosso mundo moderno, as ameaças raramente são predadores físicos; na maioria das vezes, são prazos, cobranças, incertezas ou conflitos. 
+## Reação passageira versus desconforto frequente
 
-No entanto, o cérebro humano nem sempre distingue entre um perigo imediato e uma preocupação futura. Por isso, o "alarme" do corpo pode soar mesmo quando estamos sentados em uma cadeira com total segurança física.
+Sentir ansiedade antes de uma apresentação, reunião ou decisão importante é normal e tende a passar logo após o evento. No entanto, quando a preocupação se torna constante, interfere no sono, na alimentação ou nas atividades do dia a dia, é um sinal de que o corpo está sob sobrecarga contínua.
 
-### O papel da respiração consciente
+> Reconhecer seus próprios limites não é fraqueza, mas sim o primeiro passo para reorganizar a rotina.
 
-A boa notícia é que o sistema respiratório é uma das poucas funções autônomas do corpo que podemos controlar conscientemente. Ao prolongar a expiração e respirar de forma suave e diafragmática, enviamos um sinal direto pelo nervo vago ao cérebro: *"O ambiente está seguro agora"*.
+## Quando buscar apoio e orientação
 
-Compreender que as sensações físicas da ansiedade não são perigosas em si, mas apenas um alarme sensível do corpo, é o primeiro passo para cultivar uma relação mais gentil consigo mesmo.`,
+Se os momentos de tensão estiverem frequentes ou difíceis de manejar sozinho, conversar com pessoas de confiança e buscar apoio profissional de saúde (como psicólogos ou médicos) é fundamental para encontrar caminhos seguros de cuidado.`,
   },
   {
     id: 'article-sleep-and-stress',
-    title: 'Como desacelerar a mente antes de dormir',
+    slug: 'desacelerar-antes-de-dormir',
+    title: 'Como desacelerar antes de dormir',
     summary:
-      'Pequenos ajustes na rotina noturna ajudam o sistema nervoso a transitar da agitação do dia para o repouso reparador.',
-    category: 'sleep',
-    categoryName: 'Sono e Descanso',
+      'Pequenos hábitos no fim da tarde e à noite ajudam o corpo a transitar da agitação para o repouso com mais facilidade.',
+    category: 'Sono',
+    categoryName: 'Sono',
+    readingTimeMinutes: 5,
     readTimeMinutes: 5,
-    publishedAt: '2024-02-15T09:30:00Z',
-    author: 'Equipe Editorial Respira',
+    updatedAt: '2024-03-18T14:30:00Z',
+    publishedAt: '2024-03-18T14:30:00Z',
+    reviewedBy: 'Equipe de Saúde Mental',
+    author: 'Equipe Respira',
+    status: 'published',
     isFavorite: false,
     readProgress: 40,
-    tags: ['Sono', 'Higiene do Sono', 'Relaxamento'],
+    tags: ['Sono', 'Higiene do Sono', 'Descanso'],
+    relatedArticleIds: ['article-understanding-anxiety'],
+    relatedPracticeId: 'practice-breathing-478',
     relatedPracticeIds: ['practice-breathing-478', 'practice-relaxation-pmr'],
-    content: `## A transição suave para o descanso
+    sections: [
+      {
+        title: 'Diminuir os estímulos da noite',
+        body: 'Ao longo do dia acumulamos informações, luzes artificiais e pendências. Conforme a noite se aproxima, reduzir o brilho das telas de celulares e computadores ajuda o corpo a liberar melatonina de forma natural.',
+      },
+      {
+        title: 'Organizar o ambiente de descanso',
+        body: 'Um quarto arejado, silencioso e com luz suave sinaliza ao cérebro que o momento de vigília terminou. Pequenas mudanças, como deixar a cama arrumada e evitar trabalhar onde você dorme, fazem diferença.',
+      },
+      {
+        title: 'Criar uma rotina simples e realista',
+        body: 'Não é necessário seguir rituais complexos. Escolha duas ou três ações simples: tomar um banho morno, beber uma água, trocar de roupa e ler algumas páginas de um livro.',
+        list: [
+          'Evite cafeína e refeições pesadas próximo ao horário de deitar.',
+          'Anote pendências em um papel para não ficar repassando a lista mentalmente na cama.',
+          'Faça uma respiração lenta e compassada ao se deitar.',
+        ],
+      },
+      {
+        title: 'Evitar cobranças por sono imediato',
+        body: 'Ficar olhando o relógio ou se cobrar para dormir rápido aumenta a ansiedade. Se o sono demorar mais de 25 minutos, levante-se com calma, faça uma atividade tranquila na penumbra e volte para a cama quando sentir os olhos pesados.',
+      },
+    ],
+    content: `## Diminuir os estímulos da noite
 
-Muitas pessoas relatam que o momento de deitar na cama é quando os pensamentos mais se intensificam. Isso ocorre porque o silêncio da noite elimina as distrações cotidianas, deixando espaço para preocupações acumuladas virem à tona.
+Ao longo do dia acumulamos informações, luzes artificiais e pendências. Conforme a noite se aproxima, reduzir o brilho das telas de celulares e computadores ajuda o corpo a liberar melatonina de forma natural.
 
-### 1. Descarregue as preocupações no papel
+## Organizar o ambiente de descanso
 
-Manter um caderno ao lado da cama para anotar pendências ou ideias do dia seguinte ajuda a "desocupar" a memória de trabalho do cérebro. Uma vez escritas, o cérebro compreende que a informação está segura.
+Um quarto arejado, silencioso e com luz suave sinaliza ao cérebro que o momento de vigília terminou. Pequenas mudanças, como deixar a cama arrumada e evitar trabalhar onde você dorme, fazem diferença.
 
-### 2. Crie uma zona livre de telas
+## Criar uma rotina simples e realista
 
-A luz azul emitida por smartphones e computadores inibe a produção natural de melatonina, o hormônio do sono. Tente desconectar-se de dispositivos cerca de 30 a 45 minutos antes de dormir.
+Não é necessário seguir rituais complexos. Escolha duas ou três ações simples: tomar um banho morno, beber uma água, trocar de roupa e ler algumas páginas de um livro.
 
-### 3. Técnicas de respiração para o sono
+* Evite cafeína e refeições pesadas próximo ao horário de deitar.
+* Anote pendências em um papel para não ficar repassando a lista mentalmente na cama.
+* Faça uma respiração lenta e compassada ao se deitar.
 
-Praticar a respiração 4-7-8 deitado(a) ou uma breve varredura corporal auxilia a relaxar a musculatura do pescoço, maxilar e ombros, facilitando a indução natural do sono.`,
+## Evitar cobranças por sono imediato
+
+Ficar olhando o relógio ou se cobrar para dormir rápido aumenta a ansiedade. Se o sono demorar mais de 25 minutos, levante-se com calma, faça uma atividade tranquila na penumbra e volte para a cama quando sentir os olhos pesados.`,
   },
   {
     id: 'article-grounding-skills',
-    title: 'Técnica 5-4-3-2-1: Retomando o controle em momentos intensos',
+    slug: 'tecnica-5-4-3-2-1',
+    title: 'Técnica 5-4-3-2-1 para voltar ao momento presente',
     summary:
-      'Aprenda o passo a passo da técnica de aterramento sensorial para ancorar sua atenção no presente durante picos de inquietação.',
-    category: 'regulation',
-    categoryName: 'Regulação Emocional',
+      'Um método simples de ancoragem nos cinco sentidos para desacelerar pensamentos rápidos e recuperar a clareza.',
+    category: 'Rotina',
+    categoryName: 'Rotina',
+    readingTimeMinutes: 3,
     readTimeMinutes: 3,
-    publishedAt: '2024-03-01T11:00:00Z',
-    author: 'Equipe Editorial Respira',
+    updatedAt: '2024-03-20T09:15:00Z',
+    publishedAt: '2024-03-20T09:15:00Z',
+    reviewedBy: 'Equipe de Saúde Mental',
+    author: 'Equipe Respira',
+    status: 'published',
     isFavorite: true,
     readProgress: 0,
-    tags: ['Aterramento', 'Crise', 'Mindfulness'],
-    relatedPracticeIds: ['practice-meditation-grounding'],
-    content: `## O que é a técnica de ancoragem?
+    tags: ['Atenção Plena', 'Aterramento', 'Foco'],
+    relatedArticleIds: ['article-understanding-anxiety'],
+    relatedPracticeId: 'practice-grounding-54321',
+    relatedPracticeIds: ['practice-grounding-54321'],
+    sections: [
+      {
+        title: 'Para que serve a técnica',
+        body: 'Quando estamos ansiosos, nossa mente costuma viajar para o futuro com cenários de preocupação. A ancoragem pelos cinco sentidos redireciona a atenção para o espaço físico onde você realmente está agora.',
+      },
+      {
+        title: 'Como praticar passo a passo',
+        body: 'Sente-se em posição confortável, apoie os pés no chão e faça uma respiração calma. Em seguida, observe com atenção:',
+        list: [
+          '5 coisas que você pode VER ao seu redor (cores, formatos, objetos).',
+          '4 coisas que você pode TOCAR (sua roupa, o apoio da cadeira, a textura da mesa).',
+          '3 sons que você pode OUVIR no ambiente (vento, tráfego distante, respiração).',
+          '2 cheiros que você pode PERCEBER ou lembrar suavemente.',
+          '1 frase amigável ou sensação positiva para si mesmo(a).',
+        ],
+      },
+      {
+        title: 'Como utilizar no cotidiano',
+        body: 'Essa prática pode ser feita discretamente no trabalho, transporte ou antes de um compromisso. Não é preciso falar em voz alta nem fechar os olhos.',
+      },
+      {
+        title: 'Limites da ferramenta',
+        body: 'A técnica ajuda a estabilizar o momento presente, mas não resolve problemas práticos nem substitui acompanhamento contínuo quando a ansiedade for frequente.',
+      },
+    ],
+    content: `## Para que serve a técnica
 
-O aterramento sensorial (ou *grounding*) é uma ferramenta de autorregulação que direciona os recursos cognitivos para o ambiente físico imediato, interrompendo a espiral de pensamentos catastróficos.
+Quando estamos ansiosos, nossa mente costuma viajar para o futuro com cenários de preocupação. A ancoragem pelos cinco sentidos redireciona a atenção para o espaço físico onde você realmente está agora.
 
-### Como praticar passo a passo:
+## Como praticar passo a passo
 
-1. **5 coisas que você pode VER**: Olhe ao redor e note detalhes que normalmente passariam despercebidos (o reflexo na janela, a textura de uma parede, a cor de um objeto).
-2. **4 coisas que você pode TOCAR**: Sinta a textura da sua roupa, a sola dos seus sapatos no chão ou o apoio das costas na cadeira.
-3. **3 coisas que você pode OUVIR**: Preste atenção aos sons ao longe — o vento, um relógio, o tráfego distante.
-4. **2 coisas que você pode CHEIRAR**: Note aromas sutis no ar, como café fresco, sabonete ou ar fresco.
-5. **1 coisa que você pode PROVAR ou AGRADECER**: Reconheça um gosto na boca ou diga mentalmente uma palavra de acolhimento para si mesmo(a).
+Sente-se em posição confortável, apoie os pés no chão e faça uma respiração calma. Em seguida, observe com atenção:
 
-Essa sequência simples reativa o córtex pré-frontal e diminui a hiperatividade da amígdala cerebral.`,
+* 5 coisas que você pode VER ao seu redor (cores, formatos, objetos).
+* 4 coisas que você pode TOCAR (sua roupa, o apoio da cadeira, a textura da mesa).
+* 3 sons que você pode OUVIR no ambiente (vento, tráfego distante, respiração).
+* 2 cheiros que você pode PERCEBER ou lembrar suavemente.
+* 1 frase amigável ou sensação positiva para si mesmo(a).
+
+## Como utilizar no cotidiano
+
+Essa prática pode ser feita discretamente no trabalho, transporte ou antes de um compromisso. Não é preciso falar em voz alta nem fechar os olhos.
+
+## Limites da ferramenta
+
+A técnica ajuda a estabilizar o momento presente, mas não resolve problemas práticos nem substitui acompanhamento contínuo quando a ansiedade for frequente.`,
   },
   {
     id: 'article-myths-about-anxiety',
-    title: '5 Mitos comuns sobre a ansiedade desmistificados',
+    slug: 'mitos-sobre-ansiedade',
+    title: 'Cinco ideias equivocadas sobre ansiedade',
     summary:
-      'Separar mitos populares de fatos científicos ajuda a diminuir a autocobrança e a culpa em momentos desafiadores.',
-    category: 'myths',
-    categoryName: 'Mitos e Fatos',
+      'Compreender o que é mito e o que é realidade ajuda a afastar a culpa e a lidar com mais clareza com as próprias emoções.',
+    category: 'Mitos e verdades',
+    categoryName: 'Mitos e verdades',
+    readingTimeMinutes: 4,
     readTimeMinutes: 4,
-    publishedAt: '2024-03-12T16:20:00Z',
-    author: 'Equipe Editorial Respira',
+    updatedAt: '2024-03-22T16:00:00Z',
+    publishedAt: '2024-03-22T16:00:00Z',
+    reviewedBy: 'Equipe de Saúde Mental',
+    author: 'Equipe Respira',
+    status: 'published',
     isFavorite: false,
     readProgress: 0,
-    tags: ['Mitos', 'Ciência', 'Psicoeducação'],
-    relatedPracticeIds: ['practice-quick-pause'],
-    content: `## Quebrando estigmas com conhecimento
+    tags: ['Psicoeducação', 'Mitos', 'Informação'],
+    relatedArticleIds: ['article-understanding-anxiety', 'article-sleep-and-stress'],
+    relatedPracticeId: 'practice-pmr-relaxation',
+    relatedPracticeIds: ['practice-pmr-relaxation'],
+    sections: [
+      {
+        title: '1. "Sentir ansiedade é sinal de fraqueza"',
+        body: 'Mito. A ansiedade é um mecanismo comum a todos os seres humanos. Ela surge como proteção e não tem relação com falta de força de vontade ou fraqueza de caráter.',
+      },
+      {
+        title: '2. "Basta pensar positivo para que ela suma"',
+        body: 'Mito. Tentar ignorar ou forçar pensamentos felizes pode aumentar a pressão interna. Acolher o que você sente e regular o corpo com respiração e pausa é muito mais eficaz.',
+      },
+      {
+        title: '3. "A ansiedade causa danos permanentes ao coração"',
+        body: 'Mito. As palpitações e o coração acelerado durante um pico de ansiedade são reações temporárias do sistema nervoso. O músculo cardíaco é saudável e preparado para oscilações de ritmo.',
+      },
+      {
+        title: '4. "Evitar tudo o que causa desconforto é a melhor saída"',
+        body: 'Mito. Fugir constantemente das situações que causam receio pode fazer com que o medo aumente com o tempo. Enfrentar gradualmente, no seu ritmo e com apoio, constrói segurança.',
+      },
+      {
+        title: '5. "Quem tem ansiedade não consegue ter uma vida plena"',
+        body: 'Mito. Com bons hábitos de rotina, autoconhecimento e apoio profissional quando indicado, é totalmente possível trabalhar, estudar, manter relacionamentos saudáveis e viver com tranquilidade.',
+      },
+    ],
+    content: `## 1. "Sentir ansiedade é sinal de fraqueza"
 
-Muitos tabus cercam a experiência da ansiedade. Vamos analisar 5 afirmações frequentes à luz do conhecimento científico:
+Mito. A ansiedade é um mecanismo comum a todos os seres humanos. Ela surge como proteção e não tem relação com falta de força de vontade ou fraqueza de caráter.
 
-### Mito 1: "Sentir ansiedade é sinal de fraqueza"
-**Fato**: A ansiedade é uma função biológica universal presente em todos os seres humanos saudáveis. Ter momentos de maior sensibilidade é parte da condição humana.
+## 2. "Basta pensar positivo para que ela suma"
 
-### Mito 2: "Basta pensar positivo que a ansiedade desaparece"
-**Fato**: Tentar suprimir pensamentos à força pode aumentar a tensão. O caminho mais eficaz envolve aceitação compassiva e técnicas de regulação do corpo.
+Mito. Tentar ignorar ou forçar pensamentos felizes pode aumentar a pressão interna. Acolher o que você sente e regular o corpo com respiração e pausa é muito mais eficaz.
 
-### Mito 3: "A ansiedade causa danos físicos irreversíveis no coração"
-**Fato**: Taquicardia em momentos de ansiedade é uma resposta temporária e inofensiva do sistema nervoso autônomo. O coração é um músculo forte preparado para oscilações de ritmo.
+## 3. "A ansiedade causa danos permanentes ao coração"
 
-### Mito 4: "Evitar o que causa ansiedade é sempre a melhor solução"
-**Fato**: A esquiva contínua tende a reforçar o medo a longo prazo. Pequenas aproximações graduais e no próprio ritmo geram maior confiança e resiliência.
+Mito. As palpitações e o coração acelerado durante um pico de ansiedade são reações temporárias do sistema nervoso. O músculo cardíaco é saudável e preparado para oscilações de ritmo.
 
-### Mito 5: "Quem tem ansiedade não pode levar uma vida produtiva e feliz"
-**Fato**: Com autoconhecimento, hábitos saudáveis e, quando indicado, suporte profissional adequado, é perfeitamente possível viver com leveza e plenitude.`,
+## 4. "Evitar tudo o que causa desconforto é a melhor saída"
+
+Mito. Fugir constantemente das situações que causam receio pode fazer com que o medo aumente com o tempo. Enfrentar gradualmente, no seu ritmo e com apoio, constrói segurança.
+
+## 5. "Quem tem ansiedade não consegue ter uma vida plena"
+
+Mito. Com bons hábitos de rotina, autoconhecimento e apoio profissional quando indicado, é totalmente possível trabalhar, estudar, manter relacionamentos saudáveis e viver com tranquilidade.`,
   },
 ];
 
 export const ARTICLE_CATEGORIES = [
   { id: 'all', name: 'Todos' },
-  { id: 'basics', name: 'Fundamentos' },
-  { id: 'regulation', name: 'Regulação' },
-  { id: 'sleep', name: 'Sono e Descanso' },
-  { id: 'myths', name: 'Mitos e Fatos' },
-  { id: 'lifestyle', name: 'Estilo de Vida' },
+  { id: 'Entendendo a ansiedade', name: 'Entendendo a ansiedade' },
+  { id: 'Bem-estar emocional', name: 'Bem-estar emocional' },
+  { id: 'Sono', name: 'Sono' },
+  { id: 'Rotina', name: 'Rotina' },
+  { id: 'Mitos e verdades', name: 'Mitos e verdades' },
 ];

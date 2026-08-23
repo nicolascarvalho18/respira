@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   StatusBar,
   ViewStyle,
+  Platform,
 } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
@@ -38,6 +39,7 @@ export const AppShell: React.FC<AppShellProps> = ({
       style={[
         styles.root,
         { backgroundColor: colors.background },
+        Platform.OS === 'web' ? ({ overflowX: 'hidden' } as any) : undefined,
         style,
       ]}
     >
@@ -57,8 +59,8 @@ export const AppShell: React.FC<AppShellProps> = ({
               showsVerticalScrollIndicator={false}
               contentContainerStyle={[
                 styles.scrollContainer,
-                isDesktop && styles.scrollContainerDesktop,
                 isTablet && styles.scrollContainerTablet,
+                isDesktop && styles.scrollContainerDesktop,
                 contentContainerStyle,
               ]}
               style={styles.scrollView}
@@ -66,8 +68,8 @@ export const AppShell: React.FC<AppShellProps> = ({
               <View
                 style={[
                   styles.contentInner,
-                  isDesktop && styles.contentInnerDesktop,
                   isTablet && styles.contentInnerTablet,
+                  isDesktop && styles.contentInnerDesktop,
                 ]}
               >
                 {children}
@@ -77,8 +79,8 @@ export const AppShell: React.FC<AppShellProps> = ({
             <View
               style={[
                 styles.fixedContainer,
-                isDesktop && styles.fixedContainerDesktop,
                 isTablet && styles.fixedContainerTablet,
+                isDesktop && styles.fixedContainerDesktop,
                 contentContainerStyle,
               ]}
             >
@@ -132,20 +134,20 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 40,
+    paddingTop: 16,
+    paddingBottom: 96, // Garante que a bottom bar nunca sobreponha o final da tela no mobile
     width: '100%',
     alignItems: 'center',
   },
   scrollContainerTablet: {
     paddingHorizontal: 24,
     paddingTop: 20,
-    paddingBottom: 60,
+    paddingBottom: 64,
   },
   scrollContainerDesktop: {
-    paddingHorizontal: 36,
-    paddingTop: 28,
-    paddingBottom: 80,
+    paddingHorizontal: 32,
+    paddingTop: 24,
+    paddingBottom: 64,
   },
   contentInner: {
     width: '100%',
@@ -161,18 +163,21 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 16,
+    paddingBottom: 96,
     alignItems: 'center',
   },
   fixedContainerTablet: {
     paddingHorizontal: 24,
     paddingTop: 20,
+    paddingBottom: 64,
     maxWidth: 820,
     alignSelf: 'center',
   },
   fixedContainerDesktop: {
-    paddingHorizontal: 36,
-    paddingTop: 28,
+    paddingHorizontal: 32,
+    paddingTop: 24,
+    paddingBottom: 64,
     maxWidth: 880,
     alignSelf: 'center',
   },

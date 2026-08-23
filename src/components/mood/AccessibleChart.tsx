@@ -18,12 +18,14 @@ export interface AccessibleChartProps {
 
 export const AccessibleChart: React.FC<AccessibleChartProps> = ({
   records,
+  days = 7,
   onSelectRecord,
 }) => {
   const { colors, isDark } = useTheme();
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
 
-  const sorted = [...records].reverse().slice(-14); // últimas entradas ordenadas cronologicamente
+  const sliceCount = days === 7 ? 7 : days === 30 ? 14 : 21;
+  const sorted = [...records].reverse().slice(-sliceCount);
   const activeRecord = sorted.find((r) => r.id === selectedRecordId) || sorted[sorted.length - 1];
 
   if (sorted.length === 0) {
@@ -38,7 +40,7 @@ export const AccessibleChart: React.FC<AccessibleChartProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Detalhe interativo do ponto selecionado no topo */}
+      {/* Detalhe do ponto selecionado */}
       {activeRecord && (
         <View
           style={[
@@ -51,10 +53,10 @@ export const AccessibleChart: React.FC<AccessibleChartProps> = ({
         >
           <View style={{ flex: 1 }}>
             <Text style={[styles.tooltipDate, { color: colors.text }]}>
-              📅 {formatDate(activeRecord.createdAt)}
+              {formatDate(activeRecord.createdAt)}
             </Text>
-            <Text style={[styles.tooltipEmotions, { color: colors.textMuted }]} numberOfLines={1}>
-              Emoções: {activeRecord.emotions.join(', ') || 'Nenhuma registrada'}
+            <Text style={[styles.tooltipEmotions, { color: colors.textSecondary }]} numberOfLines={1}>
+              {activeRecord.emotions?.join(', ') || 'Sem emoções anotadas'}
             </Text>
           </View>
           <View style={styles.tooltipMetrics}>
@@ -68,7 +70,7 @@ export const AccessibleChart: React.FC<AccessibleChartProps> = ({
         </View>
       )}
 
-      {/* Gráfico de Barras Duplas (Humor e Ansiedade) */}
+      {/* Gráfico de Barras Compacto */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -76,8 +78,8 @@ export const AccessibleChart: React.FC<AccessibleChartProps> = ({
       >
         {sorted.map((item) => {
           const isSelected = item.id === activeRecord?.id;
-          const moodHeight = (item.mood / 5) * 110;
-          const anxietyHeight = (item.anxietyLevel / 10) * 110;
+          const moodHeight = (item.mood / 5) * 85;
+          const anxietyHeight = (item.anxietyLevel / 10) * 85;
 
           return (
             <TouchableOpacity
@@ -93,27 +95,27 @@ export const AccessibleChart: React.FC<AccessibleChartProps> = ({
                 styles.barColumn,
                 isSelected && {
                   backgroundColor: isDark ? 'rgba(46, 116, 119, 0.25)' : '#EAF4F3',
-                  borderRadius: 12,
+                  borderRadius: 8,
                 },
               ]}
             >
               <View style={styles.barsPair}>
-                {/* Barra de Ansiedade (0-10) */}
+                {/* Ansiedade */}
                 <View
                   style={[
                     styles.barItem,
                     {
-                      height: Math.max(8, anxietyHeight),
+                      height: Math.max(6, anxietyHeight),
                       backgroundColor: colors.warning,
                     },
                   ]}
                 />
-                {/* Barra de Humor (1-5) */}
+                {/* Humor */}
                 <View
                   style={[
                     styles.barItem,
                     {
-                      height: Math.max(8, moodHeight),
+                      height: Math.max(6, moodHeight),
                       backgroundColor: colors.primary,
                     },
                   ]}
@@ -129,22 +131,22 @@ export const AccessibleChart: React.FC<AccessibleChartProps> = ({
                   },
                 ]}
               >
-                {new Date(item.createdAt).toLocaleDateString('pt-BR', { weekday: 'short' })}
+                {new Date(item.createdAt).toLocaleDateString('pt-BR', { weekday: 'short' }).slice(0, 3)}
               </Text>
             </TouchableOpacity>
           );
         })}
       </ScrollView>
 
-      {/* Legenda Acessível do Gráfico */}
+      {/* Legenda Acessível */}
       <View style={styles.legendRow}>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
-          <Text style={[styles.legendText, { color: colors.text }]}>Humor (escala 1 a 5)</Text>
+          <Text style={[styles.legendText, { color: colors.textSecondary }]}>Humor (1–5)</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: colors.warning }]} />
-          <Text style={[styles.legendText, { color: colors.text }]}>Ansiedade (escala 0 a 10)</Text>
+          <Text style={[styles.legendText, { color: colors.textSecondary }]}>Ansiedade (0–10)</Text>
         </View>
       </View>
     </View>
@@ -154,23 +156,23 @@ export const AccessibleChart: React.FC<AccessibleChartProps> = ({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    marginVertical: 8,
+    marginVertical: 4,
   },
   tooltipBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
-    borderRadius: 14,
+    padding: 10,
+    borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   tooltipDate: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
   tooltipEmotions: {
-    fontSize: 12,
+    fontSize: 11,
     marginTop: 2,
   },
   tooltipMetrics: {
@@ -179,51 +181,51 @@ const styles = StyleSheet.create({
   },
   metricPill: {
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   metricPillText: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
   },
   barsContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    height: 150,
-    paddingVertical: 10,
-    gap: 8,
+    height: 115,
+    paddingVertical: 6,
+    gap: 6,
   },
   barColumn: {
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    minWidth: 44,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    minWidth: 38,
   },
   barsPair: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    height: 110,
+    height: 85,
     gap: 4,
   },
   barItem: {
-    width: 10,
-    borderTopLeftRadius: 5,
-    borderTopRightRadius: 5,
+    width: 8,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
   },
   dayLabel: {
-    fontSize: 11,
-    marginTop: 6,
+    fontSize: 10,
+    marginTop: 4,
     textTransform: 'capitalize',
   },
   legendRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 16,
-    marginTop: 8,
-    paddingTop: 8,
+    marginTop: 6,
+    paddingTop: 6,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: '#F0F4F4',
   },
   legendItem: {
     flexDirection: 'row',
@@ -231,17 +233,17 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   legendText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
   },
   emptyChart: {
-    padding: 24,
-    borderRadius: 16,
+    padding: 20,
+    borderRadius: 12,
     alignItems: 'center',
   },
   emptyText: {

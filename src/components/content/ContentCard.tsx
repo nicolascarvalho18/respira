@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { BookOpen, Bookmark, Clock } from 'lucide-react-native';
+import { BookOpen, Bookmark, Clock, CheckCircle2 } from 'lucide-react-native';
 import { Article } from '../../types';
 import { useTheme } from '../../hooks/useTheme';
 
@@ -23,50 +23,57 @@ export const ContentCard: React.FC<ContentCardProps> = ({
     if (onPress) {
       onPress();
     } else {
-      router.push(`/content/${article.id}`);
+      router.push(`/contents/${article.slug || article.id}` as any);
     }
   };
 
+  const progress = article.readProgress || 0;
+  const isCompleted = progress >= 90;
+
   return (
     <TouchableOpacity
-      activeOpacity={0.7}
+      activeOpacity={0.75}
       onPress={handlePress}
       accessibilityRole="button"
-      accessibilityLabel={`Artigo: ${article.title}, tempo de leitura ${article.readTimeMinutes} minutos`}
+      accessibilityLabel={`Artigo: ${article.title}, tempo de leitura ${article.readingTimeMinutes || article.readTimeMinutes || 4} minutos`}
       style={[
         styles.card,
         {
-          backgroundColor: isDark ? colors.surfaceSubtle : '#FFFFFF',
+          backgroundColor: isDark ? colors.surface : '#FFFFFF',
           borderColor: colors.border,
         },
       ]}
     >
+      {/* Linha superior: Categoria e Metadados */}
       <View style={styles.topRow}>
         <View style={[styles.categoryBadge, { backgroundColor: colors.highlight }]}>
-          <BookOpen size={13} color={colors.primary} style={{ marginRight: 4 }} />
-          <Text style={[styles.categoryText, { color: colors.primary }]}>
-            {article.categoryName}
+          <BookOpen size={12} color={colors.primary} style={{ marginRight: 4 }} />
+          <Text style={[styles.categoryText, { color: colors.primaryDark }]}>
+            {article.category || article.categoryName || 'Geral'}
           </Text>
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={styles.topRightRow}>
           <View style={styles.readTime}>
-            <Clock size={13} color={colors.textMuted} style={{ marginRight: 4 }} />
+            <Clock size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
             <Text style={[styles.readTimeText, { color: colors.textMuted }]}>
-              {article.readTimeMinutes} min
+              {article.readingTimeMinutes || article.readTimeMinutes || 4} min
             </Text>
           </View>
 
           {onToggleFavorite && (
             <TouchableOpacity
-              onPress={() => onToggleFavorite(article.id)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={(e) => {
+                e.stopPropagation();
+                onToggleFavorite(article.id);
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               accessibilityRole="button"
               accessibilityLabel={article.isFavorite ? 'Remover dos favoritos' : 'Favoritar artigo'}
-              style={{ marginLeft: 8 }}
+              style={styles.favButton}
             >
               <Bookmark
-                size={18}
+                size={17}
                 color={article.isFavorite ? colors.primary : colors.textLight}
                 fill={article.isFavorite ? colors.primary : 'none'}
               />
@@ -75,24 +82,41 @@ export const ContentCard: React.FC<ContentCardProps> = ({
         </View>
       </View>
 
-      <Text style={[styles.title, { color: colors.text }]}>{article.title}</Text>
-      <Text style={[styles.summary, { color: colors.textMuted }]} numberOfLines={2}>
+      {/* Título e Resumo */}
+      <Text style={[styles.title, { color: colors.text }]} numberOfLines={3}>
+        {article.title}
+      </Text>
+      <Text style={[styles.summary, { color: colors.textSecondary }]} numberOfLines={2}>
         {article.summary}
       </Text>
 
-      {/* Barra de progresso de leitura se iniciada */}
-      {article.readProgress !== undefined && article.readProgress > 0 && (
-        <View style={styles.progressRow}>
-          <View style={[styles.progressTrack, { backgroundColor: isDark ? '#2D3740' : '#E2E8F0' }]}>
+      {/* Barra de Progresso quando iniciado */}
+      {progress > 0 && (
+        <View style={styles.progressFooter}>
+          <View style={styles.progressTrackWrap}>
             <View
               style={[
-                styles.progressFill,
-                { width: `${article.readProgress}%`, backgroundColor: colors.secondary },
+                styles.progressTrack,
+                { backgroundColor: isDark ? colors.surfaceSecondary : '#EAEFF0' },
               ]}
-            />
+            >
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${Math.min(100, progress)}%`,
+                    backgroundColor: isCompleted ? colors.success : colors.primary,
+                  },
+                ]}
+              />
+            </View>
+            <Text style={[styles.progressPercent, { color: colors.textMuted }]}>
+              {isCompleted ? 'Lido' : `${progress}%`}
+            </Text>
           </View>
-          <Text style={[styles.progressLabel, { color: colors.textMuted }]}>
-            {article.readProgress === 100 ? 'Lido' : `${article.readProgress}%`}
+
+          <Text style={[styles.continueText, { color: colors.primary }]}>
+            {isCompleted ? 'Revisitar' : 'Continuar'}
           </Text>
         </View>
       )}
@@ -103,26 +127,32 @@ export const ContentCard: React.FC<ContentCardProps> = ({
 const styles = StyleSheet.create({
   card: {
     padding: 16,
-    borderRadius: 20,
-    borderWidth: 1,
+    borderRadius: 16,
+    borderWidth: 1.5,
     marginBottom: 12,
+    width: '100%',
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   categoryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   categoryText: {
     fontSize: 11,
     fontWeight: '700',
+  },
+  topRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   readTime: {
     flexDirection: 'row',
@@ -130,36 +160,53 @@ const styles = StyleSheet.create({
   },
   readTimeText: {
     fontSize: 12,
+    fontWeight: '500',
+  },
+  favButton: {
+    padding: 2,
   },
   title: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
-    marginBottom: 6,
-    lineHeight: 20,
+    lineHeight: 22,
+    marginBottom: 4,
   },
   summary: {
     fontSize: 13,
     lineHeight: 18,
-    marginBottom: 10,
   },
-  progressRow: {
+  progressFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
+    justifyContent: 'space-between',
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F4F4',
+  },
+  progressTrackWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
+    gap: 6,
   },
   progressTrack: {
     flex: 1,
-    height: 4,
-    borderRadius: 2,
-    marginRight: 8,
+    height: 5,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: 3,
   },
-  progressLabel: {
+  progressPercent: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  continueText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

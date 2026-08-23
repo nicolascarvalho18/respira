@@ -109,6 +109,13 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
+            name="contents/[slug]"
+            options={{
+              presentation: 'card',
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
             name="mood/new"
             options={{
               presentation: 'modal',

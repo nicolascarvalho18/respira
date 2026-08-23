@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
 import { useRouter } from 'expo-router';
 import {
   Wind,
+  Sparkles,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
 import { SearchInput } from '../../src/components/ui/SearchInput';
@@ -20,6 +21,7 @@ import { AppButton } from '../../src/components/ui/AppButton';
 import { usePracticeStore } from '../../src/store/practiceStore';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
+import { formatPracticesCompleted } from '../../src/utils/grammar';
 
 export default function PracticesScreen() {
   const router = useRouter();
@@ -36,56 +38,64 @@ export default function PracticesScreen() {
     { id: 'breathing', label: 'Respiração' },
     { id: 'relaxation', label: 'Relaxamento' },
     { id: 'mindfulness', label: 'Atenção Plena' },
-    { id: 'quick', label: 'Rotinas Rápidas' },
+    { id: 'quick_routine', label: 'Rotinas Rápidas' },
     { id: 'favorites', label: 'Favoritas' },
   ];
 
-  const filteredPractices = practices.filter((item) => {
-    const matchesSearch =
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredPractices = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    return practices.filter((item) => {
+      const matchesSearch =
+        !q ||
+        item.title.toLowerCase().includes(q) ||
+        item.description.toLowerCase().includes(q) ||
+        (item.subtitle && item.subtitle.toLowerCase().includes(q));
 
-    if (!matchesSearch) return false;
+      if (!matchesSearch) return false;
 
-    if (selectedCategory === 'all') return true;
-    if (selectedCategory === 'favorites') return item.isFavorite;
-    return item.category === selectedCategory;
-  });
+      if (selectedCategory === 'all') return true;
+      if (selectedCategory === 'favorites') return item.isFavorite;
+      return item.category === selectedCategory;
+    });
+  }, [practices, searchQuery, selectedCategory]);
 
   const featured = practices[0] || null;
 
   return (
     <AppShell>
-      {/* Cabeçalho da Página */}
+      {/* Cabeçalho com Texto Natural */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Práticas e Ferramentas</Text>
-        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-          Exercícios guiados com base científica para regulação e relaxamento.
+        <Text style={[styles.title, { color: colors.text }]}>Práticas</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Práticas de respiração, relaxamento e atenção.
         </Text>
       </View>
 
-      {/* Destaque Principal Único */}
+      {/* Destaque do Dia Compacto */}
       {featured && selectedCategory === 'all' && !searchQuery && (
-        <Card variant="bordered" style={styles.heroFeaturedCard}>
-          <View style={styles.heroBadgeRow}>
-            <Badge label="Destaque do Dia" variant="primary" size="sm" />
-            <Text style={[styles.heroDuration, { color: colors.textMuted }]}>
-              {featured.durationMinutes} min • {featured.level}
-            </Text>
+        <Card variant="bordered" style={styles.heroCompactCard}>
+          <View style={styles.heroTopRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Badge label="Destaque do Dia" variant="primary" size="sm" />
+              <Text style={[styles.heroMeta, { color: colors.textMuted }]}>
+                {featured.durationMinutes} min • {featured.level}
+              </Text>
+            </View>
           </View>
 
           <Text style={[styles.heroTitle, { color: colors.text }]}>{featured.title}</Text>
-          <Text style={[styles.heroDesc, { color: colors.textMuted }]}>{featured.description}</Text>
+          <Text style={[styles.heroDesc, { color: colors.textSecondary }]} numberOfLines={2}>
+            {featured.description}
+          </Text>
 
           <View style={styles.heroActionRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.heroCompletions, { color: colors.primary }]}>
-                ✓ Concluído {featured.completedCount || 0} vezes
-              </Text>
-            </View>
+            <Text style={[styles.heroCompletions, { color: colors.textMuted }]}>
+              {formatPracticesCompleted(featured.completedCount || 0)}
+            </Text>
+
             <AppButton
               title="Praticar Agora"
-              leftIcon={<Wind size={18} color="#FFFFFF" />}
+              leftIcon={<Wind size={16} color="#FFFFFF" />}
               onPress={() => {
                 if (featured.category === 'breathing') {
                   router.push('/practices/breathing');
@@ -93,20 +103,21 @@ export default function PracticesScreen() {
                   router.push(`/practices/player/${featured.id}`);
                 }
               }}
-              size="md"
+              size="sm"
             />
           </View>
         </Card>
       )}
 
-      {/* Barra de Busca com Debounce */}
+      {/* Busca com Debounce */}
       <SearchInput
         value={searchQuery}
         onChangeText={setSearchQuery}
-        placeholder="Buscar exercícios, meditação, 4-7-8..."
+        placeholder="Buscar exercícios..."
+        debounceMs={300}
       />
 
-      {/* Filtros Horizontais com Rolagem no Mobile e Inline no Desktop */}
+      {/* Filtros Horizontais */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -122,11 +133,11 @@ export default function PracticesScreen() {
         ))}
       </ScrollView>
 
-      {/* Grid de Práticas (2 a 3 colunas no desktop) */}
+      {/* Grid de Práticas Compacto */}
       {filteredPractices.length === 0 ? (
         <EmptyState
           title="Nenhuma prática encontrada"
-          description="Tente ajustar sua busca ou selecionar outra categoria acima."
+          description="Tente buscar por outro termo ou selecione todas as práticas."
           actionTitle="Limpar Filtros"
           onActionPress={() => {
             setSearchQuery('');
@@ -176,31 +187,33 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '800',
-    lineHeight: 28,
+    lineHeight: 32,
   },
   subtitle: {
-    fontSize: 14,
-    marginTop: 2,
-    lineHeight: 20,
+    fontSize: 15,
+    marginTop: 4,
+    lineHeight: 22,
   },
-  heroFeaturedCard: {
-    gap: 10,
-    marginBottom: 20,
+  heroCompactCard: {
+    padding: 16,
+    gap: 8,
+    marginBottom: 16,
   },
-  heroBadgeRow: {
+  heroTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  heroDuration: {
+  heroMeta: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   heroTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 17,
+    fontWeight: '700',
+    lineHeight: 22,
   },
   heroDesc: {
     fontSize: 13,
@@ -210,22 +223,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 6,
+    marginTop: 4,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F4F4',
   },
   heroCompletions: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
   },
   categoryScroll: {
     flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 10,
-    gap: 4,
+    gap: 8,
   },
   practiceGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 14,
-    marginVertical: 14,
+    gap: 12,
+    marginTop: 8,
+    marginBottom: 24,
   },
   practiceGridDesktop: {
     flexWrap: 'wrap',

@@ -48,20 +48,35 @@ export interface Practice {
 
 export type ArticleCategory = 'basics' | 'regulation' | 'sleep' | 'myths' | 'lifestyle';
 
+export interface ArticleSection {
+  title?: string;
+  body: string;
+  callout?: string;
+  list?: string[];
+}
+
 export interface Article {
   id: string;
+  slug: string;
   title: string;
   summary: string;
-  content: string; // Markdown / paragraphs
-  category: ArticleCategory;
-  categoryName: string;
-  readTimeMinutes: number;
-  publishedAt: string;
-  author: string;
+  category: string;
+  categoryName?: string;
+  readingTimeMinutes: number;
+  readTimeMinutes?: number; // legacy alias
+  updatedAt: string;
+  publishedAt?: string;
+  reviewedBy?: string;
+  sections?: ArticleSection[];
+  content?: string; // markdown string fallback
+  relatedArticleIds?: string[];
+  relatedPracticeId?: string;
+  relatedPracticeIds?: string[];
   isFavorite?: boolean;
   readProgress?: number; // 0 to 100
-  relatedPracticeIds?: string[];
-  tags: string[];
+  status?: 'draft' | 'published' | 'archived';
+  tags?: string[];
+  author?: string;
 }
 
 export type Role = 'user' | 'admin';

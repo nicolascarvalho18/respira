@@ -25,7 +25,6 @@ import { AppShell } from '../../src/components/layout/AppShell';
 import { Card } from '../../src/components/ui/Card';
 import { Badge } from '../../src/components/ui/Badge';
 import { AppButton } from '../../src/components/ui/AppButton';
-import { ProgressBar } from '../../src/components/ui/ProgressBar';
 import { useAuth } from '../../src/hooks/useAuth';
 import { useMoodStore } from '../../src/store/moodStore';
 import { usePracticeStore } from '../../src/store/practiceStore';
@@ -33,6 +32,7 @@ import { useContentStore } from '../../src/store/contentStore';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
 import { getGreeting, formatDate, getRelativeDateLabel } from '../../src/utils/date';
+import { formatPracticesCompleted, formatTimesRealized } from '../../src/utils/grammar';
 import { LEGAL_TEXTS } from '../../src/constants/legal';
 
 export default function HomeScreen() {
@@ -52,7 +52,7 @@ export default function HomeScreen() {
   const quickActions = [
     {
       title: 'Respirar',
-      desc: 'Técnica 4-7-8 para alívio imediato',
+      desc: 'Técnica 4-7-8 guiada',
       icon: Wind,
       color: colors.primary,
       bg: isDark ? colors.highlight : '#EBF6F4',
@@ -60,7 +60,7 @@ export default function HomeScreen() {
     },
     {
       title: 'Relaxar',
-      desc: 'Relaxamento muscular progressivo',
+      desc: 'Relaxamento muscular guiado',
       icon: Layers,
       color: colors.secondary,
       bg: isDark ? colors.surfaceSecondary : '#EBF6F0',
@@ -68,7 +68,7 @@ export default function HomeScreen() {
     },
     {
       title: 'Registrar humor',
-      desc: 'Check-in de emoções do momento',
+      desc: 'Check-in do seu momento',
       icon: Smile,
       color: '#D47754',
       bg: isDark ? colors.surfaceSecondary : '#FDF2EC',
@@ -76,7 +76,7 @@ export default function HomeScreen() {
     },
     {
       title: 'Assistente IA',
-      desc: 'Dúvidas, psicoeducação e acolhimento',
+      desc: 'Acolhimento e orientações',
       icon: Bot,
       color: '#426E91',
       bg: isDark ? colors.surfaceSecondary : '#EDF4F9',
@@ -90,12 +90,12 @@ export default function HomeScreen() {
       <Text style={[styles.sidePanelTitle, { color: colors.text }]}>Resumo do Dia</Text>
 
       {/* Card de Lembrete Ativo */}
-      <Card variant="bordered" padding="sm" style={{ marginBottom: 16 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-          <Clock size={16} color={colors.primary} style={{ marginRight: 6 }} />
+      <Card variant="bordered" padding="sm" style={{ marginBottom: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+          <Clock size={15} color={colors.primary} style={{ marginRight: 6 }} />
           <Text style={[styles.sideCardHeading, { color: colors.text }]}>Lembrete de Cuidado</Text>
         </View>
-        <Text style={[styles.sideCardText, { color: colors.textMuted }]}>
+        <Text style={[styles.sideCardText, { color: colors.textSecondary }]}>
           Seu momento diário de reflexão está configurado para às{' '}
           <Text style={{ fontWeight: '700', color: colors.text }}>20:30</Text>.
         </Text>
@@ -108,11 +108,11 @@ export default function HomeScreen() {
         style={{
           backgroundColor: isDark ? '#2D1F1A' : '#FFF4EE',
           borderColor: colors.warning,
-          marginBottom: 16,
+          marginBottom: 12,
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-          <HeartHandshake size={16} color={colors.warning} style={{ marginRight: 6 }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+          <HeartHandshake size={15} color={colors.warning} style={{ marginRight: 6 }} />
           <Text style={[styles.sideCardHeading, { color: colors.warning }]}>Precisa de Escuta?</Text>
         </View>
         <Text style={[styles.sideCardText, { color: isDark ? '#F5DDD6' : '#733722' }]}>
@@ -121,7 +121,7 @@ export default function HomeScreen() {
         </Text>
         <TouchableOpacity
           onPress={() => router.push('/support')}
-          style={{ marginTop: 8 }}
+          style={{ marginTop: 6 }}
           accessibilityRole="button"
           accessibilityLabel="Ver canais de apoio"
         >
@@ -133,32 +133,34 @@ export default function HomeScreen() {
 
       {/* Estatística Rápida */}
       <Card variant="bordered" padding="sm">
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-          <Calendar size={16} color={colors.primary} style={{ marginRight: 6 }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+          <Calendar size={15} color={colors.primary} style={{ marginRight: 6 }} />
           <Text style={[styles.sideCardHeading, { color: colors.text }]}>Registros no Mês</Text>
         </View>
-        <Text style={{ fontSize: 24, fontWeight: '800', color: colors.primary }}>
-          {records.length} <Text style={{ fontSize: 13, fontWeight: '500', color: colors.textMuted }}>check-ins realizados</Text>
+        <Text style={{ fontSize: 20, fontWeight: '800', color: colors.primary }}>
+          {records.length} <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>check-ins realizados</Text>
         </Text>
       </Card>
     </View>
   );
 
+  const userName = user?.name === 'ama' ? 'Ana' : user?.name || 'Ana';
+
   return (
     <AppShell rightPanel={renderDesktopRightPanel()}>
-      {/* 1. Cabeçalho Superior */}
+      {/* 1. Cabeçalho Superior Compacto */}
       <View style={styles.topHeader}>
         <View style={styles.userGreetingRow}>
           <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
             <Text style={styles.avatarLetter}>
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
+              {userName.charAt(0).toUpperCase()}
             </Text>
           </View>
           <View>
             <Text style={[styles.greetingTitle, { color: colors.text }]}>
-              {getGreeting(user?.name || 'Ana')}
+              {getGreeting(userName)}
             </Text>
-            <Text style={[styles.dateSubtitle, { color: colors.textMuted }]}>
+            <Text style={[styles.dateSubtitle, { color: colors.textSecondary }]}>
               {formatDate(new Date().toISOString())}
             </Text>
           </View>
@@ -177,16 +179,8 @@ export default function HomeScreen() {
               },
             ]}
           >
-            <HeartHandshake size={16} color={colors.warning} />
+            <HeartHandshake size={15} color={colors.warning} />
             <Text style={[styles.sosHeaderText, { color: colors.warning }]}>Apoio Imediato</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Notificações"
-            style={[styles.bellBtn, { backgroundColor: colors.surfaceSecondary }]}
-          >
-            <Bell size={18} color={colors.text} />
           </TouchableOpacity>
         </View>
       </View>
@@ -195,22 +189,22 @@ export default function HomeScreen() {
       <Card variant="bordered" style={styles.checkinHeroCard}>
         <View style={styles.heroContent}>
           <View style={styles.heroTextCol}>
-            <Badge label="Momento Atual" variant="primary" size="sm" style={{ marginBottom: 8 }} />
+            <Badge label="Momento Atual" variant="primary" size="sm" style={{ marginBottom: 6 }} />
             <Text style={[styles.heroQuestion, { color: colors.text }]}>
               Como você está agora?
             </Text>
 
             {lastRecord ? (
               <View style={styles.lastRecordRow}>
-                <CheckCircle2 size={15} color={colors.success} style={{ marginRight: 6 }} />
-                <Text style={[styles.lastRecordText, { color: colors.textMuted }]}>
+                <CheckCircle2 size={14} color={colors.success} style={{ marginRight: 6 }} />
+                <Text style={[styles.lastRecordText, { color: colors.textSecondary }]}>
                   Último registro: {getRelativeDateLabel(lastRecord.createdAt)} (Humor{' '}
                   {lastRecord.mood}/5 • Ansiedade {lastRecord.anxietyLevel}/10)
                 </Text>
               </View>
             ) : (
-              <Text style={[styles.lastRecordText, { color: colors.textMuted }]}>
-                Faça seu primeiro check-in para acompanhar suas tendências.
+              <Text style={[styles.lastRecordText, { color: colors.textSecondary }]}>
+                Registre suas emoções para acompanhar sua rotina com mais clareza.
               </Text>
             )}
           </View>
@@ -218,7 +212,7 @@ export default function HomeScreen() {
           <View style={styles.heroActionsCol}>
             <AppButton
               title="Registrar meu momento"
-              leftIcon={<Smile size={18} color="#FFFFFF" />}
+              leftIcon={<Smile size={16} color="#FFFFFF" />}
               onPress={() => router.push('/mood/new')}
               size="md"
             />
@@ -236,7 +230,7 @@ export default function HomeScreen() {
         </View>
       </Card>
 
-      {/* 3. Ações Rápidas */}
+      {/* 3. Ações Rápidas (Grid 2x2 no mobile, 4 cols no desktop) */}
       <View style={styles.sectionHeaderWrap}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Ações Rápidas</Text>
       </View>
@@ -260,17 +254,17 @@ export default function HomeScreen() {
                 styles.quickActionItem,
                 (isDesktop || isTablet) && styles.quickActionItemDesktop,
                 {
-                  backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
+                  backgroundColor: isDark ? colors.surface : '#FFFFFF',
                   borderColor: colors.border,
                 },
                 Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined,
               ]}
             >
               <View style={[styles.quickActionIconWrap, { backgroundColor: action.bg }]}>
-                <Icon size={22} color={action.color} />
+                <Icon size={20} color={action.color} />
               </View>
               <Text style={[styles.quickActionTitle, { color: colors.text }]}>{action.title}</Text>
-              <Text style={[styles.quickActionDesc, { color: colors.textMuted }]} numberOfLines={2}>
+              <Text style={[styles.quickActionDesc, { color: colors.textSecondary }]} numberOfLines={2}>
                 {action.desc}
               </Text>
             </TouchableOpacity>
@@ -278,17 +272,17 @@ export default function HomeScreen() {
         })}
       </View>
 
-      {/* 4. Recomendação do Dia */}
+      {/* 4. Recomendação do Dia Compacta */}
       {recommendedPractice && (
         <View style={styles.sectionWrap}>
           <View style={styles.sectionHeaderRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Sparkles size={18} color={colors.primary} style={{ marginRight: 6 }} />
+              <Sparkles size={16} color={colors.primary} style={{ marginRight: 6 }} />
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
                 Recomendação para Hoje
               </Text>
             </View>
-            <Badge label="Personalizado" variant="success" size="sm" />
+            <Badge label="Sugerido" variant="success" size="sm" />
           </View>
 
           <Card variant="bordered" style={styles.recommendationCard}>
@@ -305,7 +299,7 @@ export default function HomeScreen() {
                 style={styles.favBtn}
               >
                 <Bookmark
-                  size={18}
+                  size={17}
                   color={recommendedPractice.isFavorite ? colors.primary : colors.textMuted}
                   fill={recommendedPractice.isFavorite ? colors.primary : 'none'}
                 />
@@ -315,29 +309,14 @@ export default function HomeScreen() {
             <Text style={[styles.recTitle, { color: colors.text }]}>
               {recommendedPractice.title}
             </Text>
-            <Text style={[styles.recSubtitle, { color: colors.textMuted }]}>
-              {recommendedPractice.subtitle}
+            <Text style={[styles.recSubtitle, { color: colors.textSecondary }]}>
+              {recommendedPractice.subtitle || recommendedPractice.description}
             </Text>
 
-            <View
-              style={[
-                styles.recReasonBox,
-                {
-                  backgroundColor: isDark ? colors.surfaceSecondary : colors.highlight,
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              <Text style={[styles.recReasonText, { color: colors.primaryDark }]}>
-                💡 <Text style={{ fontWeight: '700' }}>Por que fazer agora:</Text> Ajuda a regular
-                a respiração e diminuir o ritmo cardíaco em momentos de sobrecarga.
-              </Text>
-            </View>
-
             <View style={styles.recActionRow}>
-              <View style={{ flex: 1, marginRight: 12 }}>
-                <ProgressBar progress={(recommendedPractice.completedCount || 0) > 0 ? 100 : 0} height={6} />
-              </View>
+              <Text style={[styles.recCompletedText, { color: colors.textMuted }]}>
+                {formatTimesRealized(recommendedPractice.completedCount || 0)}
+              </Text>
               <AppButton
                 title="Iniciar Prática"
                 onPress={() => {
@@ -347,19 +326,19 @@ export default function HomeScreen() {
                     router.push(`/practices/player/${recommendedPractice.id}`);
                   }
                 }}
-                size="md"
+                size="sm"
               />
             </View>
           </Card>
         </View>
       )}
 
-      {/* 5. Conteúdo em Destaque */}
+      {/* 5. Conteúdo em Destaque Compacto */}
       {featuredArticle && (
         <View style={styles.sectionWrap}>
           <View style={styles.sectionHeaderRow}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Conteúdo Educativo em Destaque
+              Conteúdo em Destaque
             </Text>
             <TouchableOpacity
               onPress={() => router.push('/(tabs)/content')}
@@ -371,58 +350,54 @@ export default function HomeScreen() {
           </View>
 
           <Card variant="bordered" style={styles.editorialCard}>
-            <View style={styles.editorialRow}>
-              <View style={styles.editorialTextCol}>
-                <View style={styles.articleBadgeRow}>
-                  <Badge label={featuredArticle.categoryName} variant="info" size="sm" />
-                  <Text style={[styles.readTimeText, { color: colors.textMuted }]}>
-                    {featuredArticle.readTimeMinutes} min de leitura
-                  </Text>
-                </View>
+            <View style={styles.articleBadgeRow}>
+              <Badge label={featuredArticle.category || featuredArticle.categoryName || 'Artigo'} variant="info" size="sm" />
+              <Text style={[styles.readTimeText, { color: colors.textMuted }]}>
+                {featuredArticle.readingTimeMinutes || featuredArticle.readTimeMinutes || 4} min de leitura
+              </Text>
+            </View>
 
-                <Text style={[styles.editorialTitle, { color: colors.text }]}>
-                  {featuredArticle.title}
+            <Text style={[styles.editorialTitle, { color: colors.text }]}>
+              {featuredArticle.title}
+            </Text>
+            <Text
+              style={[styles.editorialSummary, { color: colors.textSecondary }]}
+              numberOfLines={2}
+            >
+              {featuredArticle.summary}
+            </Text>
+
+            <View style={styles.editorialFooter}>
+              <TouchableOpacity
+                onPress={() => router.push(`/contents/${featuredArticle.slug || featuredArticle.id}` as any)}
+                style={styles.continueReadBtn}
+                accessibilityRole="link"
+                accessibilityLabel={`Ler artigo ${featuredArticle.title}`}
+              >
+                <Text style={[styles.continueReadText, { color: colors.primary }]}>
+                  Ler artigo
                 </Text>
-                <Text
-                  style={[styles.editorialSummary, { color: colors.textMuted }]}
-                  numberOfLines={2}
-                >
-                  {featuredArticle.summary}
-                </Text>
+                <ChevronRight size={15} color={colors.primary} />
+              </TouchableOpacity>
 
-                <View style={styles.editorialFooter}>
-                  <TouchableOpacity
-                    onPress={() => router.push(`/content/${featuredArticle.id}`)}
-                    style={styles.continueReadBtn}
-                    accessibilityRole="link"
-                    accessibilityLabel={`Ler artigo ${featuredArticle.title}`}
-                  >
-                    <Text style={[styles.continueReadText, { color: colors.primary }]}>
-                      Continuar leitura
-                    </Text>
-                    <ChevronRight size={16} color={colors.primary} />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={() => toggleArticleFavorite(featuredArticle.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Favoritar artigo"
-                    style={styles.favBtn}
-                  >
-                    <Bookmark
-                      size={18}
-                      color={featuredArticle.isFavorite ? colors.primary : colors.textMuted}
-                      fill={featuredArticle.isFavorite ? colors.primary : 'none'}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
+              <TouchableOpacity
+                onPress={() => toggleArticleFavorite(featuredArticle.id)}
+                accessibilityRole="button"
+                accessibilityLabel="Favoritar artigo"
+                style={styles.favBtn}
+              >
+                <Bookmark
+                  size={17}
+                  color={featuredArticle.isFavorite ? colors.primary : colors.textMuted}
+                  fill={featuredArticle.isFavorite ? colors.primary : 'none'}
+                />
+              </TouchableOpacity>
             </View>
           </Card>
         </View>
       )}
 
-      {/* 6. Aviso Institucional Médico */}
+      {/* 6. Aviso Institucional */}
       <View
         style={[
           styles.disclaimerBox,
@@ -445,45 +420,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   userGreetingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   avatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarLetter: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
   },
   greetingTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
-    lineHeight: 24,
+    lineHeight: 22,
   },
   dateSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     marginTop: 2,
   },
   headerRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   sosHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
     borderWidth: 1.5,
     gap: 6,
   },
@@ -491,38 +465,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  bellBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   checkinHeroCard: {
-    marginBottom: 24,
+    padding: 16,
+    marginBottom: 20,
   },
   heroContent: {
-    gap: 14,
+    gap: 10,
   },
   heroTextCol: {
     gap: 4,
   },
   heroQuestion: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
-    lineHeight: 28,
+    lineHeight: 26,
   },
   lastRecordRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 2,
   },
   lastRecordText: {
     fontSize: 13,
     lineHeight: 18,
   },
   heroActionsCol: {
-    marginTop: 6,
+    marginTop: 4,
     gap: 8,
   },
   historyLinkBtn: {
@@ -534,20 +502,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   sectionHeaderWrap: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
   sectionWrap: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 17,
+    fontWeight: '700',
   },
   seeAllLink: {
     fontSize: 13,
@@ -556,8 +524,8 @@ const styles = StyleSheet.create({
   quickActionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 24,
+    gap: 10,
+    marginBottom: 20,
   },
   quickActionsGridDesktop: {
     flexWrap: 'nowrap',
@@ -565,25 +533,25 @@ const styles = StyleSheet.create({
   quickActionItem: {
     width: '48%',
     flexGrow: 1,
-    padding: 16,
-    borderRadius: 18,
+    padding: 14,
+    borderRadius: 14,
     borderWidth: 1.5,
-    gap: 6,
+    gap: 4,
   },
   quickActionItemDesktop: {
     width: '23%',
     flexGrow: 1,
   },
   quickActionIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   quickActionTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   },
   quickActionDesc: {
@@ -591,7 +559,8 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   recommendationCard: {
-    gap: 10,
+    padding: 16,
+    gap: 8,
   },
   recHeaderRow: {
     flexDirection: 'row',
@@ -599,40 +568,31 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   favBtn: {
-    padding: 6,
+    padding: 4,
   },
   recTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
   },
   recSubtitle: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  recReasonBox: {
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginVertical: 4,
-  },
-  recReasonText: {
     fontSize: 13,
     lineHeight: 18,
   },
   recActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    justifyContent: 'space-between',
+    marginTop: 4,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F4F4',
+  },
+  recCompletedText: {
+    fontSize: 12,
   },
   editorialCard: {
+    padding: 16,
     gap: 8,
-  },
-  editorialRow: {
-    flexDirection: 'row',
-  },
-  editorialTextCol: {
-    flex: 1,
-    gap: 6,
   },
   articleBadgeRow: {
     flexDirection: 'row',
@@ -643,8 +603,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   editorialTitle: {
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
     lineHeight: 22,
   },
   editorialSummary: {
@@ -655,7 +615,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 8,
+    marginTop: 4,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F4F4',
   },
   continueReadBtn: {
     flexDirection: 'row',
@@ -667,27 +630,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   disclaimerBox: {
-    padding: 16,
-    borderRadius: 16,
+    padding: 12,
+    borderRadius: 12,
     borderWidth: 1,
-    marginTop: 8,
-    marginBottom: 24,
+    marginTop: 6,
+    marginBottom: 20,
   },
   disclaimerText: {
-    fontSize: 12,
+    fontSize: 11,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 16,
   },
   sidePanelWrap: {
-    gap: 8,
+    gap: 6,
   },
   sidePanelTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 12,
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 10,
   },
   sideCardHeading: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
   sideCardText: {

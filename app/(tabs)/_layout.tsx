@@ -20,18 +20,19 @@ export default function TabLayout() {
           backgroundColor: isDark ? colors.surface : '#FFFFFF',
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 88 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
-          paddingTop: 8,
-          elevation: 8,
+          height: Platform.OS === 'ios' ? 84 : 62,
+          paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+          paddingTop: 6,
+          elevation: 6,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.05,
-          shadowRadius: 8,
+          shadowOpacity: 0.04,
+          shadowRadius: 6,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '600',
+          marginTop: -2,
         },
       }}
     >
@@ -40,7 +41,7 @@ export default function TabLayout() {
         options={{
           title: 'Início',
           tabBarLabel: 'Início',
-          tabBarIcon: ({ color, size }) => <Home size={size || 22} color={color} />,
+          tabBarIcon: ({ color }) => <Home size={22} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -48,7 +49,7 @@ export default function TabLayout() {
         options={{
           title: 'Diário',
           tabBarLabel: 'Diário',
-          tabBarIcon: ({ color, size }) => <BookOpen size={size || 22} color={color} />,
+          tabBarIcon: ({ color }) => <BookOpen size={22} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -56,7 +57,7 @@ export default function TabLayout() {
         options={{
           title: 'Práticas',
           tabBarLabel: 'Práticas',
-          tabBarIcon: ({ color, size }) => <Wind size={size || 22} color={color} />,
+          tabBarIcon: ({ color }) => <Wind size={22} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -64,7 +65,7 @@ export default function TabLayout() {
         options={{
           title: 'Conteúdos',
           tabBarLabel: 'Conteúdos',
-          tabBarIcon: ({ color, size }) => <Library size={size || 22} color={color} />,
+          tabBarIcon: ({ color }) => <Library size={22} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -72,7 +73,7 @@ export default function TabLayout() {
         options={{
           title: 'Perfil',
           tabBarLabel: 'Perfil',
-          tabBarIcon: ({ color, size }) => <User size={size || 22} color={color} />,
+          tabBarIcon: ({ color }) => <User size={22} color={color} />,
         }}
       />
     </Tabs>

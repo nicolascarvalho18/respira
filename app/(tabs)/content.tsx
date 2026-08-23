@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -27,45 +27,54 @@ export default function ContentScreen() {
 
   const categories = [
     { id: 'all', label: 'Todos' },
-    { id: 'Fundamentos', label: 'Fundamentos' },
-    { id: 'Regulação', label: 'Regulação' },
+    { id: 'Entendendo a ansiedade', label: 'Entendendo a ansiedade' },
+    { id: 'Bem-estar emocional', label: 'Bem-estar emocional' },
     { id: 'Sono', label: 'Sono' },
-    { id: 'Mitos e Fatos', label: 'Mitos e Fatos' },
-    { id: 'Estilo de Vida', label: 'Estilo de Vida' },
+    { id: 'Rotina', label: 'Rotina' },
+    { id: 'Mitos e verdades', label: 'Mitos e verdades' },
     { id: 'favorites', label: 'Favoritos' },
   ];
 
-  const filteredArticles = articles.filter((item) => {
-    const matchesSearch =
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.content.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredArticles = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    return articles.filter((item) => {
+      const matchesSearch =
+        !q ||
+        item.title.toLowerCase().includes(q) ||
+        item.summary.toLowerCase().includes(q) ||
+        (item.category && item.category.toLowerCase().includes(q)) ||
+        (item.tags && item.tags.some((t) => t.toLowerCase().includes(q)));
 
-    if (!matchesSearch) return false;
+      if (!matchesSearch) return false;
 
-    if (selectedCategory === 'all') return true;
-    if (selectedCategory === 'favorites') return item.isFavorite;
-    return item.categoryName.toLowerCase().includes(selectedCategory.toLowerCase());
-  });
+      if (selectedCategory === 'all') return true;
+      if (selectedCategory === 'favorites') return item.isFavorite;
+      return (
+        (item.category && item.category.toLowerCase() === selectedCategory.toLowerCase()) ||
+        (item.categoryName && item.categoryName.toLowerCase() === selectedCategory.toLowerCase())
+      );
+    });
+  }, [articles, searchQuery, selectedCategory]);
 
   return (
     <AppShell>
       {/* Cabeçalho */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Conteúdos Educativos</Text>
-        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-          Informação clara e baseada em evidências para desmistificar a ansiedade.
+        <Text style={[styles.title, { color: colors.text }]}>Conteúdos</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Informações práticas para entender melhor a ansiedade e cuidar da sua rotina.
         </Text>
       </View>
 
-      {/* Busca com Debounce */}
+      {/* Busca com Debounce de 300ms */}
       <SearchInput
         value={searchQuery}
         onChangeText={setSearchQuery}
-        placeholder="Buscar artigos sobre sono, fisiologia, respiração..."
+        placeholder="Buscar por assunto"
+        debounceMs={300}
       />
 
-      {/* Chips Horizontais de Categorias (36-42px sem quebra vertical) */}
+      {/* Chips Horizontais de Categorias (Altura ~38px, espaçamento 8px, sem quebra) */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -109,7 +118,7 @@ export default function ContentScreen() {
             >
               <ContentCard
                 article={article}
-                onPress={() => router.push(`/content/${article.id}`)}
+                onPress={() => router.push(`/contents/${article.slug || article.id}` as any)}
                 onToggleFavorite={() => toggleFavorite(article.id)}
               />
             </View>
@@ -125,26 +134,27 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '800',
-    lineHeight: 28,
+    lineHeight: 32,
   },
   subtitle: {
-    fontSize: 14,
-    marginTop: 2,
-    lineHeight: 20,
+    fontSize: 15,
+    marginTop: 4,
+    lineHeight: 22,
   },
   categoriesScroll: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
-    gap: 4,
+    gap: 8,
   },
   articlesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 14,
-    marginVertical: 12,
+    gap: 12,
+    marginTop: 8,
+    marginBottom: 24,
   },
   articlesGridDesktop: {
     flexWrap: 'wrap',

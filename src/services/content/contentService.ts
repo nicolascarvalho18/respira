@@ -31,7 +31,12 @@ class ContentService {
 
   async getArticleById(id: string): Promise<Article | null> {
     const articles = await this.getArticles();
-    return articles.find((a) => a.id === id) || null;
+    return articles.find((a) => a.id === id || a.slug === id) || null;
+  }
+
+  async getArticleBySlug(slug: string): Promise<Article | null> {
+    const articles = await this.getArticles();
+    return articles.find((a) => a.slug === slug || a.id === slug) || null;
   }
 
   async getCategories() {

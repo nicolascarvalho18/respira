@@ -176,9 +176,9 @@ export default function AdminScreen() {
           {articles.map((art) => (
             <Card key={art.id} variant="bordered" style={styles.itemCard}>
               <View style={styles.itemHeader}>
-                <Badge label={art.categoryName} variant="primary" size="sm" />
+                <Badge label={art.category || art.categoryName || 'Artigo'} variant="primary" size="sm" />
                 <Text style={[styles.itemMeta, { color: colors.textMuted }]}>
-                  {art.readTimeMinutes} min de leitura
+                  {art.readingTimeMinutes || art.readTimeMinutes || 4} min de leitura
                 </Text>
               </View>
               <Text style={[styles.itemTitle, { color: colors.text }]}>{art.title}</Text>
