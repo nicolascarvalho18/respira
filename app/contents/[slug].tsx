@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,42 +16,44 @@ import {
   Clock,
   ArrowRight,
   ShieldCheck,
-  Calendar,
   CheckCircle2,
   Share2,
   ArrowLeft,
   ThumbsUp,
   ThumbsDown,
-  Wind,
+  Type,
+  BookOpen,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
-import { PageHeader } from '../../src/components/ui/PageHeader';
-import { Card } from '../../src/components/ui/Card';
-import { Badge } from '../../src/components/ui/Badge';
-import { AppButton } from '../../src/components/ui/AppButton';
 import { LoadingState } from '../../src/components/ui/LoadingState';
 import { useToast } from '../../src/components/ui/Toast';
 import { useContentStore } from '../../src/store/contentStore';
-import { usePracticeStore } from '../../src/store/practiceStore';
 import { useTheme } from '../../src/hooks/useTheme';
 import { Article } from '../../src/types';
-import { formatDate } from '../../src/utils/date';
-import { LEGAL_TEXTS } from '../../src/constants/legal';
+import { normalizeText } from '../../src/data/articles';
+import {
+  NightSkyMoonThumb,
+  SageLeavesThumb,
+  WarmSunHillsThumb,
+  RiverHillsThumb,
+} from '../../src/components/illustrations/ArticleThumbnails';
 
 export default function ArticleDetailSlugScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { articles, toggleFavorite, updateProgress } = useContentStore();
-  const { practices } = usePracticeStore();
   const { showToast } = useToast();
 
   const [article, setArticle] = useState<Article | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [isRead, setIsRead] = useState(false);
+  const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1.0); // 0.9, 1.0, 1.15, 1.3
   const [feedback, setFeedback] = useState<'yes' | 'no' | null>(null);
+  const [showResumeBanner, setShowResumeBanner] = useState(false);
 
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (slug && articles.length > 0) {
@@ -61,6 +63,9 @@ export default function ArticleDetailSlugScreen() {
         const existingProgress = found.readProgress || 0;
         setScrollProgress(existingProgress);
         setIsRead(existingProgress >= 90);
+        if (existingProgress > 10 && existingProgress < 90) {
+          setShowResumeBanner(true);
+        }
       }
     }
   }, [slug, articles]);
@@ -79,6 +84,9 @@ export default function ArticleDetailSlugScreen() {
 
     if (currentProgress >= 90 && !isRead) {
       setIsRead(true);
+      if (article) {
+        updateProgress(article.id, 100);
+      }
     }
 
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -117,15 +125,18 @@ export default function ArticleDetailSlugScreen() {
           message: `${article.title}\n\n${article.summary}`,
         });
       }
-    } catch {
-      // Compartilhamento cancelado ou não suportado
+    } catch (_err) {
+      // Ignored
     }
   };
 
   const handleFeedback = (val: 'yes' | 'no') => {
     setFeedback(val);
     showToast({
-      message: val === 'yes' ? 'Obrigado pela sua avaliação!' : 'Agradecemos o retorno para melhorar.',
+      message:
+        val === 'yes'
+          ? 'Obrigado pela sua avaliação!'
+          : 'Agradecemos o retorno para melhorar.',
       type: 'info',
     });
   };
@@ -133,612 +144,682 @@ export default function ArticleDetailSlugScreen() {
   if (!article) {
     return (
       <AppShell>
-        <PageHeader showBack title="Conteúdos" />
-        <LoadingState message="Carregando texto..." />
+        <LoadingState message="Carregando conteúdo..." />
       </AppShell>
     );
   }
 
-  const relatedPractices = practices.filter(
-    (p) =>
-      article.relatedPracticeId === p.id ||
-      article.relatedPracticeIds?.includes(p.id)
-  );
+  // 3 Related Articles
+  const relatedArticles: Article[] = articles
+    .filter((a) => a.id !== article.id)
+    .filter((a) => {
+      if (article.relatedArticleIds?.includes(a.slug) || article.relatedArticleIds?.includes(a.id)) {
+        return true;
+      }
+      return normalizeText(a.category) === normalizeText(article.category);
+    })
+    .slice(0, 3);
 
-  const relatedArticles = articles.filter(
-    (a) => a.id !== article.id && article.relatedArticleIds?.includes(a.id)
-  );
+  // Artwork
+  const renderCoverIllustration = () => {
+    const cat = normalizeText(article.category || '');
+    if (cat.includes('sono')) {
+      return <NightSkyMoonThumb size={110} borderRadius={16} />;
+    }
+    if (cat.includes('regulacao') || cat.includes('atencao')) {
+      return <SageLeavesThumb size={110} borderRadius={16} />;
+    }
+    if (cat.includes('ansiedade')) {
+      return <WarmSunHillsThumb size={110} borderRadius={16} />;
+    }
+    return <RiverHillsThumb size={110} borderRadius={16} />;
+  };
 
   return (
-    <AppShell scrollable={false} contentContainerStyle={{ paddingHorizontal: 0, paddingTop: 0 }}>
-      {/* 1. Barra Fina de Progresso no Topo */}
-      <View
-        style={[
-          styles.topProgressBarTrack,
-          { backgroundColor: isDark ? colors.surfaceSecondary : '#EAEFF0' },
-        ]}
-      >
+    <AppShell>
+      {/* Barra de Progresso de Leitura Fixa no Topo */}
+      <View style={styles.topProgressTrack}>
         <View
           style={[
-            styles.topProgressBarFill,
-            {
-              width: `${scrollProgress}%`,
-              backgroundColor: isRead ? colors.success : colors.primary,
-            },
+            styles.topProgressBar,
+            { width: `${Math.min(100, Math.max(0, scrollProgress))}%` },
           ]}
         />
       </View>
 
-      {/* 2. Barra de Navegação Superior */}
-      <View style={[styles.navBar, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar para conteúdos"
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={[styles.navBtn, { backgroundColor: colors.surfaceSecondary }]}
-        >
-          <ArrowLeft size={20} color={colors.text} />
-        </TouchableOpacity>
-
-        <Text style={[styles.navCategory, { color: colors.textSecondary }]} numberOfLines={1}>
-          {article.category || article.categoryName}
-        </Text>
-
-        <View style={styles.navActionsRow}>
-          <TouchableOpacity
-            onPress={handleShare}
-            accessibilityRole="button"
-            accessibilityLabel="Compartilhar artigo"
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={[styles.navBtn, { backgroundColor: colors.surfaceSecondary }]}
-          >
-            <Share2 size={18} color={colors.text} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => toggleFavorite(article.id)}
-            accessibilityRole="button"
-            accessibilityLabel={article.isFavorite ? 'Remover dos favoritos' : 'Favoritar'}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={[styles.navBtn, { backgroundColor: colors.surfaceSecondary }]}
-          >
-            <Bookmark
-              size={18}
-              color={article.isFavorite ? colors.primary : colors.textMuted}
-              fill={article.isFavorite ? colors.primary : 'none'}
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* 3. Área de Leitura com Scroll */}
       <ScrollView
+        ref={scrollViewRef}
         onScroll={handleScroll}
-        scrollEventThrottle={100}
-        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.articleContainer}>
-          {/* Metadados e Cabeçalho */}
-          <View style={styles.headerBlock}>
-            <View style={styles.badgeMetaRow}>
-              <Badge
-                label={article.category || article.categoryName || 'Artigo'}
-                variant="primary"
-                size="sm"
-              />
-              <View style={styles.readTimeRow}>
-                <Clock size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
-                <Text style={[styles.readTimeText, { color: colors.textMuted }]}>
-                  {article.readingTimeMinutes || article.readTimeMinutes || 4} min de leitura
-                </Text>
-              </View>
-            </View>
-
-            <Text style={[styles.title, { color: colors.text }]}>{article.title}</Text>
-            <Text style={[styles.summary, { color: colors.textSecondary }]}>{article.summary}</Text>
-
-            <View style={styles.metaFooterRow}>
-              <Calendar size={13} color={colors.textMuted} style={{ marginRight: 4 }} />
-              <Text style={[styles.metaFooterText, { color: colors.textMuted }]}>
-                Revisado em {formatDate(article.updatedAt || article.publishedAt || new Date().toISOString())}
-              </Text>
-            </View>
-
-            <View
-              style={[
-                styles.reviewBox,
-                {
-                  backgroundColor: isDark ? colors.surfaceSecondary : '#F0F7F6',
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              <ShieldCheck size={16} color={colors.primary} style={{ marginRight: 8 }} />
-              <Text style={[styles.reviewText, { color: colors.primaryDark }]}>
-                {article.reviewedBy || 'Conteúdo informativo revisado com base em saúde mental.'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Corpo do Artigo Estruturado */}
-          <View style={styles.bodyContent}>
-            {article.sections && article.sections.length > 0 ? (
-              article.sections.map((section, idx) => (
-                <View key={idx} style={styles.sectionBlock}>
-                  {section.title && (
-                    <Text style={[styles.sectionHeading, { color: colors.text }]}>
-                      {section.title}
-                    </Text>
-                  )}
-                  <Text style={[styles.paragraph, { color: colors.text }]}>
-                    {section.body}
-                  </Text>
-
-                  {section.callout && (
-                    <View
-                      style={[
-                        styles.calloutBox,
-                        {
-                          backgroundColor: isDark ? colors.surfaceSecondary : colors.highlight,
-                          borderLeftColor: colors.primary,
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.calloutText, { color: colors.primaryDark }]}>
-                        {section.callout}
-                      </Text>
-                    </View>
-                  )}
-
-                  {section.list && section.list.length > 0 && (
-                    <View style={styles.listWrap}>
-                      {section.list.map((item, itemIdx) => (
-                        <View key={itemIdx} style={styles.listItemRow}>
-                          <Text style={[styles.bulletDot, { color: colors.primary }]}>•</Text>
-                          <Text style={[styles.listText, { color: colors.text }]}>{item}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              ))
-            ) : (
-              // Fallback se não tiver seções
-              <Text style={[styles.paragraph, { color: colors.text }]}>
-                {article.content?.replace(/## /g, '\n\n').replace(/\*\*/g, '')}
-              </Text>
-            )}
-          </View>
-
-          {/* Botão de Marcar como Lido / Não Lido */}
-          <View style={[styles.readToggleWrap, { borderTopColor: colors.border }]}>
-            <TouchableOpacity
-              onPress={handleToggleRead}
-              accessibilityRole="button"
-              accessibilityLabel={isRead ? 'Marcar artigo como não lido' : 'Marcar artigo como lido'}
-              style={[
-                styles.readBtn,
-                {
-                  backgroundColor: isRead ? colors.highlight : colors.surfaceSecondary,
-                  borderColor: isRead ? colors.primary : colors.border,
-                },
-              ]}
-            >
-              <CheckCircle2
-                size={18}
-                color={isRead ? colors.primary : colors.textMuted}
-              />
-              <Text
-                style={[
-                  styles.readBtnText,
-                  {
-                    color: isRead ? colors.primaryDark : colors.text,
-                    fontWeight: isRead ? '700' : '600',
-                  },
-                ]}
-              >
-                {isRead ? 'Artigo lido' : 'Marcar como lido'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Bloco de Avaliação de Utilidade */}
-          <Card variant="bordered" style={styles.feedbackCard}>
-            <Text style={[styles.feedbackTitle, { color: colors.text }]}>
-              Este conteúdo foi útil para você?
-            </Text>
-            <View style={styles.feedbackButtonsRow}>
-              <TouchableOpacity
-                onPress={() => handleFeedback('yes')}
-                accessibilityRole="button"
-                accessibilityLabel="Sim, foi útil"
-                style={[
-                  styles.feedbackBtn,
-                  {
-                    backgroundColor:
-                      feedback === 'yes' ? colors.primary : isDark ? colors.surfaceSecondary : '#FFFFFF',
-                    borderColor: feedback === 'yes' ? colors.primary : colors.border,
-                  },
-                ]}
-              >
-                <ThumbsUp size={16} color={feedback === 'yes' ? '#FFFFFF' : colors.text} />
-                <Text
-                  style={[
-                    styles.feedbackBtnText,
-                    { color: feedback === 'yes' ? '#FFFFFF' : colors.text },
-                  ]}
-                >
-                  Sim
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => handleFeedback('no')}
-                accessibilityRole="button"
-                accessibilityLabel="Não, não foi útil"
-                style={[
-                  styles.feedbackBtn,
-                  {
-                    backgroundColor:
-                      feedback === 'no' ? colors.warning : isDark ? colors.surfaceSecondary : '#FFFFFF',
-                    borderColor: feedback === 'no' ? colors.warning : colors.border,
-                  },
-                ]}
-              >
-                <ThumbsDown size={16} color={feedback === 'no' ? '#FFFFFF' : colors.text} />
-                <Text
-                  style={[
-                    styles.feedbackBtnText,
-                    { color: feedback === 'no' ? '#FFFFFF' : colors.text },
-                  ]}
-                >
-                  Não
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Card>
-
-          {/* Práticas Relacionadas */}
-          {relatedPractices.length > 0 && (
-            <View style={styles.relatedSection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Prática Relacionada</Text>
-              {relatedPractices.map((rp) => (
-                <TouchableOpacity
-                  key={rp.id}
-                  activeOpacity={0.8}
-                  onPress={() => {
-                    if (rp.category === 'breathing') {
-                      router.push('/practices/breathing');
-                    } else if (rp.id === 'practice-grounding-54321') {
-                      router.push('/practices/grounding' as any);
-                    } else if (rp.id === 'practice-pmr-relaxation') {
-                      router.push('/practices/relaxation' as any);
-                    } else {
-                      router.push(`/practices/player/${rp.id}`);
-                    }
-                  }}
-                  style={[
-                    styles.relatedPracticeCard,
-                    {
-                      backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
-                      borderColor: colors.border,
-                    },
-                  ]}
-                >
-                  <View style={[styles.rpIconCircle, { backgroundColor: colors.highlight }]}>
-                    <Wind size={18} color={colors.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.rpTitle, { color: colors.text }]}>{rp.title}</Text>
-                    <Text style={[styles.rpSubtitle, { color: colors.textSecondary }]}>
-                      {rp.subtitle || rp.description}
-                    </Text>
-                  </View>
-                  <ArrowRight size={18} color={colors.primary} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          {/* Outros Artigos Recomendados */}
-          {relatedArticles.length > 0 && (
-            <View style={styles.relatedSection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Leia Também</Text>
-              {relatedArticles.map((ra) => (
-                <TouchableOpacity
-                  key={ra.id}
-                  activeOpacity={0.8}
-                  onPress={() => router.push(`/contents/${ra.slug || ra.id}` as any)}
-                  style={[
-                    styles.relatedArticleRow,
-                    {
-                      backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
-                      borderColor: colors.border,
-                    },
-                  ]}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.raTitle, { color: colors.text }]}>{ra.title}</Text>
-                    <Text style={[styles.raMeta, { color: colors.textMuted }]}>
-                      {ra.readingTimeMinutes || ra.readTimeMinutes || 4} min • {ra.category}
-                    </Text>
-                  </View>
-                  <ArrowRight size={16} color={colors.primary} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          {/* Botão de Voltar aos Conteúdos */}
-          <AppButton
-            title="Voltar aos Conteúdos"
-            variant="outline"
-            size="md"
-            onPress={() => router.back()}
-            style={{ marginTop: 16, marginBottom: 32 }}
-          />
-
-          {/* Aviso Legal de Saúde */}
-          <View
+        {/* 1. Barra de Ações Superior */}
+        <View style={styles.navBarRow}>
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/content' as any)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Voltar para conteúdos"
             style={[
-              styles.disclaimerBox,
+              styles.iconCircleBtn,
               {
-                backgroundColor: isDark ? colors.surfaceSecondary : '#F0F5F4',
-                borderColor: colors.border,
+                backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5',
+                borderColor: isDark ? colors.border : '#DCE5E2',
               },
             ]}
           >
-            <Text style={[styles.disclaimerText, { color: colors.textMuted }]}>
-              {LEGAL_TEXTS.MEDICAL_DISCLAIMER}
-            </Text>
+            <ArrowLeft size={18} color={isDark ? colors.text : '#173D3B'} />
+          </TouchableOpacity>
+
+          <View style={styles.topActionsGroup}>
+            {/* Ajuste de Tamanho de Fonte */}
+            <View style={styles.fontControlsRow}>
+              <TouchableOpacity
+                onPress={() =>
+                  setFontSizeMultiplier((prev) => Math.max(0.85, prev - 0.1))
+                }
+                style={[
+                  styles.fontBtn,
+                  {
+                    backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5',
+                    borderColor: isDark ? colors.border : '#DCE5E2',
+                  },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Diminuir tamanho do texto"
+              >
+                <Text style={[styles.fontBtnText, { color: isDark ? colors.text : '#173D3B' }]}>
+                  A-
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() =>
+                  setFontSizeMultiplier((prev) => Math.min(1.35, prev + 0.1))
+                }
+                style={[
+                  styles.fontBtn,
+                  {
+                    backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5',
+                    borderColor: isDark ? colors.border : '#DCE5E2',
+                  },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Aumentar tamanho do texto"
+              >
+                <Text style={[styles.fontBtnText, { color: isDark ? colors.text : '#173D3B' }]}>
+                  A+
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Favoritar */}
+            <TouchableOpacity
+              onPress={() => toggleFavorite(article.id)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Favoritar artigo"
+              style={[
+                styles.iconCircleBtn,
+                {
+                  backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5',
+                  borderColor: isDark ? colors.border : '#DCE5E2',
+                },
+              ]}
+            >
+              <Bookmark
+                size={18}
+                color="#2F7F7C"
+                fill={article.isFavorite ? '#2F7F7C' : 'transparent'}
+              />
+            </TouchableOpacity>
+
+            {/* Compartilhar */}
+            <TouchableOpacity
+              onPress={handleShare}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Compartilhar artigo"
+              style={[
+                styles.iconCircleBtn,
+                {
+                  backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5',
+                  borderColor: isDark ? colors.border : '#DCE5E2',
+                },
+              ]}
+            >
+              <Share2 size={18} color={isDark ? colors.text : '#173D3B'} />
+            </TouchableOpacity>
           </View>
         </View>
+
+        {/* Banner "Continuar de onde parou" */}
+        {showResumeBanner && (
+          <View
+            style={[
+              styles.resumeBanner,
+              {
+                backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
+                borderColor: isDark ? colors.border : '#C7E5DC',
+              },
+            ]}
+          >
+            <BookOpen size={16} color="#2F7F7C" style={{ marginRight: 8 }} />
+            <Text style={[styles.resumeBannerText, { color: isDark ? colors.text : '#173D3B' }]}>
+              Você já leu {scrollProgress}% deste artigo.
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowResumeBanner(false)}
+              style={styles.resumeCloseBtn}
+            >
+              <Text style={styles.resumeCloseBtnText}>Entendi</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* 2. Cabeçalho do Artigo com Categoria e Capa */}
+        <View style={styles.articleHeaderBlock}>
+          <View style={styles.headerMetaRow}>
+            <View style={styles.catBadge}>
+              <Text style={styles.catBadgeText}>
+                {article.category.toUpperCase()}
+              </Text>
+            </View>
+            <View style={styles.readTimeMeta}>
+              <Clock size={12} color="#8C9E9B" style={{ marginRight: 4 }} />
+              <Text style={styles.readTimeMetaText}>
+                {article.readingTimeMinutes || 5} min de leitura
+              </Text>
+            </View>
+          </View>
+
+          <Text
+            style={[
+              styles.mainTitle,
+              { color: isDark ? colors.text : '#173D3B', fontSize: 24 * fontSizeMultiplier },
+            ]}
+          >
+            {article.title}
+          </Text>
+
+          <Text
+            style={[
+              styles.summaryText,
+              { color: isDark ? colors.textMuted : '#667775', fontSize: 14 * fontSizeMultiplier },
+            ]}
+          >
+            {article.summary}
+          </Text>
+
+          {/* Ilustração Temática de Capa */}
+          <View style={styles.coverIllustrationWrap}>
+            {renderCoverIllustration()}
+          </View>
+        </View>
+
+        {/* 3. Corpo Completo do Artigo */}
+        <View style={styles.bodyWrapper}>
+          {article.content?.split('\n\n').map((paragraph, pIdx) => {
+            const trimmed = paragraph.trim();
+
+            if (trimmed.startsWith('### ')) {
+              return (
+                <Text
+                  key={pIdx}
+                  style={[
+                    styles.subheading,
+                    {
+                      color: isDark ? colors.text : '#173D3B',
+                      fontSize: 18 * fontSizeMultiplier,
+                    },
+                  ]}
+                >
+                  {trimmed.replace('### ', '')}
+                </Text>
+              );
+            }
+
+            if (trimmed.startsWith('## ')) {
+              return (
+                <Text
+                  key={pIdx}
+                  style={[
+                    styles.sectionHeading,
+                    {
+                      color: isDark ? colors.text : '#173D3B',
+                      fontSize: 20 * fontSizeMultiplier,
+                    },
+                  ]}
+                >
+                  {trimmed.replace('## ', '')}
+                </Text>
+              );
+            }
+
+            if (trimmed.startsWith('*Aviso:') || trimmed.startsWith('> ')) {
+              return (
+                <View
+                  key={pIdx}
+                  style={[
+                    styles.calloutBox,
+                    {
+                      backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
+                      borderColor: isDark ? colors.border : '#C7E5DC',
+                    },
+                  ]}
+                >
+                  <ShieldCheck size={16} color="#2F7F7C" style={{ marginRight: 8 }} />
+                  <Text
+                    style={[
+                      styles.calloutText,
+                      {
+                        color: isDark ? colors.text : '#567571',
+                        fontSize: 13 * fontSizeMultiplier,
+                      },
+                    ]}
+                  >
+                    {trimmed.replace('*Aviso:', 'Aviso:').replace('> ', '')}
+                  </Text>
+                </View>
+              );
+            }
+
+            return (
+              <Text
+                key={pIdx}
+                style={[
+                  styles.paragraph,
+                  {
+                    color: isDark ? colors.text : '#2C4A47',
+                    fontSize: 15 * fontSizeMultiplier,
+                    lineHeight: 24 * fontSizeMultiplier,
+                  },
+                ]}
+              >
+                {trimmed}
+              </Text>
+            );
+          })}
+        </View>
+
+        {/* 4. Ações de Finalização: Marcar como Lido e Avaliação */}
+        <View
+          style={[
+            styles.footerActionCard,
+            {
+              backgroundColor: isDark ? colors.surface : '#FFFFFF',
+              borderColor: isDark ? colors.border : '#DCE5E2',
+            },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={handleToggleRead}
+            activeOpacity={0.85}
+            style={[
+              styles.markReadBtn,
+              isRead && { backgroundColor: '#E7F3EF', borderColor: '#2F7F7C' },
+            ]}
+          >
+            <CheckCircle2
+              size={18}
+              color={isRead ? '#2F7F7C' : '#FFFFFF'}
+              style={{ marginRight: 6 }}
+            />
+            <Text
+              style={[
+                styles.markReadBtnText,
+                isRead && { color: '#2F7F7C' },
+              ]}
+            >
+              {isRead ? 'Artigo concluído' : 'Marcar como lido'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Feedback */}
+          <View style={styles.feedbackRow}>
+            <Text style={[styles.feedbackLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
+              Este artigo foi útil para você?
+            </Text>
+            <View style={styles.thumbsGroup}>
+              <TouchableOpacity
+                onPress={() => handleFeedback('yes')}
+                style={[
+                  styles.thumbBtn,
+                  feedback === 'yes' && { backgroundColor: '#E7F3EF' },
+                ]}
+              >
+                <ThumbsUp
+                  size={16}
+                  color={feedback === 'yes' ? '#2F7F7C' : '#8C9E9B'}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleFeedback('no')}
+                style={[
+                  styles.thumbBtn,
+                  feedback === 'no' && { backgroundColor: '#FDECE5' },
+                ]}
+              >
+                <ThumbsDown
+                  size={16}
+                  color={feedback === 'no' ? '#D98968' : '#8C9E9B'}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* 5. Artigos Relacionados */}
+        {relatedArticles.length > 0 && (
+          <View style={styles.relatedSection}>
+            <Text style={[styles.relatedTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              Conteúdos Relacionados
+            </Text>
+            <View style={styles.relatedCardsList}>
+              {relatedArticles.map((rel) => (
+                <TouchableOpacity
+                  key={rel.id}
+                  onPress={() => router.push(`/contents/${rel.slug || rel.id}` as any)}
+                  activeOpacity={0.8}
+                  style={[
+                    styles.relatedCard,
+                    {
+                      backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                      borderColor: isDark ? colors.border : '#EBF1EF',
+                    },
+                  ]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.relatedCardCat}>{rel.category.toUpperCase()}</Text>
+                    <Text
+                      style={[styles.relatedCardTitle, { color: isDark ? colors.text : '#173D3B' }]}
+                      numberOfLines={2}
+                    >
+                      {rel.title}
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                      <Clock size={10} color="#8C9E9B" style={{ marginRight: 3 }} />
+                      <Text style={styles.relatedCardTime}>
+                        {rel.readingTimeMinutes || 5} min
+                      </Text>
+                    </View>
+                  </View>
+                  <ArrowRight size={16} color="#2F7F7C" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Botão Final: Voltar à Biblioteca */}
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)/content' as any)}
+          style={[
+            styles.backToLibraryBtn,
+            {
+              backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5',
+              borderColor: isDark ? colors.border : '#DCE5E2',
+            },
+          ]}
+        >
+          <ArrowLeft size={16} color="#2F7F7C" style={{ marginRight: 6 }} />
+          <Text style={styles.backToLibraryBtnText}>Voltar para todos os conteúdos</Text>
+        </TouchableOpacity>
       </ScrollView>
     </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  topProgressBarTrack: {
+  topProgressTrack: {
     height: 3,
+    backgroundColor: '#E7F1EE',
     width: '100%',
   },
-  topProgressBarFill: {
+  topProgressBar: {
     height: '100%',
+    backgroundColor: '#2F7F7C',
   },
-  navBar: {
+  scrollContent: {
+    paddingBottom: 60,
+  },
+  navBarRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
+    marginBottom: 16,
+    paddingTop: 8,
   },
-  navBtn: {
+  iconCircleBtn: {
     width: 38,
     height: 38,
-    borderRadius: 12,
+    borderRadius: 19,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  navCategory: {
-    fontSize: 13,
-    fontWeight: '600',
-    maxWidth: '50%',
-  },
-  navActionsRow: {
+  topActionsGroup: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 96,
+  fontControlsRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  fontBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  fontBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
+  // Resume Banner
+  resumeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
+    marginBottom: 16,
+  },
+  resumeBannerText: {
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  resumeCloseBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#2F7F7C',
+    borderRadius: 6,
+  },
+  resumeCloseBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
+  // Header Block
+  articleHeaderBlock: {
+    marginBottom: 20,
+  },
+  headerMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  catBadge: {
+    backgroundColor: '#E7F3EF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  catBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#2F7F7C',
+    letterSpacing: 0.5,
+  },
+  readTimeMeta: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  articleContainer: {
+  readTimeMetaText: {
+    fontSize: 11,
+    color: '#8C9E9B',
+  },
+  mainTitle: {
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    lineHeight: 32,
+    marginBottom: 8,
+  },
+  summaryText: {
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  coverIllustrationWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 8,
+  },
+
+  // Body
+  bodyWrapper: {
+    marginBottom: 24,
+  },
+  sectionHeading: {
+    fontWeight: '800',
+    marginTop: 24,
+    marginBottom: 10,
+    letterSpacing: -0.3,
+  },
+  subheading: {
+    fontWeight: '700',
+    marginTop: 20,
+    marginBottom: 8,
+    letterSpacing: -0.2,
+  },
+  paragraph: {
+    marginBottom: 16,
+  },
+  calloutBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    marginVertical: 16,
+  },
+  calloutText: {
+    flex: 1,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+
+  // Footer Actions
+  footerActionCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  markReadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2F7F7C',
+    borderWidth: 1,
+    borderColor: '#2F7F7C',
     width: '100%',
-    maxWidth: 720,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 14,
   },
-  headerBlock: {
-    marginBottom: 20,
-    gap: 8,
+  markReadBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
-  badgeMetaRow: {
+  feedbackRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    width: '100%',
+    paddingTop: 8,
   },
-  readTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  readTimeText: {
+  feedbackLabel: {
     fontSize: 12,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    lineHeight: 30,
-  },
-  summary: {
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  metaFooterRow: {
+  thumbsGroup: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  metaFooterText: {
-    fontSize: 12,
-  },
-  reviewBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginTop: 6,
-  },
-  reviewText: {
-    fontSize: 12,
-    fontWeight: '600',
-    flex: 1,
-  },
-  bodyContent: {
-    gap: 20,
-    marginVertical: 10,
-  },
-  sectionBlock: {
     gap: 8,
   },
-  sectionHeading: {
-    fontSize: 18,
-    fontWeight: '700',
-    lineHeight: 26,
-    marginTop: 8,
+  thumbBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  paragraph: {
-    fontSize: 16,
-    lineHeight: 26,
-  },
-  calloutBox: {
-    padding: 14,
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    marginVertical: 6,
-  },
-  calloutText: {
-    fontSize: 14,
-    lineHeight: 22,
-    fontWeight: '600',
-  },
-  listWrap: {
-    gap: 6,
-    marginVertical: 6,
-  },
-  listItemRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  bulletDot: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '700',
-  },
-  listText: {
-    flex: 1,
-    fontSize: 15,
-    lineHeight: 24,
-  },
-  readToggleWrap: {
-    paddingTop: 16,
-    marginTop: 16,
-    borderTopWidth: 1,
+
+  // Related
+  relatedSection: {
     marginBottom: 20,
   },
-  readBtn: {
+  relatedTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 10,
+  },
+  relatedCardsList: {
+    gap: 8,
+  },
+  relatedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+  },
+  relatedCardCat: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#2F7F7C',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  relatedCardTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
+  relatedCardTime: {
+    fontSize: 10,
+    color: '#8C9E9B',
+  },
+
+  // Back to Library Button
+  backToLibraryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    gap: 8,
-  },
-  readBtnText: {
-    fontSize: 14,
-  },
-  feedbackCard: {
-    alignItems: 'center',
-    padding: 16,
-    gap: 12,
-    marginBottom: 24,
-  },
-  feedbackTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  feedbackButtonsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    width: '100%',
-  },
-  feedbackBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
     borderRadius: 12,
-    borderWidth: 1.5,
-    gap: 8,
-  },
-  feedbackBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  relatedSection: {
-    marginBottom: 20,
-    gap: 10,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  relatedPracticeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    gap: 12,
-  },
-  rpIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rpTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  rpSubtitle: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  relatedArticleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1.5,
-  },
-  raTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  raMeta: {
-    fontSize: 12,
-  },
-  disclaimerBox: {
-    padding: 14,
-    borderRadius: 14,
     borderWidth: 1,
-    marginBottom: 32,
+    marginTop: 8,
   },
-  disclaimerText: {
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 18,
+  backToLibraryBtnText: {
+    color: '#2F7F7C',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

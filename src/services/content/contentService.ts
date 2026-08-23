@@ -14,7 +14,8 @@ class ContentService {
     }
 
     let articles = await storage.getItem<Article[]>(ARTICLES_STORAGE_KEY);
-    if (!articles || articles.length === 0) {
+    // Ensure all 40 articles are loaded if cache had only 4 old articles
+    if (!articles || articles.length < MOCK_ARTICLES.length) {
       articles = MOCK_ARTICLES;
       await storage.setItem(ARTICLES_STORAGE_KEY, articles);
     }

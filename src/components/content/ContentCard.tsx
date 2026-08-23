@@ -10,6 +10,7 @@ import {
   WarmSunHillsThumb,
   RiverHillsThumb,
 } from '../illustrations/ArticleThumbnails';
+import { normalizeText } from '../../data/articles';
 
 export interface ContentCardProps {
   article: Article;
@@ -38,28 +39,28 @@ export const ContentCard: React.FC<ContentCardProps> = ({
 
   // Choose the thumbnail matching the topic
   const renderThumbnail = () => {
-    const slug = (article.slug || article.id || '').toLowerCase();
-    const cat = (article.category || '').toLowerCase();
+    const cat = normalizeText(article.category || article.categoryName || '');
+    const slug = normalizeText(article.slug || article.id || '');
 
-    if (slug.includes('dormir') || slug.includes('sono') || cat.includes('sono')) {
+    if (cat.includes('sono') || slug.includes('sono') || slug.includes('dormir')) {
       return <NightSkyMoonThumb size={62} borderRadius={12} />;
     }
-    if (slug.includes('5-4-3-2-1') || slug.includes('grounding') || cat.includes('regulação')) {
+    if (cat.includes('regulacao') || cat.includes('atencao') || slug.includes('regulacao') || slug.includes('5-4-3-2-1')) {
       return <SageLeavesThumb size={62} borderRadius={12} />;
     }
-    if (slug.includes('mitos') || slug.includes('ansiedade') || cat.includes('ansiedade')) {
+    if (cat.includes('ansiedade') || slug.includes('ansiedade')) {
       return <WarmSunHillsThumb size={62} borderRadius={12} />;
     }
     return <RiverHillsThumb size={62} borderRadius={12} />;
   };
 
   const getCategoryDisplay = () => {
-    const cat = (article.category || article.categoryName || 'Geral').toUpperCase();
-    if (cat.includes('SONO')) return 'SONO';
-    if (cat.includes('ANSIEDADE')) return 'ANSIEDADE';
-    if (cat.includes('REGULAÇÃO') || cat.includes('ATENÇÃO')) return 'REGULAÇÃO';
-    if (cat.includes('BEM-ESTAR')) return 'BEM-ESTAR';
-    return cat;
+    const cat = normalizeText(article.category || article.categoryName || 'Geral');
+    if (cat.includes('sono')) return 'SONO';
+    if (cat.includes('ansiedade')) return 'ANSIEDADE';
+    if (cat.includes('regulacao') || cat.includes('atencao')) return 'REGULAÇÃO';
+    if (cat.includes('bem-estar') || cat.includes('rotina')) return 'BEM-ESTAR';
+    return 'GERAL';
   };
 
   return (
@@ -67,7 +68,7 @@ export const ContentCard: React.FC<ContentCardProps> = ({
       activeOpacity={0.8}
       onPress={handlePress}
       accessibilityRole="button"
-      accessibilityLabel={`Artigo: ${article.title}, tempo de leitura ${article.readingTimeMinutes || article.readTimeMinutes || 4} minutos`}
+      accessibilityLabel={`Artigo: ${article.title}, tempo de leitura ${article.readingTimeMinutes || article.readTimeMinutes || 5} minutos`}
       style={[
         styles.cardRow,
         {
@@ -88,11 +89,11 @@ export const ContentCard: React.FC<ContentCardProps> = ({
           {getCategoryDisplay()}
         </Text>
 
-        <Text style={[styles.title, { color: '#173D3B' }]} numberOfLines={1}>
+        <Text style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]} numberOfLines={1}>
           {article.title}
         </Text>
 
-        <Text style={[styles.summary, { color: '#667775' }]} numberOfLines={1}>
+        <Text style={[styles.summary, { color: isDark ? colors.textMuted : '#667775' }]} numberOfLines={2}>
           {article.summary}
         </Text>
 
@@ -101,7 +102,7 @@ export const ContentCard: React.FC<ContentCardProps> = ({
           <View style={styles.readTimeRow}>
             <Clock size={11} color="#8C9E9B" style={{ marginRight: 3 }} />
             <Text style={styles.readTimeText}>
-              {article.readingTimeMinutes || article.readTimeMinutes || 4} min
+              {article.readingTimeMinutes || article.readTimeMinutes || 5} min
             </Text>
           </View>
 
