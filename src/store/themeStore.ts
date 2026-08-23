@@ -1,9 +1,8 @@
 import { create } from 'zustand';
-import { Appearance } from 'react-native';
 import { storage } from '../services/storage/asyncStorage';
 import { COLORS } from '../constants/theme';
 
-type ThemeMode = 'light' | 'dark' | 'system';
+export type ThemeMode = 'light' | 'dark';
 
 interface ThemeState {
   mode: ThemeMode;
@@ -24,26 +23,24 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   colors: COLORS.light,
 
   initializeTheme: async () => {
-    const savedMode = (await storage.getItem<ThemeMode>(THEME_STORAGE_KEY)) || 'light';
-    const systemScheme = Appearance.getColorScheme();
-
-    const isDark =
-      savedMode === 'dark' || (savedMode === 'system' && systemScheme === 'dark');
+    const savedMode = (await storage.getItem<string>(THEME_STORAGE_KEY)) || 'light';
+    const validMode: ThemeMode = savedMode === 'dark' ? 'dark' : 'light';
+    const isDark = validMode === 'dark';
 
     set({
-      mode: savedMode,
+      mode: validMode,
       isDark,
       colors: isDark ? COLORS.dark : COLORS.light,
     });
   },
 
   setThemeMode: async (mode: ThemeMode) => {
-    await storage.setItem(THEME_STORAGE_KEY, mode);
-    const systemScheme = Appearance.getColorScheme();
-    const isDark = mode === 'dark' || (mode === 'system' && systemScheme === 'dark');
+    const validMode: ThemeMode = mode === 'dark' ? 'dark' : 'light';
+    await storage.setItem(THEME_STORAGE_KEY, validMode);
+    const isDark = validMode === 'dark';
 
     set({
-      mode,
+      mode: validMode,
       isDark,
       colors: isDark ? COLORS.dark : COLORS.light,
     });
@@ -51,7 +48,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 
   toggleTheme: async () => {
     const currentIsDark = get().isDark;
-    const nextMode = currentIsDark ? 'light' : 'dark';
+    const nextMode: ThemeMode = currentIsDark ? 'light' : 'dark';
     await get().setThemeMode(nextMode);
   },
 }));

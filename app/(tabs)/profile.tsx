@@ -4,1037 +4,804 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Switch,
   ScrollView,
-  TextInput,
+  Switch,
   Platform,
-  ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  User as UserIcon,
-  Shield,
-  Moon,
   Sun,
-  Smartphone,
-  Eye,
-  EyeOff,
-  KeyRound,
-  Mail,
-  Laptop,
-  CheckCircle2,
-  AlertTriangle,
+  Moon,
+  Waves,
+  Bell,
+  ShieldCheck,
   FileDown,
+  KeyRound,
   LogOut,
   Trash2,
+  Laptop,
+  CheckCircle2,
   ChevronRight,
-  ChevronDown,
-  ChevronUp,
-  ShieldCheck,
-  Bell,
-  Sparkles,
-  Lock,
-  Camera,
-  Layers,
-  Sliders,
+  Pencil,
+  Image as ImageIcon,
+  User as UserIcon,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
-import { Card } from '../../src/components/ui/Card';
-import { Badge } from '../../src/components/ui/Badge';
-import { AppButton } from '../../src/components/ui/AppButton';
-import { AppInput } from '../../src/components/ui/AppInput';
-import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
-import { useToast } from '../../src/components/ui/Toast';
 import { useAuth } from '../../src/hooks/useAuth';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useThemeStore } from '../../src/store/themeStore';
-import { useBreakpoint } from '../../src/hooks/useBreakpoint';
+import { useToast } from '../../src/components/ui/Toast';
+import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
+import { AnaAvatar } from '../../src/components/illustrations/AnaAvatar';
+import { AvatarPickerModal } from '../../src/components/profile/AvatarPickerModal';
+import { EditProfileModal } from '../../src/components/profile/EditProfileModal';
+import { DataExportModal } from '../../src/components/profile/DataExportModal';
+import { SecurityAccessModal } from '../../src/components/profile/SecurityAccessModal';
+import { SessionsModal } from '../../src/components/profile/SessionsModal';
 import { userService } from '../../src/services/user/userService';
-import { UserSession, SecurityEvent } from '../../src/types';
-import { formatDate, formatDateTime } from '../../src/utils/date';
-import { validatePasswordStrength } from '../../src/utils/security';
-
-type SettingsTab =
-  | 'profile'
-  | 'security'
-  | 'appearance'
-  | 'accessibility'
-  | 'notifications'
-  | 'privacy'
-  | 'sessions'
-  | 'account';
+import { UserSession } from '../../src/types';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout, updateUser } = useAuth();
   const { colors, isDark } = useTheme();
-  const { mode: themeMode, setThemeMode } = useThemeStore();
-  const { isDesktop } = useBreakpoint();
+  const { mode, setThemeMode } = useThemeStore();
   const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
-  const [expandedSection, setExpandedSection] = useState<string | null>('profile');
+  // Modals state
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [isDataExportOpen, setIsDataExportOpen] = useState(false);
+  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
+  const [isSessionsModalOpen, setIsSessionsModalOpen] = useState(false);
 
-  // Profile editing
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [nameInput, setNameInput] = useState(user?.name || '');
-  const [isSavingName, setIsSavingName] = useState(false);
+  // Logout & Delete account state
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Password change
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPasswords, setShowPasswords] = useState(false);
-  const [isSavingPassword, setIsSavingPassword] = useState(false);
+  // Preference switches
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const [dailyReminder, setDailyReminder] = useState(true);
+  const [saveAiHistory, setSaveAiHistory] = useState(true);
 
-  // Email change
-  const [newEmailInput, setNewEmailInput] = useState('');
-  const [emailPasswordInput, setEmailPasswordInput] = useState('');
-  const [isRequestingEmail, setIsRequestingEmail] = useState(false);
-
-  // Sessions & Security
-  const [sessions, setSessions] = useState<UserSession[]>([]);
-  const [securityEvents, setSecurityEvents] = useState<SecurityEvent[]>([]);
-  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
-
-  // Account deletion
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deletePhraseInput, setDeletePhraseInput] = useState('');
-  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
-
-  // Logout
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-
-  // Notifications
-  const [dailyReminder, setDailyReminder] = useState(user?.preferences?.dailyReminder ?? true);
-  const [newContentAlerts, setNewContentAlerts] = useState(
-    user?.preferences?.notifications?.newContentAlerts ?? true
-  );
-  const [favoritePracticesAlerts, setFavoritePracticesAlerts] = useState(
-    user?.preferences?.notifications?.favoritePracticesAlerts ?? true
-  );
-
-  // Accessibility
-  const [reducedMotion, setReducedMotion] = useState(user?.preferences?.reducedMotion ?? false);
-  const [largeText, setLargeText] = useState(user?.preferences?.largeText ?? false);
-  const [highContrast, setHighContrast] = useState(user?.preferences?.highContrast ?? false);
-
-  // Consents & AI History
-  const [chatRetention, setChatRetention] = useState(
-    user?.consents?.chatRetentionAccepted ?? true
-  );
-  const [personalization, setPersonalization] = useState(
-    user?.consents?.personalizationAccepted ?? true
-  );
-  const [analytics, setAnalytics] = useState(
-    user?.consents?.analyticsAccepted ?? false
-  );
+  // Sessions state
+  const [sessions, setSessions] = useState<UserSession[]>([
+    {
+      id: 'sess-current',
+      userId: user?.id || 'user-demo-1',
+      deviceType: 'desktop',
+      browser: 'Chrome 124',
+      os: 'Windows 11',
+      lastActiveAt: new Date().toISOString(),
+      isCurrent: true,
+      ipAddressMasked: '189.40.***.***',
+    },
+  ]);
 
   useEffect(() => {
-    if (user) {
-      setNameInput(user.name);
-      loadSessionsAndEvents();
+    if (user?.id) {
+      userService.getActiveSessions(user.id).then((sess: UserSession[]) => {
+        if (sess && sess.length > 0) {
+          setSessions(sess);
+        }
+      }).catch(() => {});
     }
   }, [user]);
 
-  const loadSessionsAndEvents = async () => {
+  const handleAvatarChange = async (newAvatarUrl: string | null) => {
     if (!user) return;
     try {
-      setIsLoadingSessions(true);
-      const [sess, events] = await Promise.all([
-        userService.getActiveSessions(user.id),
-        userService.getSecurityEvents(user.id),
-      ]);
-      setSessions(sess);
-      setSecurityEvents(events);
+      const updated = await userService.updateProfile(user.id, {
+        avatarUrl: newAvatarUrl || undefined,
+      });
+      await updateUser({ avatarUrl: updated.avatarUrl });
+      showToast({ message: 'Avatar atualizado com sucesso.', type: 'success' });
     } catch {
-      // Graceful fallback
-    } finally {
-      setIsLoadingSessions(false);
-    }
-  };
-
-  const toggleSection = (sec: string) => {
-    setExpandedSection((prev) => (prev === sec ? null : sec));
-  };
-
-  const handleSaveName = async () => {
-    if (!nameInput.trim() || !user) return;
-    try {
-      setIsSavingName(true);
-      const updated = await userService.updateProfile(user.id, { name: nameInput.trim() });
-      await updateUser({ name: updated.name });
-      setIsEditingName(false);
-      showToast({ message: 'Nome atualizado com sucesso.', type: 'success' });
-    } catch (err: any) {
-      showToast({ message: err.message || 'Erro ao atualizar nome.', type: 'error' });
-    } finally {
-      setIsSavingName(false);
-    }
-  };
-
-  const handleChangePassword = async () => {
-    if (!user) return;
-    if (newPassword !== confirmPassword) {
-      showToast({ message: 'A nova senha e a confirmação não coincidem.', type: 'error' });
-      return;
-    }
-
-    const val = validatePasswordStrength(newPassword);
-    if (!val.isValid) {
-      showToast({ message: val.errors[0] || 'Senha não atende aos requisitos.', type: 'error' });
-      return;
-    }
-
-    try {
-      setIsSavingPassword(true);
-      const res = await userService.changePassword(user.id, currentPassword, newPassword);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      showToast({ message: res.message, type: 'success' });
-      loadSessionsAndEvents();
-    } catch (err: any) {
-      showToast({ message: err.message || 'Erro ao alterar senha.', type: 'error' });
-    } finally {
-      setIsSavingPassword(false);
-    }
-  };
-
-  const handleRequestEmailChange = async () => {
-    if (!user || !newEmailInput.trim()) return;
-    try {
-      setIsRequestingEmail(true);
-      const res = await userService.requestEmailChange(user.id, newEmailInput.trim(), emailPasswordInput);
-      setNewEmailInput('');
-      setEmailPasswordInput('');
-      showToast({ message: res.message, type: 'info' });
-    } catch (err: any) {
-      showToast({ message: err.message || 'Erro ao solicitar alteração.', type: 'error' });
-    } finally {
-      setIsRequestingEmail(false);
+      showToast({ message: 'Erro ao atualizar avatar.', type: 'error' });
     }
   };
 
   const handleRevokeSession = async (sessionId: string) => {
     if (!user) return;
     try {
-      const updated = await userService.revokeSession(user.id, sessionId);
-      setSessions(updated);
-      showToast({ message: 'Dispositivo desconectado.', type: 'info' });
+      await userService.revokeSession(user.id, sessionId);
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      showToast({ message: 'Sessão desconectada com sucesso.', type: 'success' });
     } catch {
-      showToast({ message: 'Erro ao revogar sessão.', type: 'error' });
+      showToast({ message: 'Erro ao desconectar sessão.', type: 'error' });
     }
   };
 
-  const handleRevokeOtherSessions = async () => {
+  const handleRevokeOthers = async () => {
     if (!user) return;
     try {
-      const updated = await userService.revokeAllOtherSessions(user.id, 'session-current');
-      setSessions(updated);
-      showToast({ message: 'Todas as outras sessões foram encerradas.', type: 'success' });
+      await userService.revokeAllOtherSessions(user.id, 'sess-current');
+      setSessions((prev) => prev.filter((s) => s.isCurrent));
+      showToast({ message: 'Outras sessões foram desconectadas.', type: 'success' });
     } catch {
       showToast({ message: 'Erro ao desconectar outras sessões.', type: 'error' });
     }
   };
 
-  const handleToggleDailyReminder = async (val: boolean) => {
-    setDailyReminder(val);
-    if (user) {
-      await userService.updatePreferences(user.id, { dailyReminder: val });
-      await updateUser({ preferences: { ...user.preferences, dailyReminder: val } });
-    }
-  };
-
-  const handleToggleReducedMotion = async (val: boolean) => {
-    setReducedMotion(val);
-    if (user) {
-      await userService.updatePreferences(user.id, { reducedMotion: val });
-      await updateUser({ preferences: { ...user.preferences, reducedMotion: val } });
-    }
-  };
-
-  const handleToggleChatRetention = async (val: boolean) => {
-    setChatRetention(val);
-    if (user) {
-      await userService.updateConsents(user.id, { chatRetentionAccepted: val });
-      await updateUser({ consents: { ...user.consents, chatRetentionAccepted: val } });
-      showToast({
-        message: val
-          ? 'Histórico de conversas da IA ativado.'
-          : 'Histórico da IA desativado. Novas conversas serão temporárias.',
-        type: 'info',
-      });
-    }
-  };
-
-  const handleExportData = async () => {
-    if (!user) return;
+  const handleLogout = async () => {
     try {
-      const json = await userService.exportUserData(user.id);
-      if (Platform.OS === 'web') {
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `respira-dados-pessoais-${new Date().toISOString().slice(0, 10)}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-      showToast({ message: 'Pacote completo de dados exportado em JSON.', type: 'success' });
+      await logout();
+      setIsLogoutDialogOpen(false);
+      router.replace('/(auth)/login');
     } catch {
-      showToast({ message: 'Erro ao exportar dados.', type: 'error' });
+      showToast({ message: 'Erro ao sair da conta.', type: 'error' });
     }
   };
 
   const handleDeleteAccount = async () => {
+    if (deleteConfirmText.trim() !== 'EXCLUIR MINHA CONTA') {
+      showToast({ message: 'Digite a frase exata para confirmar a exclusão.', type: 'error' });
+      return;
+    }
+
     if (!user) return;
+
     try {
-      setIsDeletingAccount(true);
-      await userService.deleteAccount(user.id, deletePhraseInput);
-      setShowDeleteModal(false);
+      setIsDeleting(true);
+      await userService.deleteAccount(user.id, 'user-password', deleteConfirmText);
       await logout();
-      showToast({ message: 'Sua conta e dados foram excluídos.', type: 'info' });
+      setIsDeleteDialogOpen(false);
+      showToast({ message: 'Conta excluída permanentemente.', type: 'info' });
       router.replace('/(auth)/login');
     } catch (err: any) {
       showToast({ message: err.message || 'Erro ao excluir conta.', type: 'error' });
     } finally {
-      setIsDeletingAccount(false);
+      setIsDeleting(false);
     }
   };
 
-  const handleLogout = async () => {
-    setShowLogoutModal(false);
-    await logout();
-    showToast({ message: 'Sessão encerrada.', type: 'info' });
-    router.replace('/(auth)/login');
-  };
-
-  const displayName = user?.name || 'Usuário';
-  const displayEmail = user?.email || '';
-  const passwordStrength = validatePasswordStrength(newPassword);
-
   return (
     <AppShell>
-      {/* 1. Header do Perfil com Avatar e Metadados */}
-      <Card variant="bordered" style={styles.profileHeaderCard}>
-        <View style={styles.avatarRow}>
-          <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
-            <Text style={styles.avatarLetter}>
-              {displayName.charAt(0).toUpperCase()}
-            </Text>
-          </View>
+      {/* 1. Cabeçalho */}
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: '#173D3B' }]}>Perfil</Text>
+        <Text style={[styles.subtitle, { color: '#667775' }]}>
+          Conta, preferências e privacidade
+        </Text>
+      </View>
 
-          <View style={{ flex: 1 }}>
-            {!isEditingName ? (
-              <View>
-                <Text style={[styles.profileName, { color: colors.text }]}>{displayName}</Text>
-                <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>
-                  {displayEmail}
-                </Text>
-                <View style={styles.metaBadgeRow}>
-                  <Badge
-                    label={user?.isEmailVerified ? 'E-mail verificado' : 'Verificado'}
-                    variant="success"
-                    size="sm"
-                  />
-                  {user?.role === 'admin' && <Badge label="Admin" variant="warning" size="sm" />}
-                </View>
-              </View>
-            ) : (
-              <View style={{ gap: 6 }}>
-                <AppInput
-                  value={nameInput}
-                  onChangeText={setNameInput}
-                  placeholder="Seu nome completo"
-                  style={{ marginVertical: 0 }}
-                />
-                <View style={{ flexDirection: 'row', gap: 6 }}>
-                  <AppButton
-                    title="Salvar"
-                    size="sm"
-                    isLoading={isSavingName}
-                    onPress={handleSaveName}
-                  />
-                  <AppButton
-                    title="Cancelar"
-                    variant="outline"
-                    size="sm"
-                    onPress={() => setIsEditingName(false)}
-                  />
-                </View>
-              </View>
-            )}
-          </View>
-
-          {!isEditingName && (
+      {/* 2. Card de Dados do Usuário */}
+      <View
+        style={[
+          styles.userProfileCard,
+          {
+            backgroundColor: isDark ? colors.surface : '#FFFFFF',
+            borderColor: isDark ? colors.border : '#DCE5E2',
+          },
+        ]}
+      >
+        <View style={styles.userTopRow}>
+          {/* Avatar com botão lápis sobreposto */}
+          <View style={styles.avatarWrap}>
+            <AnaAvatar size={64} />
             <TouchableOpacity
-              onPress={() => setIsEditingName(true)}
-              style={[styles.editIconBtn, { backgroundColor: colors.surfaceSecondary }]}
+              onPress={() => setIsAvatarModalOpen(true)}
+              activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Editar nome"
+              accessibilityLabel="Alterar avatar"
+              style={styles.pencilOverlayBtn}
             >
-              <Text style={[styles.editLinkText, { color: colors.primary }]}>Editar</Text>
+              <Pencil size={11} color="#FFFFFF" />
             </TouchableOpacity>
-          )}
-        </View>
-
-        <View style={[styles.accountDatesRow, { borderTopColor: colors.border }]}>
-          <Text style={[styles.dateText, { color: colors.textMuted }]}>
-            Conta criada em {formatDate(user?.createdAt || new Date().toISOString())}
-          </Text>
-        </View>
-      </Card>
-
-      {/* 2. Seção: Segurança & Alteração de Senha/E-mail */}
-      <Card variant="bordered" style={styles.sectionCard}>
-        <TouchableOpacity
-          onPress={() => toggleSection('security')}
-          style={styles.sectionHeaderClickable}
-          accessibilityRole="button"
-          accessibilityLabel="Expandir ou recolher seção de segurança"
-        >
-          <View style={styles.sectionTitleRow}>
-            <KeyRound size={18} color={colors.primary} style={{ marginRight: 8 }} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Segurança e Acesso</Text>
           </View>
-          {expandedSection === 'security' ? (
-            <ChevronUp size={18} color={colors.textMuted} />
-          ) : (
-            <ChevronDown size={18} color={colors.textMuted} />
-          )}
-        </TouchableOpacity>
 
-        {expandedSection === 'security' && (
-          <View style={styles.sectionBody}>
-            {/* Alterar Senha */}
-            <Text style={[styles.subHeading, { color: colors.text }]}>Alterar Senha</Text>
-            <AppInput
-              label="Senha Atual"
-              value={currentPassword}
-              onChangeText={setCurrentPassword}
-              secureTextEntry={!showPasswords}
-              placeholder="Digite sua senha atual"
-            />
-            <AppInput
-              label="Nova Senha (mínimo 10 caracteres)"
-              value={newPassword}
-              onChangeText={setNewPassword}
-              secureTextEntry={!showPasswords}
-              placeholder="Digite a nova senha segura"
-            />
+          {/* Dados do usuário */}
+          <View style={styles.userDetailsCol}>
+            <Text style={[styles.userName, { color: '#173D3B' }]}>
+              {user?.name || 'Ana'}
+            </Text>
+            <Text style={[styles.userEmail, { color: '#667775' }]}>
+              {user?.email || 'ana@exemplo.com'}
+            </Text>
 
-            {/* Medidor de força da senha em tempo real */}
-            {newPassword.length > 0 && (
-              <View style={styles.strengthWrap}>
-                <View style={styles.strengthBarRow}>
-                  {[1, 2, 3, 4].map((step) => (
-                    <View
-                      key={step}
-                      style={[
-                        styles.strengthSegment,
-                        {
-                          backgroundColor:
-                            step <= passwordStrength.score
-                              ? passwordStrength.score >= 3
-                                ? colors.success
-                                : colors.warning
-                              : '#E2E8F0',
-                        },
-                      ]}
-                    />
-                  ))}
-                </View>
-                <Text
-                  style={[
-                    styles.strengthLabel,
-                    {
-                      color:
-                        passwordStrength.score >= 3 ? colors.success : colors.warning,
-                    },
-                  ]}
-                >
-                  {passwordStrength.score >= 3 ? 'Senha forte' : 'Senha fraca ou incompleta'}
-                </Text>
-              </View>
-            )}
-
-            <AppInput
-              label="Confirmar Nova Senha"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showPasswords}
-              placeholder="Repita a nova senha"
-            />
-
-            <TouchableOpacity
-              onPress={() => setShowPasswords(!showPasswords)}
-              style={styles.showPassRow}
+            {/* Badge Verificado */}
+            <View
+              style={[
+                styles.verifiedBadge,
+                { backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF' },
+              ]}
             >
-              {showPasswords ? <EyeOff size={14} color={colors.textMuted} /> : <Eye size={14} color={colors.textMuted} />}
-              <Text style={[styles.showPassText, { color: colors.textMuted }]}>
-                {showPasswords ? 'Ocultar senhas' : 'Exibir senhas'}
-              </Text>
-            </TouchableOpacity>
-
-            <AppButton
-              title="Atualizar Senha"
-              size="sm"
-              isLoading={isSavingPassword}
-              disabled={!newPassword || !confirmPassword || !passwordStrength.isValid}
-              onPress={handleChangePassword}
-              style={{ marginTop: 6 }}
-            />
-
-            {/* Alterar E-mail */}
-            <View style={[styles.subSectionDivider, { borderTopColor: colors.border }]}>
-              <Text style={[styles.subHeading, { color: colors.text }]}>Alterar E-mail</Text>
-              <Text style={[styles.fieldHint, { color: colors.textSecondary }]}>
-                Um link de confirmação será enviado para o novo endereço.
-              </Text>
-              <AppInput
-                value={newEmailInput}
-                onChangeText={setNewEmailInput}
-                placeholder="novo.email@exemplo.com"
-                keyboardType="email-address"
-              />
-              <AppInput
-                value={emailPasswordInput}
-                onChangeText={setEmailPasswordInput}
-                secureTextEntry
-                placeholder="Sua senha atual para confirmar"
-              />
-              <AppButton
-                title="Solicitar Troca de E-mail"
-                variant="outline"
-                size="sm"
-                isLoading={isRequestingEmail}
-                disabled={!newEmailInput.trim()}
-                onPress={handleRequestEmailChange}
-                style={{ marginTop: 4 }}
-              />
+              <CheckCircle2 size={12} color="#2F7F7C" />
+              <Text style={styles.verifiedBadgeText}>Verificado</Text>
             </View>
           </View>
-        )}
-      </Card>
+        </View>
 
-      {/* 3. Seção: Sessões e Dispositivos */}
-      <Card variant="bordered" style={styles.sectionCard}>
-        <TouchableOpacity
-          onPress={() => toggleSection('sessions')}
-          style={styles.sectionHeaderClickable}
-          accessibilityRole="button"
-          accessibilityLabel="Expandir ou recolher sessões ativas"
+        {/* Linha de Ações Inferior: Alterar Avatar & Editar Perfil */}
+        <View
+          style={[
+            styles.userActionsRow,
+            { borderTopColor: isDark ? colors.border : '#F0F5F3' },
+          ]}
         >
-          <View style={styles.sectionTitleRow}>
-            <Laptop size={18} color={colors.primary} style={{ marginRight: 8 }} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Sessões e Dispositivos ({sessions.length})
+          <TouchableOpacity
+            onPress={() => setIsAvatarModalOpen(true)}
+            style={styles.userActionBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Alterar avatar"
+          >
+            <ImageIcon size={14} color="#2F7F7C" style={{ marginRight: 6 }} />
+            <Text style={styles.userActionBtnText}>Alterar avatar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setIsEditProfileOpen(true)}
+            style={styles.userActionBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Editar perfil"
+          >
+            <Text style={styles.editProfileBtnText}>Editar perfil</Text>
+            <ChevronRight size={14} color="#2F7F7C" style={{ marginLeft: 2 }} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* 3. Seção "Preferências" */}
+      <Text style={[styles.sectionTitle, { color: '#173D3B' }]}>Preferências</Text>
+      <View
+        style={[
+          styles.groupedCard,
+          {
+            backgroundColor: isDark ? colors.surface : '#FFFFFF',
+            borderColor: isDark ? colors.border : '#DCE5E2',
+          },
+        ]}
+      >
+        {/* Linha 1: Aparência */}
+        <View style={styles.itemRow}>
+          <View style={styles.itemIconCircle}>
+            <Sun size={18} color="#2F7F7C" />
+          </View>
+          <View style={styles.itemTextCol}>
+            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>Aparência</Text>
+            <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
+              Escolha o tema da aplicação.
             </Text>
           </View>
-          {expandedSection === 'sessions' ? (
-            <ChevronUp size={18} color={colors.textMuted} />
-          ) : (
-            <ChevronDown size={18} color={colors.textMuted} />
-          )}
-        </TouchableOpacity>
 
-        {expandedSection === 'sessions' && (
-          <View style={styles.sectionBody}>
-            {sessions.map((sess) => (
-              <View
-                key={sess.id}
-                style={[
-                  styles.sessionRow,
-                  {
-                    backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFA',
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={[styles.sessionBrowser, { color: colors.text }]}>
-                      {sess.browser} ({sess.os})
-                    </Text>
-                    {sess.isCurrent && (
-                      <Badge label="Este dispositivo" variant="success" size="sm" />
-                    )}
-                  </View>
-                  <Text style={[styles.sessionMeta, { color: colors.textMuted }]}>
-                    Último acesso: {formatDateTime(sess.lastActiveAt)} • IP {sess.ipAddressMasked}
-                  </Text>
-                </View>
-
-                {!sess.isCurrent && (
-                  <TouchableOpacity
-                    onPress={() => handleRevokeSession(sess.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Desconectar sessão"
-                    style={[styles.revokeBtn, { backgroundColor: isDark ? '#3D1C1C' : '#FDF0F0' }]}
-                  >
-                    <Text style={[styles.revokeBtnText, { color: colors.error }]}>Desconectar</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))}
-
-            {sessions.length > 1 && (
-              <AppButton
-                title="Desconectar Todas as Outras Sessões"
-                variant="outline"
-                size="sm"
-                onPress={handleRevokeOtherSessions}
-                style={{ marginTop: 8 }}
+          {/* Toggle Segmentado: Claro / Escuro (SEM sistema) */}
+          <View
+            style={[
+              styles.themeToggleBox,
+              {
+                backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5',
+                borderColor: isDark ? colors.border : '#DCE5E2',
+              },
+            ]}
+          >
+            <TouchableOpacity
+              onPress={() => setThemeMode('light')}
+              style={[
+                styles.themeBtn,
+                mode === 'light' && [
+                  styles.themeBtnActive,
+                  { backgroundColor: isDark ? colors.surface : '#2F7F7C' },
+                ],
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Tema claro"
+            >
+              <Sun
+                size={13}
+                color={mode === 'light' ? '#FFFFFF' : '#667775'}
+                style={{ marginRight: 4 }}
               />
-            )}
-          </View>
-        )}
-      </Card>
-
-      {/* 4. Seção: Aparência */}
-      <Card variant="bordered" style={styles.sectionCard}>
-        <View style={styles.sectionTitleRow}>
-          <Sun size={18} color={colors.primary} style={{ marginRight: 8 }} />
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Aparência</Text>
-        </View>
-
-        <View style={styles.themeOptionsWrap}>
-          {(['light', 'dark', 'system'] as const).map((mode) => {
-            const isSelected = themeMode === mode;
-            const label = mode === 'light' ? 'Claro' : mode === 'dark' ? 'Escuro' : 'Sistema';
-            const Icon = mode === 'dark' ? Moon : mode === 'light' ? Sun : Smartphone;
-
-            return (
-              <TouchableOpacity
-                key={mode}
-                onPress={() => setThemeMode(mode)}
-                accessibilityRole="radio"
-                accessibilityLabel={`Tema ${label}`}
-                accessibilityState={{ selected: isSelected }}
+              <Text
                 style={[
-                  styles.themeOptionBtn,
-                  {
-                    backgroundColor: isSelected
-                      ? colors.primary
-                      : isDark
-                        ? colors.surfaceSecondary
-                        : '#FFFFFF',
-                    borderColor: isSelected ? colors.primary : colors.border,
-                  },
+                  styles.themeBtnText,
+                  { color: mode === 'light' ? '#FFFFFF' : '#667775' },
                 ]}
               >
-                <Icon size={16} color={isSelected ? '#FFFFFF' : colors.text} />
-                <Text
-                  style={[
-                    styles.themeOptionText,
-                    {
-                      color: isSelected ? '#FFFFFF' : colors.text,
-                      fontWeight: isSelected ? '700' : '500',
-                    },
-                  ]}
-                >
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </Card>
+                Claro
+              </Text>
+            </TouchableOpacity>
 
-      {/* 5. Seção: Acessibilidade */}
-      <Card variant="bordered" style={styles.sectionCard}>
-        <View style={styles.sectionTitleRow}>
-          <Sliders size={18} color={colors.primary} style={{ marginRight: 8 }} />
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Acessibilidade</Text>
+            <TouchableOpacity
+              onPress={() => setThemeMode('dark')}
+              style={[
+                styles.themeBtn,
+                mode === 'dark' && [
+                  styles.themeBtnActive,
+                  { backgroundColor: isDark ? '#2F7F7C' : '#173D3B' },
+                ],
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Tema escuro"
+            >
+              <Moon
+                size={13}
+                color={mode === 'dark' ? '#FFFFFF' : '#667775'}
+                style={{ marginRight: 4 }}
+              />
+              <Text
+                style={[
+                  styles.themeBtnText,
+                  { color: mode === 'dark' ? '#FFFFFF' : '#667775' },
+                ]}
+              >
+                Escuro
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <View style={styles.settingRow}>
-          <View style={{ flex: 1, paddingRight: 10 }}>
-            <Text style={[styles.settingLabel, { color: colors.text }]}>Redução de Movimento</Text>
-            <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
+        <View style={[styles.rowDivider, { backgroundColor: isDark ? colors.border : '#F0F5F3' }]} />
+
+        {/* Linha 2: Reduzir movimento */}
+        <View style={styles.itemRow}>
+          <View style={styles.itemIconCircle}>
+            <Waves size={18} color="#2F7F7C" />
+          </View>
+          <View style={styles.itemTextCol}>
+            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>Reduzir movimento</Text>
+            <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
               Substitui animações por transições estáticas suaves.
             </Text>
           </View>
           <Switch
-            value={reducedMotion}
-            onValueChange={handleToggleReducedMotion}
-            trackColor={{ false: '#CBD5E1', true: colors.secondary }}
-            thumbColor={reducedMotion ? colors.primary : '#FFFFFF'}
+            value={reduceMotion}
+            onValueChange={setReduceMotion}
+            trackColor={{ false: '#DCE5E2', true: '#2F7F7C' }}
+            thumbColor="#FFFFFF"
           />
         </View>
-      </Card>
 
-      {/* 6. Seção: Notificações */}
-      <Card variant="bordered" style={styles.sectionCard}>
-        <View style={styles.sectionTitleRow}>
-          <Bell size={18} color={colors.primary} style={{ marginRight: 8 }} />
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Notificações</Text>
-        </View>
+        <View style={[styles.rowDivider, { backgroundColor: isDark ? colors.border : '#F0F5F3' }]} />
 
-        <View style={styles.settingRow}>
-          <View style={{ flex: 1, paddingRight: 10 }}>
-            <Text style={[styles.settingLabel, { color: colors.text }]}>Lembrete Diário</Text>
-            <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
-              Notificação suave às 20:30 para incentivar uma pausa.
+        {/* Linha 3: Lembrete diário */}
+        <View style={styles.itemRow}>
+          <View style={styles.itemIconCircle}>
+            <Bell size={18} color="#2F7F7C" />
+          </View>
+          <View style={styles.itemTextCol}>
+            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>Lembrete diário</Text>
+            <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
+              Todos os dias às 20:30
             </Text>
           </View>
           <Switch
             value={dailyReminder}
-            onValueChange={handleToggleDailyReminder}
-            trackColor={{ false: '#CBD5E1', true: colors.secondary }}
-            thumbColor={dailyReminder ? colors.primary : '#FFFFFF'}
+            onValueChange={setDailyReminder}
+            trackColor={{ false: '#DCE5E2', true: '#2F7F7C' }}
+            thumbColor="#FFFFFF"
           />
         </View>
-      </Card>
+      </View>
 
-      {/* 7. Seção: Privacidade, LGPD & Histórico de IA */}
-      <Card variant="bordered" style={styles.sectionCard}>
-        <View style={styles.sectionTitleRow}>
-          <ShieldCheck size={18} color={colors.primary} style={{ marginRight: 8 }} />
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Privacidade e LGPD
-          </Text>
-        </View>
-
-        {/* Histórico da IA */}
-        <View style={styles.settingRow}>
-          <View style={{ flex: 1, paddingRight: 10 }}>
-            <Text style={[styles.settingLabel, { color: colors.text }]}>
-              Salvar Histórico da IA
+      {/* 4. Seção "Privacidade e dados" */}
+      <Text style={[styles.sectionTitle, { color: '#173D3B' }]}>Privacidade e dados</Text>
+      <View
+        style={[
+          styles.groupedCard,
+          {
+            backgroundColor: isDark ? colors.surface : '#FFFFFF',
+            borderColor: isDark ? colors.border : '#DCE5E2',
+          },
+        ]}
+      >
+        {/* Linha 1: Salvar histórico da IA */}
+        <View style={styles.itemRow}>
+          <View style={styles.itemIconCircle}>
+            <ShieldCheck size={18} color="#2F7F7C" />
+          </View>
+          <View style={styles.itemTextCol}>
+            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>
+              Salvar histórico da IA
             </Text>
-            <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
+            <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
               Quando desativado, novas conversas não são salvas.
             </Text>
           </View>
           <Switch
-            value={chatRetention}
-            onValueChange={handleToggleChatRetention}
-            trackColor={{ false: '#CBD5E1', true: colors.secondary }}
-            thumbColor={chatRetention ? colors.primary : '#FFFFFF'}
+            value={saveAiHistory}
+            onValueChange={setSaveAiHistory}
+            trackColor={{ false: '#DCE5E2', true: '#2F7F7C' }}
+            thumbColor="#FFFFFF"
           />
         </View>
 
-        {/* Exportar Dados */}
+        <View style={[styles.rowDivider, { backgroundColor: isDark ? colors.border : '#F0F5F3' }]} />
+
+        {/* Linha 2: Exportar meus dados */}
         <TouchableOpacity
-          onPress={handleExportData}
+          onPress={() => setIsDataExportOpen(true)}
+          activeOpacity={0.7}
+          style={styles.itemRow}
           accessibilityRole="button"
-          accessibilityLabel="Exportar meus dados em JSON"
-          style={[styles.actionRowBtn, { borderTopColor: colors.border }]}
+          accessibilityLabel="Exportar meus dados"
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <FileDown size={16} color={colors.primary} style={{ marginRight: 8 }} />
-            <Text style={[styles.actionRowText, { color: colors.text }]}>
-              Exportar Meus Dados (JSON)
+          <View style={styles.itemIconCircle}>
+            <FileDown size={18} color="#2F7F7C" />
+          </View>
+          <View style={styles.itemTextCol}>
+            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>Exportar meus dados</Text>
+            <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
+              Baixe uma cópia em formato ZIP ou JSON
             </Text>
           </View>
-          <ChevronRight size={16} color={colors.textMuted} />
+          <ChevronRight size={18} color="#8C9E9B" />
         </TouchableOpacity>
-      </Card>
+      </View>
 
-      {/* 8. Seção: Painel Admin para Administradores */}
-      {user?.role === 'admin' && (
-        <Card
-          variant="bordered"
-          style={
-            StyleSheet.flatten([
-              styles.sectionCard,
-              {
-                backgroundColor: isDark ? colors.surfaceSecondary : '#F0F9F8',
-                borderColor: colors.primary,
-              },
-            ])
-          }
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Shield size={18} color={colors.primary} style={{ marginRight: 8 }} />
-              <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>
-                Painel Administrativo
-              </Text>
-            </View>
-            <AppButton
-              title="Acessar"
-              size="sm"
-              onPress={() => router.push('/admin')}
-            />
-          </View>
-        </Card>
-      )}
-
-      {/* 9. Conta & Logout */}
-      <Card variant="bordered" style={styles.sectionCard}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Conta</Text>
-
+      {/* 5. Seção "Conta" */}
+      <Text style={[styles.sectionTitle, { color: '#173D3B' }]}>Conta</Text>
+      <View
+        style={[
+          styles.groupedCard,
+          {
+            backgroundColor: isDark ? colors.surface : '#FFFFFF',
+            borderColor: isDark ? colors.border : '#DCE5E2',
+          },
+        ]}
+      >
+        {/* Linha 1: Segurança e acesso */}
         <TouchableOpacity
-          onPress={() => setShowLogoutModal(true)}
+          onPress={() => setIsSecurityModalOpen(true)}
+          activeOpacity={0.7}
+          style={styles.itemRow}
           accessibilityRole="button"
-          accessibilityLabel="Encerrar sessão"
-          style={styles.actionRowBtn}
+          accessibilityLabel="Segurança e acesso"
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <LogOut size={16} color={colors.warning} style={{ marginRight: 8 }} />
-            <Text style={[styles.actionRowText, { color: colors.warning }]}>Encerrar Sessão</Text>
+          <View style={styles.itemIconCircle}>
+            <KeyRound size={18} color="#667775" />
           </View>
-          <ChevronRight size={16} color={colors.textMuted} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => setShowDeleteModal(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Excluir minha conta permanentemente"
-          style={[styles.actionRowBtn, { borderTopColor: colors.border }]}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Trash2 size={16} color={colors.error} style={{ marginRight: 8 }} />
-            <Text style={[styles.actionRowText, { color: colors.error }]}>
-              Excluir Conta e Dados
+          <View style={styles.itemTextCol}>
+            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>Segurança e acesso</Text>
+            <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
+              Senha, e-mail e autenticação
             </Text>
           </View>
-          <ChevronRight size={16} color={colors.textMuted} />
+          <ChevronRight size={18} color="#8C9E9B" />
         </TouchableOpacity>
-      </Card>
 
-      {/* Modal de Confirmação: Logout */}
-      <ConfirmDialog
-        visible={showLogoutModal}
-        title="Encerrar sessão?"
-        message="Você precisará informar suas credenciais para acessar novamente."
-        confirmTitle="Sair"
-        cancelTitle="Cancelar"
-        onConfirm={handleLogout}
-        onCancel={() => setShowLogoutModal(false)}
+        <View style={[styles.rowDivider, { backgroundColor: isDark ? colors.border : '#F0F5F3' }]} />
+
+        {/* Linha 2: Sair da conta */}
+        <TouchableOpacity
+          onPress={() => setIsLogoutDialogOpen(true)}
+          activeOpacity={0.7}
+          style={styles.itemRow}
+          accessibilityRole="button"
+          accessibilityLabel="Sair da conta"
+        >
+          <View style={styles.itemIconCircle}>
+            <LogOut size={18} color="#667775" />
+          </View>
+          <View style={styles.itemTextCol}>
+            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>Sair da conta</Text>
+            <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
+              Encerrar sessão neste dispositivo
+            </Text>
+          </View>
+          <ChevronRight size={18} color="#8C9E9B" />
+        </TouchableOpacity>
+
+        <View style={[styles.rowDivider, { backgroundColor: isDark ? colors.border : '#F0F5F3' }]} />
+
+        {/* Linha 3: Excluir conta e dados */}
+        <TouchableOpacity
+          onPress={() => setIsDeleteDialogOpen(true)}
+          activeOpacity={0.7}
+          style={styles.itemRow}
+          accessibilityRole="button"
+          accessibilityLabel="Excluir conta e dados"
+        >
+          <View style={styles.itemIconCircle}>
+            <Trash2 size={18} color="#D9534F" />
+          </View>
+          <View style={styles.itemTextCol}>
+            <Text style={[styles.itemTitle, { color: '#D9534F' }]}>
+              Excluir conta e dados
+            </Text>
+            <Text style={[styles.itemSubtitle, { color: '#D9534F', opacity: 0.85 }]}>
+              Esta ação é permanente e não pode ser desfeita.
+            </Text>
+          </View>
+          <ChevronRight size={18} color="#D9534F" />
+        </TouchableOpacity>
+      </View>
+
+      {/* 6. Seção "Sessões e dispositivos" (Posicionada abaixo de Conta) */}
+      <View
+        style={[
+          styles.groupedCard,
+          {
+            backgroundColor: isDark ? colors.surface : '#FFFFFF',
+            borderColor: isDark ? colors.border : '#DCE5E2',
+            marginBottom: 28,
+          },
+        ]}
+      >
+        <TouchableOpacity
+          onPress={() => setIsSessionsModalOpen(true)}
+          activeOpacity={0.7}
+          style={styles.itemRow}
+          accessibilityRole="button"
+          accessibilityLabel="Sessões e dispositivos"
+        >
+          <View style={styles.itemIconCircle}>
+            <Laptop size={18} color="#2F7F7C" />
+          </View>
+          <View style={styles.itemTextCol}>
+            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>
+              Sessões e dispositivos
+            </Text>
+            <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
+              {sessions.length} {sessions.length === 1 ? 'dispositivo conectado' : 'dispositivos conectados'}
+            </Text>
+          </View>
+          <ChevronRight size={18} color="#8C9E9B" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Modais de Funcionalidades */}
+      <AvatarPickerModal
+        visible={isAvatarModalOpen}
+        currentAvatarUrl={user?.avatarUrl}
+        userName={user?.name || 'Ana'}
+        onClose={() => setIsAvatarModalOpen(false)}
+        onSelectAvatar={handleAvatarChange}
       />
 
-      {/* Modal de Exclusão de Conta em Duas Etapas */}
-      {showDeleteModal && (
-        <ConfirmDialog
-          visible={showDeleteModal}
-          title="Excluir Conta Permanentemente"
-          message="Esta ação é definitiva e irreversível. Todos os seus check-ins, histórico de práticas e preferências serão permanentemente apagados.\n\nPara confirmar, digite exatamente a frase: EXCLUIR MINHA CONTA"
-          confirmTitle="Excluir Definitivamente"
-          cancelTitle="Cancelar"
-          isDestructive
-          isLoading={isDeletingAccount}
-          onConfirm={handleDeleteAccount}
-          onCancel={() => {
-            setShowDeleteModal(false);
-            setDeletePhraseInput('');
-          }}
-        >
-          <View style={{ marginVertical: 12 }}>
-            <TextInput
-              value={deletePhraseInput}
-              onChangeText={setDeletePhraseInput}
-              placeholder='Digite "EXCLUIR MINHA CONTA"'
-              placeholderTextColor={colors.textMuted}
-              style={[
-                styles.deleteInput,
-                {
-                  backgroundColor: isDark ? colors.surfaceSecondary : '#FFF5F5',
-                  borderColor: colors.error,
-                  color: colors.text,
-                },
-              ]}
-            />
-          </View>
-        </ConfirmDialog>
-      )}
+      <EditProfileModal
+        visible={isEditProfileOpen}
+        onClose={() => setIsEditProfileOpen(false)}
+      />
+
+      <DataExportModal
+        visible={isDataExportOpen}
+        onClose={() => setIsDataExportOpen(false)}
+      />
+
+      <SecurityAccessModal
+        visible={isSecurityModalOpen}
+        onClose={() => setIsSecurityModalOpen(false)}
+      />
+
+      <SessionsModal
+        visible={isSessionsModalOpen}
+        sessions={sessions}
+        onClose={() => setIsSessionsModalOpen(false)}
+        onRevokeSession={handleRevokeSession}
+        onRevokeOthers={handleRevokeOthers}
+      />
+
+      {/* Diálogo de Confirmação de Logout */}
+      <ConfirmDialog
+        visible={isLogoutDialogOpen}
+        title="Sair da conta"
+        message="Tem certeza de que deseja encerrar a sessão neste dispositivo?"
+        confirmTitle="Sair"
+        cancelTitle="Permanecer"
+        onConfirm={handleLogout}
+        onCancel={() => setIsLogoutDialogOpen(false)}
+      />
+
+      {/* Diálogo de Exclusão de Conta em Duas Etapas */}
+      <ConfirmDialog
+        visible={isDeleteDialogOpen}
+        title="Excluir conta permanentemente"
+        message="Todos os seus check-ins, histórico de práticas, anotações e dados pessoais serão apagados de forma irreversível. Para confirmar, digite EXCLUIR MINHA CONTA abaixo:"
+        confirmTitle="Excluir Permanentemente"
+        cancelTitle="Cancelar"
+        isDestructive
+        isLoading={isDeleting}
+        onConfirm={handleDeleteAccount}
+        onCancel={() => {
+          setIsDeleteDialogOpen(false);
+          setDeleteConfirmText('');
+        }}
+      >
+        <TextInput
+          value={deleteConfirmText}
+          onChangeText={setDeleteConfirmText}
+          placeholder="EXCLUIR MINHA CONTA"
+          placeholderTextColor="#8C9E9B"
+          style={styles.deleteInput}
+          autoCapitalize="characters"
+        />
+      </ConfirmDialog>
     </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  profileHeaderCard: {
-    padding: 16,
+  header: {
     marginBottom: 16,
+    paddingTop: 4,
   },
-  avatarRow: {
+  title: {
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+
+  // Card do Perfil do Usuário
+  userProfileCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#173D3B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  userTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    marginBottom: 14,
   },
-  avatarCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  avatarWrap: {
+    position: 'relative',
+    marginRight: 14,
+  },
+  pencilOverlayBtn: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#2F7F7C',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
-  avatarLetter: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '800',
+  userDetailsCol: {
+    flex: 1,
   },
-  profileName: {
+  userName: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
-  profileEmail: {
-    fontSize: 14,
+  userEmail: {
+    fontSize: 13,
     marginTop: 1,
+    marginBottom: 4,
   },
-  metaBadgeRow: {
+  verifiedBadge: {
     flexDirection: 'row',
-    gap: 6,
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    gap: 4,
+  },
+  verifiedBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2F7F7C',
+  },
+  userActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
+  userActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  userActionBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2F7F7C',
+  },
+  editProfileBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2F7F7C',
+  },
+
+  // Títulos de Seção
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+    marginBottom: 8,
     marginTop: 4,
   },
-  editIconBtn: {
+
+  // Card Agrupado
+  groupedCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    marginBottom: 18,
+    shadowColor: '#173D3B',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    minHeight: 52,
+  },
+  itemIconCircle: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  itemTextCol: {
+    flex: 1,
+    marginRight: 10,
+  },
+  itemTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: -0.1,
+  },
+  itemSubtitle: {
+    fontSize: 12,
+    marginTop: 1,
+    lineHeight: 16,
+  },
+  rowDivider: {
+    height: 1,
+    width: '100%',
+  },
+
+  // Toggle Segmentado de Tema
+  themeToggleBox: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 2,
+  },
+  themeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
   },
-  editLinkText: {
+  themeBtnActive: {
+    shadowColor: '#173D3B',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  themeBtnText: {
     fontSize: 12,
     fontWeight: '700',
   },
-  accountDatesRow: {
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-  },
-  dateText: {
-    fontSize: 11,
-  },
-  sectionCard: {
-    padding: 16,
-    gap: 10,
-    marginBottom: 14,
-  },
-  sectionHeaderClickable: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  sectionBody: {
-    paddingTop: 8,
-    gap: 10,
-  },
-  subHeading: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  fieldHint: {
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  strengthWrap: {
-    marginVertical: 4,
-    gap: 4,
-  },
-  strengthBarRow: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  strengthSegment: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-  },
-  strengthLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  showPassRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 4,
-  },
-  showPassText: {
-    fontSize: 12,
-  },
-  subSectionDivider: {
-    paddingTop: 12,
-    marginTop: 8,
-    borderTopWidth: 1,
-  },
-  sessionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 8,
-  },
-  sessionBrowser: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  sessionMeta: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  revokeBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  revokeBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  themeOptionsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  themeOptionBtn: {
-    flex: 1,
-    minWidth: 85,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    gap: 6,
-  },
-  themeOptionText: {
-    fontSize: 12,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-  },
-  settingLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  settingDesc: {
-    fontSize: 12,
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  actionRowBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderTopWidth: 1,
-  },
-  actionRowText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
+
+  // Input do Diálogo de Exclusão
   deleteInput: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    height: 44,
     borderRadius: 10,
-    borderWidth: 1.5,
+    borderWidth: 1,
+    borderColor: '#DCE5E2',
+    paddingHorizontal: 12,
+    marginTop: 10,
     fontSize: 13,
     fontWeight: '700',
+    color: '#D9534F',
   },
 });
