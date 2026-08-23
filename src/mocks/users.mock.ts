@@ -1,0 +1,52 @@
+import { User } from '../types';
+
+export const MOCK_USERS: User[] = [
+  {
+    id: 'user-demo-1',
+    name: 'Ana',
+    email: 'ana@exemplo.com',
+    role: 'user',
+    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+    createdAt: '2024-01-15T10:00:00Z',
+    consents: {
+      termsAccepted: true,
+      privacyAccepted: true,
+      personalizationAccepted: true,
+      analyticsAccepted: true,
+      acceptedAt: '2024-01-15T10:00:00Z',
+    },
+    preferences: {
+      theme: 'light',
+      reducedMotion: false,
+      dailyReminder: true,
+      reminderTime: '20:30',
+      vibrationEnabled: true,
+      soundEnabled: true,
+      countryHelpline: 'BR',
+    },
+  },
+  {
+    id: 'admin-demo-1',
+    name: 'Dr. Roberto Mendes (Admin)',
+    email: 'admin@respira.app',
+    role: 'admin',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+    createdAt: '2023-11-01T08:00:00Z',
+    consents: {
+      termsAccepted: true,
+      privacyAccepted: true,
+      personalizationAccepted: true,
+      analyticsAccepted: true,
+      acceptedAt: '2023-11-01T08:00:00Z',
+    },
+    preferences: {
+      theme: 'light',
+      reducedMotion: false,
+      dailyReminder: false,
+      reminderTime: '19:00',
+      vibrationEnabled: true,
+      soundEnabled: true,
+      countryHelpline: 'BR',
+    },
+  },
+];

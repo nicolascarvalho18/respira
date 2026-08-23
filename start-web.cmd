@@ -1,0 +1,3 @@
+@echo off
+echo Starting Expo on Web...
+npx expo start --web
