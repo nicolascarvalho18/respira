@@ -3,12 +3,44 @@ import { MOCK_MOOD_RECORDS } from '../../mocks/moods.mock';
 import { storage } from '../storage/asyncStorage';
 import { calculateMoodStats } from '../../utils/stats';
 import { apiClient, isMockMode } from '../api/apiClient';
+import { supabase, isSupabaseConfigured } from '../supabase/client';
 import { logger } from '../../utils/logger';
 
 const MOODS_STORAGE_KEY = 'respira_mood_records';
 
 class MoodService {
   async getRecords(userId?: string): Promise<MoodRecord[]> {
+    if (isSupabaseConfigured) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const targetUserId = userId || user?.id;
+
+        if (targetUserId) {
+          const { data: dbMoods, error } = await supabase
+            .from('mood_entries')
+            .select('*')
+            .eq('user_id', targetUserId)
+            .order('created_at', { ascending: false });
+
+          if (!error && dbMoods && dbMoods.length > 0) {
+            return dbMoods.map((m) => ({
+              id: m.id,
+              userId: m.user_id,
+              mood: m.mood_score,
+              anxietyLevel: m.anxiety_score,
+              emotions: m.emotions || [],
+              activities: [],
+              notes: m.notes || '',
+              createdAt: m.created_at,
+              updatedAt: m.updated_at,
+            }));
+          }
+        }
+      } catch (err) {
+        logger.warn('Error fetching moods from Supabase, fallback to cache:', err);
+      }
+    }
+
     if (!isMockMode) {
       return apiClient.get<MoodRecord[]>('/moods', { userId });
     }
@@ -36,6 +68,32 @@ class MoodService {
       createdAt: new Date().toISOString(),
     };
 
+    if (isSupabaseConfigured) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data, error } = await supabase
+            .from('mood_entries')
+            .insert({
+              user_id: user.id,
+              mood_score: record.mood,
+              anxiety_score: record.anxietyLevel,
+              emotions: record.emotions,
+              notes: record.notes || null,
+            })
+            .select()
+            .single();
+
+          if (!error && data) {
+            newRecord.id = data.id;
+            newRecord.createdAt = data.created_at;
+          }
+        }
+      } catch (err) {
+        logger.warn('Error saving mood to Supabase:', err);
+      }
+    }
+
     if (!isMockMode) {
       return apiClient.post<MoodRecord>('/moods', newRecord);
     }
@@ -49,6 +107,20 @@ class MoodService {
   }
 
   async updateRecord(id: string, partial: Partial<MoodRecord>): Promise<MoodRecord> {
+    if (isSupabaseConfigured) {
+      try {
+        const payload: Record<string, any> = { updated_at: new Date().toISOString() };
+        if (partial.mood !== undefined) payload.mood_score = partial.mood;
+        if (partial.anxietyLevel !== undefined) payload.anxiety_score = partial.anxietyLevel;
+        if (partial.emotions !== undefined) payload.emotions = partial.emotions;
+        if (partial.notes !== undefined) payload.notes = partial.notes;
+
+        await supabase.from('mood_entries').update(payload).eq('id', id);
+      } catch (err) {
+        logger.warn('Error updating mood in Supabase:', err);
+      }
+    }
+
     if (!isMockMode) {
       return apiClient.put<MoodRecord>(`/moods/${id}`, partial);
     }
@@ -58,11 +130,7 @@ class MoodService {
 
     const updated = records.map((r) => {
       if (r.id === id) {
-        updatedRecord = {
-          ...r,
-          ...partial,
-          updatedAt: new Date().toISOString(),
-        };
+        updatedRecord = { ...r, ...partial, updatedAt: new Date().toISOString() };
         return updatedRecord;
       }
       return r;
@@ -74,9 +142,16 @@ class MoodService {
   }
 
   async deleteRecord(id: string): Promise<boolean> {
+    if (isSupabaseConfigured) {
+      try {
+        await supabase.from('mood_entries').delete().eq('id', id);
+      } catch (err) {
+        logger.warn('Error deleting mood from Supabase:', err);
+      }
+    }
+
     if (!isMockMode) {
-      await apiClient.delete(`/moods/${id}`);
-      return true;
+      return apiClient.delete(`/moods/${id}`);
     }
 
     const records = await this.getRecords();
@@ -86,13 +161,9 @@ class MoodService {
     return true;
   }
 
-  async getStats(daysCount: number = 7): Promise<MoodStats> {
-    const records = await this.getRecords();
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysCount);
-
-    const filtered = records.filter((r) => new Date(r.createdAt) >= cutoffDate);
-    return calculateMoodStats(filtered.length > 0 ? filtered : records);
+  async getStats(userId?: string): Promise<MoodStats> {
+    const records = await this.getRecords(userId);
+    return calculateMoodStats(records);
   }
 }
 
