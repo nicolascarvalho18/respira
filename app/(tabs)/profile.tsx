@@ -352,8 +352,18 @@ export default function ProfileScreen() {
           </View>
           <Switch
             value={reduceMotion}
-            onValueChange={setReduceMotion}
-            trackColor={{ false: '#DCE5E2', true: '#2F7F7C' }}
+            onValueChange={async (val) => {
+              setReduceMotion(val);
+              if (user?.id) {
+                try {
+                  await userService.updatePreferences(user.id, { reducedMotion: val });
+                  showToast({ message: 'Alterações salvas.', type: 'success' });
+                } catch {
+                  showToast({ message: 'Não foi possível salvar. Tente novamente.', type: 'error' });
+                }
+              }
+            }}
+            trackColor={{ false: '#DCE5E2', true: '#426A8C' }}
             thumbColor="#FFFFFF"
           />
         </View>

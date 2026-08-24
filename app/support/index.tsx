@@ -1,115 +1,74 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
-import { Phone, HeartHandshake, ShieldAlert, Compass, ExternalLink, Globe } from 'lucide-react-native';
+import { Phone, HeartHandshake, ShieldAlert, Compass, ExternalLink } from 'lucide-react-native';
 import { ScreenContainer } from '../../src/components/ui/ScreenContainer';
 import { AppHeader } from '../../src/components/ui/AppHeader';
 import { ConfirmationModal } from '../../src/components/ui/ConfirmationModal';
 import { AppButton } from '../../src/components/ui/AppButton';
 import { HELPLINES_BY_COUNTRY } from '../../src/constants/helplines';
 import { useTheme } from '../../src/hooks/useTheme';
-import { useAuth } from '../../src/hooks/useAuth';
+import { TrustedContactSection } from '../../src/components/emergency/TrustedContactSection';
+import { useToast } from '../../src/components/ui/Toast';
 
 export default function SupportScreen() {
   const { colors, isDark } = useTheme();
-  const { user } = useAuth();
+  const { showToast } = useToast();
 
-  const [selectedCountry, setSelectedCountry] = useState<string>(
-    user?.preferences?.countryHelpline || 'BR'
-  );
   const [selectedServiceToCall, setSelectedServiceToCall] = useState<{
     name: string;
     number: string;
   } | null>(null);
 
-  const countryData = HELPLINES_BY_COUNTRY[selectedCountry] || HELPLINES_BY_COUNTRY.BR;
+  const countryData = HELPLINES_BY_COUNTRY.BR;
+
+  const handleAction = (service: { name: string; number: string }) => {
+    if (service.number.startsWith('http')) {
+      Linking.openURL(service.number).catch(() => {
+        showToast({ message: 'Não foi possível abrir este canal no momento.', type: 'error' });
+      });
+    } else {
+      setSelectedServiceToCall(service);
+    }
+  };
 
   const handleDialConfirm = () => {
     if (!selectedServiceToCall) return;
-
-    if (selectedServiceToCall.number.startsWith('http')) {
-      Linking.openURL(selectedServiceToCall.number);
-    } else {
-      Linking.openURL(`tel:${selectedServiceToCall.number}`);
-    }
+    Linking.openURL(`tel:${selectedServiceToCall.number}`).catch(() => {
+      showToast({ message: 'Não foi possível abrir o discador.', type: 'error' });
+    });
     setSelectedServiceToCall(null);
   };
 
   return (
     <ScreenContainer scrollable>
-      <AppHeader showBack title="Apoio Imediato e Escuta" />
+      <AppHeader showBack title="Apoio Imediato" />
 
       {/* Alerta Institucional de Não Emergência */}
       <View
         style={[
           styles.alertBanner,
           {
-            backgroundColor: isDark ? '#3A201A' : '#FFF4EE',
-            borderColor: colors.warning,
+            backgroundColor: isDark ? '#3D201A' : '#FFF1EB',
+            borderColor: colors.error,
           },
         ]}
       >
-        <ShieldAlert size={24} color={colors.warning} style={{ marginRight: 10, marginTop: 2 }} />
+        <ShieldAlert size={22} color={colors.error} style={{ marginRight: 10, marginTop: 2 }} />
         <View style={{ flex: 1 }}>
-          <Text style={[styles.alertTitle, { color: colors.warning }]}>
+          <Text style={[styles.alertTitle, { color: colors.error }]}>
             O Respira não é um serviço de emergência
           </Text>
-          <Text style={[styles.alertBody, { color: isDark ? '#F5DDD6' : '#68291A' }]}>
+          <Text style={[styles.alertBody, { color: isDark ? '#F0D0C8' : '#733722' }]}>
             Se você estiver em risco iminente ou vivenciando sofrimento intenso, entre em contato
             com os canais de apoio gratuito abaixo ou procure uma pessoa de sua confiança.
           </Text>
         </View>
       </View>
 
-      {/* Seletor de País para Linhas de Ajuda */}
-      <View style={styles.countrySection}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-          <Globe size={16} color={colors.primary} style={{ marginRight: 6 }} />
-          <Text style={[styles.countryLabel, { color: colors.text }]}>
-            Região selecionada para contatos:
-          </Text>
-        </View>
+      {/* Seção 1: Contato de Confiança */}
+      <TrustedContactSection />
 
-        <View style={styles.countryButtonsRow}>
-          {Object.entries(HELPLINES_BY_COUNTRY).map(([code, info]) => {
-            const isSelected = selectedCountry === code;
-
-            return (
-              <TouchableOpacity
-                key={code}
-                onPress={() => setSelectedCountry(code)}
-                style={[
-                  styles.countryChip,
-                  {
-                    backgroundColor: isSelected
-                      ? colors.primary
-                      : isDark
-                        ? colors.surfaceSubtle
-                        : '#FFFFFF',
-                    borderColor: isSelected ? colors.primary : colors.border,
-                  },
-                ]}
-                accessibilityRole="radio"
-                accessibilityLabel={`Selecionar país ${info.countryName}`}
-                accessibilityState={{ selected: isSelected }}
-              >
-                <Text
-                  style={[
-                    styles.countryChipText,
-                    {
-                      color: isSelected ? '#FFFFFF' : colors.text,
-                      fontWeight: isSelected ? '700' : '500',
-                    },
-                  ]}
-                >
-                  {info.countryName}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* Canal Principal de Apoio (Destaque Proeminente) */}
+      {/* Seção 2: Canal Principal de Apoio (CVV 188) */}
       <View
         style={[
           styles.primaryCard,
@@ -129,7 +88,7 @@ export default function SupportScreen() {
         <Text style={[styles.serviceName, { color: colors.text }]}>
           {countryData.primaryService.name}
         </Text>
-        <Text style={[styles.serviceDesc, { color: colors.textMuted }]}>
+        <Text style={[styles.serviceDesc, { color: colors.textSecondary }]}>
           {countryData.primaryService.description}
         </Text>
         <Text style={[styles.serviceHours, { color: colors.primary }]}>
@@ -140,7 +99,7 @@ export default function SupportScreen() {
           title={`Ligar para ${countryData.primaryService.number}`}
           leftIcon={<Phone size={18} color="#FFFFFF" />}
           onPress={() =>
-            setSelectedServiceToCall({
+            handleAction({
               name: countryData.primaryService.name,
               number: countryData.primaryService.number,
             })
@@ -150,53 +109,63 @@ export default function SupportScreen() {
         />
       </View>
 
-      {/* Outros Serviços e Emergência Médica */}
+      {/* Seção 3: Outros Serviços Oficiais do Brasil */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          Outros Contatos e Serviços de Saúde
+          Outros Contatos e Serviços Públicos do Brasil
         </Text>
 
-        {countryData.secondaryServices.map((service, index) => (
-          <View
-            key={index}
-            style={[
-              styles.secondaryCard,
-              {
-                backgroundColor: isDark ? colors.surfaceSubtle : '#FFFFFF',
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text style={[styles.secName, { color: colors.text }]}>{service.name}</Text>
-              <Text style={[styles.secDesc, { color: colors.textMuted }]}>{service.description}</Text>
-            </View>
+        {countryData.secondaryServices.map((service, index) => {
+          const isLink = service.number.startsWith('http');
 
-            <TouchableOpacity
-              onPress={() =>
-                setSelectedServiceToCall({
-                  name: service.name,
-                  number: service.number,
-                })
-              }
-              accessibilityRole="button"
-              accessibilityLabel={`Acessar ${service.name}`}
-              style={[styles.callSmallBtn, { backgroundColor: colors.highlight }]}
+          return (
+            <View
+              key={index}
+              style={[
+                styles.secondaryCard,
+                {
+                  backgroundColor: isDark ? colors.surfaceSubtle : '#FFFFFF',
+                  borderColor: colors.border,
+                },
+              ]}
             >
-              {service.number.startsWith('http') ? (
-                <ExternalLink size={16} color={colors.primary} />
-              ) : (
-                <Phone size={16} color={colors.primary} />
-              )}
-              <Text style={[styles.callSmallText, { color: colors.primary }]}>
-                {service.number.startsWith('http') ? 'Abrir' : service.number}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={[styles.secName, { color: colors.text }]}>{service.name}</Text>
+                <Text style={[styles.secDesc, { color: colors.textSecondary }]}>{service.description}</Text>
+              </View>
+
+              <TouchableOpacity
+                onPress={() => handleAction(service)}
+                accessibilityRole="button"
+                accessibilityLabel={`${isLink ? 'Abrir' : 'Ligar para'} ${service.name}`}
+                style={[
+                  styles.callSmallBtn,
+                  {
+                    backgroundColor: isLink ? colors.surfaceSecondary : colors.highlight,
+                    borderColor: isLink ? colors.secondary : colors.primary,
+                  },
+                ]}
+              >
+                {isLink ? (
+                  <ExternalLink size={15} color={colors.secondaryDark} />
+                ) : (
+                  <Phone size={15} color={colors.primary} />
+                )}
+                <Text
+                  style={[
+                    styles.callSmallText,
+                    { color: isLink ? colors.secondaryDark : colors.primary },
+                  ]}
+                >
+                  {isLink ? 'Abrir' : service.number}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })}
       </View>
 
-      {/* Exercício Rápido de Aterramento Sensorial (Técnica 5-4-3-2-1) */}
+      {/* Seção 4: Exercício Rápido de Aterramento Sensorial (5-4-3-2-1) */}
       <View
         style={[
           styles.groundingCard,
@@ -213,7 +182,7 @@ export default function SupportScreen() {
           </Text>
         </View>
 
-        <Text style={[styles.groundingDesc, { color: colors.textMuted }]}>
+        <Text style={[styles.groundingDesc, { color: colors.textSecondary }]}>
           Se você estiver com a mente acelerada, experimente focar no ambiente ao seu redor:
         </Text>
 
@@ -236,7 +205,7 @@ export default function SupportScreen() {
         </View>
       </View>
 
-      {/* Modal de Confirmação antes de Efetuar Ligação */}
+      {/* Modal de Confirmação antes de Efetuar Ligação Telefônica */}
       <ConfirmationModal
         visible={!!selectedServiceToCall}
         title="Confirmar Ligação"
@@ -255,7 +224,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     padding: 16,
-    borderRadius: 20,
+    borderRadius: 18,
     borderWidth: 1,
     marginVertical: 12,
   },
@@ -268,29 +237,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
-  countrySection: {
-    marginVertical: 10,
-  },
-  countryLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  countryButtonsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  countryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  countryChipText: {
-    fontSize: 12,
-  },
   primaryCard: {
     padding: 20,
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1.5,
     marginVertical: 14,
   },
@@ -335,7 +284,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 14,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     marginBottom: 10,
   },
@@ -353,7 +302,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 12,
+    borderRadius: 10,
+    borderWidth: 1,
     gap: 6,
   },
   callSmallText: {
@@ -362,7 +312,7 @@ const styles = StyleSheet.create({
   },
   groundingCard: {
     padding: 20,
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     marginVertical: 14,
     marginBottom: 32,

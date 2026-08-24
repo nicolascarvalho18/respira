@@ -144,6 +144,21 @@ export default function ProgressiveRelaxationScreen() {
         subtitle="Técnica de Jacobson para liberação de tensão física e estresse acumulado."
       />
 
+      {/* Aviso de Segurança Corporal */}
+      <View
+        style={[
+          styles.safetyBanner,
+          {
+            backgroundColor: isDark ? colors.surfaceSecondary : colors.highlight,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.safetyText, { color: colors.textSecondary }]}>
+          ⚠️ <Text style={{ fontWeight: '700' }}>Importante:</Text> Faça os movimentos suavemente e respeite seus limites. Interrompa se sentir dor ou desconforto.
+        </Text>
+      </View>
+
       <View style={styles.progressWrap}>
         <ProgressBar
           progress={progressPercent}
@@ -252,7 +267,17 @@ export default function ProgressiveRelaxationScreen() {
 
 const styles = StyleSheet.create({
   progressWrap: {
-    marginBottom: 16,
+    marginVertical: 12,
+  },
+  safetyBanner: {
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  safetyText: {
+    fontSize: 12,
+    lineHeight: 17,
   },
   contentCard: {
     padding: 24,

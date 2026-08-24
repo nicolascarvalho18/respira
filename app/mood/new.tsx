@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -15,6 +16,13 @@ import {
   Meh,
   Frown,
   AlertCircle,
+  Compass,
+  Headphones,
+  Footprints,
+  FileText,
+  Activity,
+  ArrowRight,
+  ChevronRight,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
 import { PageHeader } from '../../src/components/ui/PageHeader';
@@ -33,6 +41,82 @@ import { storage } from '../../src/services/storage/asyncStorage';
 
 const DRAFT_STORAGE_KEY = 'respira_mood_draft';
 
+interface PracticeOption {
+  id: string;
+  title: string;
+  desc: string;
+  duration: string;
+  icon: any;
+  route: string;
+}
+
+const SUPPORT_PRACTICES: PracticeOption[] = [
+  {
+    id: 'p-breath-2m',
+    title: 'Respiração de 2 minutos',
+    desc: 'Ciclos suaves de inspiração e expiração para desacelerar o ritmo.',
+    duration: '2 min',
+    icon: Wind,
+    route: '/practices/breathing',
+  },
+  {
+    id: 'p-breath-478',
+    title: 'Respiração 4-7-8',
+    desc: 'Técnica compassada de relaxamento e ancoragem do sistema nervoso.',
+    duration: '4 min',
+    icon: Wind,
+    route: '/practices/breathing',
+  },
+  {
+    id: 'p-54321',
+    title: 'Técnica 5-4-3-2-1',
+    desc: 'Aterramento sensorial com os 5 sentidos para sair da sobrecarga mental.',
+    duration: '3 min',
+    icon: Compass,
+    route: '/practices/grounding',
+  },
+  {
+    id: 'p-pause',
+    title: 'Pausa consciente',
+    desc: 'Momento de silêncio e presença para observar o corpo sem julgamento.',
+    duration: '3 min',
+    icon: Heart,
+    route: '/practices/relaxation',
+  },
+  {
+    id: 'p-stretch',
+    title: 'Alongamento leve',
+    desc: 'Movimentos suaves nos ombros, pescoço e coluna para aliviar a tensão.',
+    duration: '5 min',
+    icon: Activity,
+    route: '/practices/relaxation',
+  },
+  {
+    id: 'p-muscle',
+    title: 'Relaxamento muscular',
+    desc: 'Tensionar e soltar grupos musculares para liberar o estresse acumulado.',
+    duration: '6 min',
+    icon: Activity,
+    route: '/practices/relaxation',
+  },
+  {
+    id: 'p-walk',
+    title: 'Caminhada breve',
+    desc: 'Passos conscientes com atenção ao contato dos pés com o chão.',
+    duration: '5 min',
+    icon: Footprints,
+    route: '/practices/relaxation',
+  },
+  {
+    id: 'p-soundscape',
+    title: 'Ouvir uma paisagem sonora',
+    desc: 'Sons suaves de chuva, mar ou floresta para descansar a mente.',
+    duration: '10 min',
+    icon: Headphones,
+    route: '/(tabs)/practices',
+  },
+];
+
 export default function NewMoodScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
@@ -47,7 +131,6 @@ export default function NewMoodScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
 
-  // Recupera rascunho salvo anteriormente
   useEffect(() => {
     async function loadDraft() {
       const draft = await storage.getItem<{
@@ -69,7 +152,6 @@ export default function NewMoodScreen() {
     loadDraft();
   }, []);
 
-  // Salva rascunho automaticamente conforme usuário altera os dados
   useEffect(() => {
     if (!isSaved) {
       storage.setItem(DRAFT_STORAGE_KEY, {
@@ -132,7 +214,7 @@ export default function NewMoodScreen() {
     <AppShell>
       <PageHeader
         showBack
-        title={isSaved ? 'Registro Salvo' : 'Como você está?'}
+        title={isSaved ? 'Registro Concluído' : 'Como você está?'}
         subtitle={formatDateTime(new Date().toISOString())}
       />
 
@@ -167,10 +249,7 @@ export default function NewMoodScreen() {
                       },
                     ]}
                   >
-                    <Icon
-                      size={24}
-                      color={isSelected ? '#FFFFFF' : opt.color}
-                    />
+                    <Icon size={24} color={isSelected ? '#FFFFFF' : opt.color} />
                     <Text
                       style={[
                         styles.moodOptionText,
@@ -230,7 +309,7 @@ export default function NewMoodScreen() {
             </View>
           </Card>
 
-          {/* 5. Observações com Contador de Caracteres */}
+          {/* 5. Observações com Contador */}
           <Card variant="bordered" style={styles.sectionCard}>
             <Text style={[styles.blockTitle, { color: colors.text }]}>
               5. Observações ou reflexões (opcional)
@@ -255,67 +334,87 @@ export default function NewMoodScreen() {
           />
         </View>
       ) : (
-        /* Confirmação e Recomendação Acolhedora */
-        <Card variant="bordered" style={styles.savedCard}>
-          <View style={[styles.savedIconCircle, { backgroundColor: colors.highlight }]}>
-            <Heart size={44} color={colors.primary} />
-          </View>
-
-          <Text style={[styles.savedTitle, { color: colors.text }]}>
-            Registro salvo com sucesso!
-          </Text>
-          <Text style={[styles.savedDesc, { color: colors.textMuted }]}>
-            Reconhecer suas emoções é um passo essencial para o autocuidado.
-          </Text>
-
-          {/* Sugestão de Prática Customizada */}
-          <View
-            style={[
-              styles.careSuggestionCard,
-              {
-                backgroundColor: isDark ? colors.surfaceSecondary : colors.highlight,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-              <Sparkles size={16} color={colors.primary} style={{ marginRight: 6 }} />
-              <Text style={[styles.careHeading, { color: colors.primary }]}>
-                Sugestão para o seu momento
-              </Text>
+        /* Fluxo Acolhedor de Práticas Pós-Registro */
+        <View style={{ gap: 16, marginBottom: 32 }}>
+          <Card variant="bordered" style={styles.savedCard}>
+            <View style={[styles.savedIconCircle, { backgroundColor: colors.highlight }]}>
+              <Heart size={36} color={colors.primary} />
             </View>
 
-            <Text style={[styles.careTitle, { color: colors.text }]}>
-              {anxietyLevel >= 6
-                ? 'Exercício de Respiração 4-7-8'
-                : 'Pausa Consciente de 3 Minutos'}
+            <Text style={[styles.savedTitle, { color: colors.text }]}>
+              Check-in registrado com sucesso!
             </Text>
-            <Text style={[styles.careBody, { color: colors.textMuted }]}>
-              {anxietyLevel >= 6
-                ? 'Seus batimentos e agitação podem se beneficiar de 4 ciclos de respiração compassada agora.'
-                : 'Uma breve pausa de presença ajuda a ancorar os sentimentos e seguir o dia com clareza.'}
+            <Text style={[styles.savedDesc, { color: colors.textSecondary }]}>
+              Reconhecer seu estado é o primeiro passo para cuidar de si.
             </Text>
+          </Card>
 
-            <AppButton
-              title="Fazer Prática Agora"
-              leftIcon={<Wind size={18} color="#FFFFFF" />}
-              onPress={() => router.replace('/practices/breathing')}
-              size="md"
-              style={{ marginTop: 8 }}
-            />
+          {/* Pergunta de Apoio */}
+          <View style={styles.practiceSectionHeader}>
+            <Sparkles size={18} color={colors.primary} style={{ marginRight: 6 }} />
+            <Text style={[styles.practiceSectionTitle, { color: colors.text }]}>
+              Que tipo de apoio faria sentido agora?
+            </Text>
+          </View>
+          <Text style={[styles.practiceSectionSub, { color: colors.textSecondary }]}>
+            Escolha uma prática curta para realizar durante o seu dia. Lembre-se: são ferramentas de autocuidado sem promessa médica.
+          </Text>
+
+          {/* Lista de Opções de Práticas */}
+          <View style={{ gap: 10 }}>
+            {SUPPORTPRACTICES_LIST(colors, isDark).map((practice) => {
+              const Icon = practice.icon;
+
+              return (
+                <TouchableOpacity
+                  key={practice.id}
+                  onPress={() => router.replace(practice.route as any)}
+                  activeOpacity={0.75}
+                  style={[
+                    styles.practiceCard,
+                    {
+                      backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <View style={[styles.practiceIconWrap, { backgroundColor: colors.highlight }]}>
+                    <Icon size={20} color={colors.primary} />
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text style={[styles.practiceName, { color: colors.text }]}>{practice.title}</Text>
+                      <Text style={[styles.practiceDur, { color: colors.secondaryDark }]}>{practice.duration}</Text>
+                    </View>
+                    <Text style={[styles.practiceDescription, { color: colors.textSecondary }]}>
+                      {practice.desc}
+                    </Text>
+                  </View>
+
+                  <ChevronRight size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
-          <AppButton
-            title="Voltar ao Início"
-            variant="outline"
-            size="md"
+          {/* Botão Pular / Continuar sem exercício */}
+          <TouchableOpacity
             onPress={() => router.replace('/(tabs)')}
-            style={{ marginTop: 14 }}
-          />
-        </Card>
+            style={[styles.skipBtn, { borderColor: colors.border }]}
+          >
+            <Text style={[styles.skipText, { color: colors.textSecondary }]}>
+              Prefiro continuar sem exercício por enquanto
+            </Text>
+          </TouchableOpacity>
+        </View>
       )}
     </AppShell>
   );
+}
+
+function SUPPORTPRACTICES_LIST(colors: any, isDark: boolean): PracticeOption[] {
+  return SUPPORT_PRACTICES;
 }
 
 const styles = StyleSheet.create({
@@ -352,52 +451,82 @@ const styles = StyleSheet.create({
   chipsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 6,
   },
   savedCard: {
     alignItems: 'center',
-    padding: 28,
-    marginVertical: 16,
+    padding: 20,
+    borderRadius: 18,
   },
   savedIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   savedTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '800',
-    marginBottom: 6,
+    marginBottom: 4,
     textAlign: 'center',
   },
   savedDesc: {
-    fontSize: 14,
+    fontSize: 13,
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 20,
   },
-  careSuggestionCard: {
-    width: '100%',
-    padding: 18,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    marginBottom: 10,
+  practiceSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
   },
-  careHeading: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  careTitle: {
+  practiceSectionTitle: {
     fontSize: 16,
     fontWeight: '800',
-    marginBottom: 6,
   },
-  careBody: {
+  practiceSectionSub: {
     fontSize: 13,
     lineHeight: 18,
-    marginBottom: 12,
+    marginBottom: 4,
+  },
+  practiceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 12,
+  },
+  practiceIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  practiceName: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  practiceDur: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  practiceDescription: {
+    fontSize: 12,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  skipBtn: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  skipText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });
