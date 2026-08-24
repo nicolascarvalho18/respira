@@ -21,6 +21,7 @@ import {
   TrendingUp,
   Sparkles,
   ChevronDown,
+  RotateCcw,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
 import { ContentCard } from '../../src/components/content/ContentCard';
@@ -41,10 +42,10 @@ export default function ContentScreen() {
     selectedCategory,
     searchQuery,
     selectedFilter,
-    pageLimit,
     setSelectedCategory,
     setSearchQuery,
     setSelectedFilter,
+    clearFilters,
     loadMoreArticles,
     toggleFavorite,
     getFilteredArticles,
@@ -77,6 +78,9 @@ export default function ContentScreen() {
   const filteredArticles = getFilteredArticles();
   const visibleArticles = getVisibleArticles();
 
+  const hasActiveFilters =
+    selectedCategory !== 'all' || searchQuery.trim().length > 0 || selectedFilter !== 'all';
+
   const hasMoreToLoad =
     selectedCategory === 'all' &&
     !searchQuery &&
@@ -93,6 +97,9 @@ export default function ContentScreen() {
     { id: 'longest', label: 'Maior tempo de leitura' },
     { id: 'recent', label: 'Mais recentes' },
   ];
+
+  const currentFilterLabel =
+    filterOptions.find((f) => f.id === selectedFilter)?.label || 'Filtrar';
 
   return (
     <AppShell>
@@ -145,10 +152,7 @@ export default function ContentScreen() {
             placeholderTextColor="#8C9E9B"
             value={searchQuery}
             onChangeText={setSearchQuery}
-            style={[
-              styles.searchInput,
-              { color: isDark ? colors.text : '#173D3B' },
-            ]}
+            style={[styles.searchInput, { color: isDark ? colors.text : '#173D3B' }]}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity
@@ -189,6 +193,47 @@ export default function ContentScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Badges de Filtros Ativos + Botão Limpar Filtros */}
+      {hasActiveFilters && (
+        <View style={styles.activeFiltersRow}>
+          <Text style={[styles.activeFiltersLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
+            Filtros ativos:
+          </Text>
+
+          {selectedCategory !== 'all' && (
+            <View style={styles.activeFilterChip}>
+              <Text style={styles.activeFilterChipText}>Categoria: {selectedCategory}</Text>
+              <TouchableOpacity onPress={() => setSelectedCategory('all')}>
+                <X size={12} color="#2F7F7C" />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {selectedFilter !== 'all' && (
+            <View style={styles.activeFilterChip}>
+              <Text style={styles.activeFilterChipText}>{currentFilterLabel}</Text>
+              <TouchableOpacity onPress={() => setSelectedFilter('all')}>
+                <X size={12} color="#2F7F7C" />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {searchQuery.trim().length > 0 && (
+            <View style={styles.activeFilterChip}>
+              <Text style={styles.activeFilterChipText}>{`Busca: "${searchQuery}"`}</Text>
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <X size={12} color="#2F7F7C" />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <TouchableOpacity onPress={clearFilters} style={styles.clearFiltersBtn}>
+            <RotateCcw size={12} color="#D9534F" style={{ marginRight: 4 }} />
+            <Text style={styles.clearFiltersBtnText}>Limpar filtros</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* 3. Categorias com Contagens Dinâmicas Reais */}
       <View style={styles.categoriesWrapper}>
         <ScrollView
@@ -204,10 +249,7 @@ export default function ContentScreen() {
                 onPress={() => setSelectedCategory(cat.id)}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: isSelected }}
-                style={[
-                  styles.categoryTab,
-                  isSelected && styles.categoryTabActive,
-                ]}
+                style={[styles.categoryTab, isSelected && styles.categoryTabActive]}
               >
                 <Text
                   style={[
@@ -361,14 +403,7 @@ export default function ContentScreen() {
             <Text style={[styles.emptySubtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
               Tente buscar por outro assunto ou limpar os filtros.
             </Text>
-            <TouchableOpacity
-              onPress={() => {
-                setSearchQuery('');
-                setSelectedCategory('all');
-                setSelectedFilter('all');
-              }}
-              style={styles.emptyButton}
-            >
+            <TouchableOpacity onPress={clearFilters} style={styles.emptyButton}>
               <Text style={styles.emptyButtonText}>Limpar filtros</Text>
             </TouchableOpacity>
           </View>
@@ -522,7 +557,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   searchBar: {
     flex: 1,
@@ -544,6 +579,44 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  activeFiltersRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  activeFiltersLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  activeFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#E7F3EF',
+    borderColor: '#2F7F7C',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  activeFilterChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2F7F7C',
+  },
+  clearFiltersBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  clearFiltersBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#D9534F',
   },
 
   // Category Tabs
@@ -752,10 +825,11 @@ const styles = StyleSheet.create({
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(23, 61, 59, 0.55)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    zIndex: 1000,
   },
   modalContent: {
     width: '100%',
@@ -763,6 +837,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 18,
     borderWidth: 1,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 8,
   },
   modalHeader: {
     flexDirection: 'row',

@@ -16,6 +16,7 @@ import {
   CheckSquare,
   Square,
   AlertCircle,
+  Layers,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { AppButton } from '../ui/AppButton';
@@ -40,14 +41,15 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
   onClose,
 }) => {
   const { user } = useAuth();
-  const { records } = useMoodStore();
-  const { practices } = usePracticeStore();
+  const { records, fetchRecords } = useMoodStore();
+  const { practices, fetchPractices } = usePracticeStore();
   const { colors, isDark } = useTheme();
   const { showToast } = useToast();
 
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
+  const [generateAllMonths, setGenerateAllMonths] = useState(false);
 
   const [includeStats, setIncludeStats] = useState(true);
   const [includeEmotions, setIncludeEmotions] = useState(true);
@@ -61,7 +63,15 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
   const handleGeneratePdf = async () => {
     try {
       setIsGenerating(true);
+
+      // Sempre busca os dados mais recentes do backend/storage antes de gerar o PDF
+      await Promise.all([fetchRecords(), fetchPractices()]);
+
+      const currentRecords = useMoodStore.getState().records;
+      const currentPractices = usePracticeStore.getState().practices;
+
       const options: ReportOptions = {
+        allMonths: generateAllMonths,
         month: selectedMonth,
         year: selectedYear,
         includeStats,
@@ -70,14 +80,23 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
         includeNotes,
       };
 
-      const html = pdfReportService.generateHtmlReport(user, records, practices, options);
-      const fileName = `respira-relatorio-${MONTHS[selectedMonth].toLowerCase()}-${selectedYear}.pdf`;
+      const html = pdfReportService.generateHtmlReport(
+        user,
+        currentRecords,
+        currentPractices,
+        options
+      );
+
+      const fileName = generateAllMonths
+        ? `respira-relatorio-completo-${selectedYear}.pdf`
+        : `respira-relatorio-${MONTHS[selectedMonth].toLowerCase()}-${selectedYear}.pdf`;
+
       await pdfReportService.exportOrPrintReport(html, fileName);
 
-      showToast({ message: 'Relatório gerado para impressão e salvamento.', type: 'success' });
+      showToast({ message: 'Relatório gerado com dados atualizados.', type: 'success' });
       onClose();
-    } catch {
-      showToast({ message: 'Erro ao gerar relatório em PDF.', type: 'error' });
+    } catch (_err) {
+      showToast({ message: 'Erro ao gerar relatório em PDF. Tente novamente.', type: 'error' });
     } finally {
       setIsGenerating(false);
     }
@@ -104,10 +123,10 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
           {/* Header */}
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.title, { color: '#173D3B' }]}>
+              <Text style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}>
                 Relatório Mensal em PDF
               </Text>
-              <Text style={[styles.subtitle, { color: '#667775' }]}>
+              <Text style={[styles.subtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
                 Acompanhamento para levar à terapia ou salvar
               </Text>
             </View>
@@ -121,50 +140,144 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={{ maxHeight: 380 }}>
-            {/* 1. Seletor de Mês e Ano */}
-            <Text style={[styles.sectionHeading, { color: '#173D3B' }]}>
-              Selecione o mês do relatório:
-            </Text>
-            <View style={styles.monthScrollWrapper}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.monthsRow}>
-                {MONTHS.map((m, idx) => {
-                  const isSelected = selectedMonth === idx;
-                  return (
-                    <TouchableOpacity
-                      key={m}
-                      onPress={() => setSelectedMonth(idx)}
-                      style={[
-                        styles.monthPill,
-                        isSelected && {
-                          backgroundColor: '#2F7F7C',
-                          borderColor: '#2F7F7C',
-                        },
-                        {
-                          backgroundColor: isDark ? colors.surfaceSecondary : isSelected ? '#2F7F7C' : '#F2F6F5',
-                          borderColor: isDark ? colors.border : '#DCE5E2',
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.monthPillText,
-                          {
-                            color: isSelected ? '#FFFFFF' : isDark ? colors.text : '#173D3B',
-                            fontWeight: isSelected ? '700' : '500',
-                          },
-                        ]}
-                      >
-                        {m}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+          <ScrollView style={{ maxHeight: 390 }} showsVerticalScrollIndicator={false}>
+            {/* Modo de Escopo: Mês Único vs Todos os Meses */}
+            <View style={styles.scopeSelectorRow}>
+              <TouchableOpacity
+                onPress={() => setGenerateAllMonths(false)}
+                style={[
+                  styles.scopeBtn,
+                  !generateAllMonths && styles.scopeBtnActive,
+                  {
+                    backgroundColor: !generateAllMonths
+                      ? '#2F7F7C'
+                      : isDark
+                      ? colors.surfaceSecondary
+                      : '#F2F6F5',
+                    borderColor: !generateAllMonths ? '#2F7F7C' : isDark ? colors.border : '#DCE5E2',
+                  },
+                ]}
+              >
+                <Calendar
+                  size={14}
+                  color={!generateAllMonths ? '#FFFFFF' : isDark ? colors.text : '#667775'}
+                  style={{ marginRight: 4 }}
+                />
+                <Text
+                  style={[
+                    styles.scopeBtnText,
+                    {
+                      color: !generateAllMonths ? '#FFFFFF' : isDark ? colors.text : '#667775',
+                      fontWeight: !generateAllMonths ? '700' : '500',
+                    },
+                  ]}
+                >
+                  Mês Específico
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setGenerateAllMonths(true)}
+                style={[
+                  styles.scopeBtn,
+                  generateAllMonths && styles.scopeBtnActive,
+                  {
+                    backgroundColor: generateAllMonths
+                      ? '#2F7F7C'
+                      : isDark
+                      ? colors.surfaceSecondary
+                      : '#F2F6F5',
+                    borderColor: generateAllMonths ? '#2F7F7C' : isDark ? colors.border : '#DCE5E2',
+                  },
+                ]}
+              >
+                <Layers
+                  size={14}
+                  color={generateAllMonths ? '#FFFFFF' : isDark ? colors.text : '#667775'}
+                  style={{ marginRight: 4 }}
+                />
+                <Text
+                  style={[
+                    styles.scopeBtnText,
+                    {
+                      color: generateAllMonths ? '#FFFFFF' : isDark ? colors.text : '#667775',
+                      fontWeight: generateAllMonths ? '700' : '500',
+                    },
+                  ]}
+                >
+                  Histórico Completo
+                </Text>
+              </TouchableOpacity>
             </View>
 
+            {/* 1. Seletor de Mês se modo mês único estiver ativo */}
+            {!generateAllMonths && (
+              <>
+                <Text style={[styles.sectionHeading, { color: isDark ? colors.text : '#173D3B' }]}>
+                  Selecione o mês do relatório:
+                </Text>
+                <View style={styles.monthScrollWrapper}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.monthsRow}
+                  >
+                    {MONTHS.map((m, idx) => {
+                      const isSelected = selectedMonth === idx;
+                      return (
+                        <TouchableOpacity
+                          key={m}
+                          onPress={() => setSelectedMonth(idx)}
+                          style={[
+                            styles.monthPill,
+                            isSelected && {
+                              backgroundColor: '#2F7F7C',
+                              borderColor: '#2F7F7C',
+                            },
+                            {
+                              backgroundColor: isSelected
+                                ? '#2F7F7C'
+                                : isDark
+                                ? colors.surfaceSecondary
+                                : '#F2F6F5',
+                              borderColor: isSelected
+                                ? '#2F7F7C'
+                                : isDark
+                                ? colors.border
+                                : '#DCE5E2',
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.monthPillText,
+                              {
+                                color: isSelected
+                                  ? '#FFFFFF'
+                                  : isDark
+                                  ? colors.text
+                                  : '#173D3B',
+                                fontWeight: isSelected ? '700' : '500',
+                              },
+                            ]}
+                          >
+                            {m}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              </>
+            )}
+
             {/* 2. Seleção de Dados Incluídos */}
-            <Text style={[styles.sectionHeading, { color: '#173D3B', marginTop: 14 }]}>
+            <Text
+              style={[
+                styles.sectionHeading,
+                { color: isDark ? colors.text : '#173D3B', marginTop: 14 },
+              ]}
+            >
               Dados incluídos no documento:
             </Text>
 
@@ -181,8 +294,12 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
                 onPress={() => setIncludeStats(!includeStats)}
                 style={styles.checkboxRow}
               >
-                {includeStats ? <CheckSquare size={18} color="#2F7F7C" /> : <Square size={18} color="#8C9E9B" />}
-                <Text style={[styles.checkboxLabel, { color: '#173D3B' }]}>
+                {includeStats ? (
+                  <CheckSquare size={18} color="#2F7F7C" />
+                ) : (
+                  <Square size={18} color="#8C9E9B" />
+                )}
+                <Text style={[styles.checkboxLabel, { color: isDark ? colors.text : '#173D3B' }]}>
                   Resumo estatístico de humor e ansiedade
                 </Text>
               </TouchableOpacity>
@@ -191,8 +308,12 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
                 onPress={() => setIncludeEmotions(!includeEmotions)}
                 style={styles.checkboxRow}
               >
-                {includeEmotions ? <CheckSquare size={18} color="#2F7F7C" /> : <Square size={18} color="#8C9E9B" />}
-                <Text style={[styles.checkboxLabel, { color: '#173D3B' }]}>
+                {includeEmotions ? (
+                  <CheckSquare size={18} color="#2F7F7C" />
+                ) : (
+                  <Square size={18} color="#8C9E9B" />
+                )}
+                <Text style={[styles.checkboxLabel, { color: isDark ? colors.text : '#173D3B' }]}>
                   Detalhamento de sintomas e emoções relatadas
                 </Text>
               </TouchableOpacity>
@@ -201,8 +322,12 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
                 onPress={() => setIncludePractices(!includePractices)}
                 style={styles.checkboxRow}
               >
-                {includePractices ? <CheckSquare size={18} color="#2F7F7C" /> : <Square size={18} color="#8C9E9B" />}
-                <Text style={[styles.checkboxLabel, { color: '#173D3B' }]}>
+                {includePractices ? (
+                  <CheckSquare size={18} color="#2F7F7C" />
+                ) : (
+                  <Square size={18} color="#8C9E9B" />
+                )}
+                <Text style={[styles.checkboxLabel, { color: isDark ? colors.text : '#173D3B' }]}>
                   Práticas de respiração e relaxamento concluídas
                 </Text>
               </TouchableOpacity>
@@ -211,8 +336,12 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
                 onPress={() => setIncludeNotes(!includeNotes)}
                 style={styles.checkboxRow}
               >
-                {includeNotes ? <CheckSquare size={18} color="#2F7F7C" /> : <Square size={18} color="#8C9E9B" />}
-                <Text style={[styles.checkboxLabel, { color: '#173D3B' }]}>
+                {includeNotes ? (
+                  <CheckSquare size={18} color="#2F7F7C" />
+                ) : (
+                  <Square size={18} color="#8C9E9B" />
+                )}
+                <Text style={[styles.checkboxLabel, { color: isDark ? colors.text : '#173D3B' }]}>
                   Incluir anotações pessoais do diário
                 </Text>
               </TouchableOpacity>
@@ -229,8 +358,14 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
               ]}
             >
               <ShieldCheck size={16} color="#2F7F7C" style={{ marginRight: 6 }} />
-              <Text style={[styles.disclaimerText, { color: '#567571' }]}>
-                Este relatório é um documento pessoal para fins informativos e de suporte terapêutico, sem diagnósticos automáticos.
+              <Text
+                style={[
+                  styles.disclaimerText,
+                  { color: isDark ? colors.textMuted : '#567571' },
+                ]}
+              >
+                Este relatório é um documento pessoal para fins informativos e de suporte
+                terapêutico, sem diagnósticos automáticos.
               </Text>
             </View>
           </ScrollView>
@@ -248,7 +383,7 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
             </View>
             <View style={{ flex: 1, marginLeft: 8 }}>
               <AppButton
-                title="Gerar PDF"
+                title={isGenerating ? 'Gerando...' : 'Gerar PDF'}
                 leftIcon={<Printer size={16} color="#FFFFFF" />}
                 size="md"
                 isLoading={isGenerating}
@@ -265,22 +400,23 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(23, 61, 59, 0.55)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 18,
+    zIndex: 1000,
   },
   modalCard: {
     width: '100%',
-    maxWidth: 440,
+    maxWidth: 460,
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    shadowColor: '#173D3B',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    elevation: 8,
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 10,
   },
   headerRow: {
     flexDirection: 'row',
@@ -296,13 +432,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
+  scopeSelectorRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  scopeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  scopeBtnActive: {
+    borderWidth: 1.5,
+  },
+  scopeBtnText: {
+    fontSize: 12,
+  },
   sectionHeading: {
     fontSize: 13,
     fontWeight: '700',
     marginBottom: 8,
   },
   monthScrollWrapper: {
-    marginBottom: 4,
+    marginBottom: 6,
   },
   monthsRow: {
     flexDirection: 'row',
@@ -350,5 +506,6 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 10,
   },
 });

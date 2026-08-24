@@ -87,11 +87,14 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     if (user?.id) {
-      userService.getActiveSessions(user.id).then((sess: UserSession[]) => {
-        if (sess && sess.length > 0) {
-          setSessions(sess);
-        }
-      }).catch(() => {});
+      userService
+        .getActiveSessions(user.id)
+        .then((sess: UserSession[]) => {
+          if (sess && sess.length > 0) {
+            setSessions(sess);
+          }
+        })
+        .catch(() => {});
     }
   }, [user]);
 
@@ -166,8 +169,8 @@ export default function ProfileScreen() {
     <AppShell>
       {/* 1. Cabeçalho */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: '#173D3B' }]}>Perfil</Text>
-        <Text style={[styles.subtitle, { color: '#667775' }]}>
+        <Text style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}>Perfil</Text>
+        <Text style={[styles.subtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
           Conta, preferências e privacidade
         </Text>
       </View>
@@ -183,9 +186,13 @@ export default function ProfileScreen() {
         ]}
       >
         <View style={styles.userTopRow}>
-          {/* Avatar com botão lápis sobreposto */}
+          {/* Avatar dinâmico com botão lápis sobreposto */}
           <View style={styles.avatarWrap}>
-            <AnaAvatar size={64} />
+            <AnaAvatar
+              size={64}
+              avatarUrl={user?.avatarUrl}
+              name={user?.name || 'Ana'}
+            />
             <TouchableOpacity
               onPress={() => setIsAvatarModalOpen(true)}
               activeOpacity={0.8}
@@ -199,10 +206,10 @@ export default function ProfileScreen() {
 
           {/* Dados do usuário */}
           <View style={styles.userDetailsCol}>
-            <Text style={[styles.userName, { color: '#173D3B' }]}>
+            <Text style={[styles.userName, { color: isDark ? colors.text : '#173D3B' }]}>
               {user?.name || 'Ana'}
             </Text>
-            <Text style={[styles.userEmail, { color: '#667775' }]}>
+            <Text style={[styles.userEmail, { color: isDark ? colors.textMuted : '#667775' }]}>
               {user?.email || 'ana@exemplo.com'}
             </Text>
 
@@ -249,7 +256,9 @@ export default function ProfileScreen() {
       </View>
 
       {/* 3. Seção "Preferências" */}
-      <Text style={[styles.sectionTitle, { color: '#173D3B' }]}>Preferências</Text>
+      <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+        Preferências
+      </Text>
       <View
         style={[
           styles.groupedCard,
@@ -265,13 +274,15 @@ export default function ProfileScreen() {
             <Sun size={18} color="#2F7F7C" />
           </View>
           <View style={styles.itemTextCol}>
-            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>Aparência</Text>
-            <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
+            <Text style={[styles.itemTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              Aparência
+            </Text>
+            <Text style={[styles.itemSubtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
               Escolha o tema da aplicação.
             </Text>
           </View>
 
-          {/* Toggle Segmentado: Claro / Escuro (SEM sistema) */}
+          {/* Toggle Segmentado: Claro / Escuro */}
           <View
             style={[
               styles.themeToggleBox,
@@ -282,7 +293,10 @@ export default function ProfileScreen() {
             ]}
           >
             <TouchableOpacity
-              onPress={() => setThemeMode('light')}
+              onPress={() => {
+                setThemeMode('light');
+                showToast({ message: 'Tema claro ativado.', type: 'info' });
+              }}
               style={[
                 styles.themeBtn,
                 mode === 'light' && [
@@ -309,7 +323,10 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => setThemeMode('dark')}
+              onPress={() => {
+                setThemeMode('dark');
+                showToast({ message: 'Tema escuro ativado.', type: 'info' });
+              }}
               style={[
                 styles.themeBtn,
                 mode === 'dark' && [
@@ -345,8 +362,10 @@ export default function ProfileScreen() {
             <Waves size={18} color="#2F7F7C" />
           </View>
           <View style={styles.itemTextCol}>
-            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>Reduzir movimento</Text>
-            <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
+            <Text style={[styles.itemTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              Reduzir movimento
+            </Text>
+            <Text style={[styles.itemSubtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
               Substitui animações por transições estáticas suaves.
             </Text>
           </View>
@@ -363,14 +382,14 @@ export default function ProfileScreen() {
                 }
               }
             }}
-            trackColor={{ false: '#DCE5E2', true: '#426A8C' }}
+            trackColor={{ false: '#DCE5E2', true: '#2F7F7C' }}
             thumbColor="#FFFFFF"
           />
         </View>
 
         <View style={[styles.rowDivider, { backgroundColor: isDark ? colors.border : '#F0F5F3' }]} />
 
-        {/* Linha 3: Lembrete diário */}
+        {/* Linha 3: Lembretes e horários */}
         <TouchableOpacity
           onPress={() => setIsNotificationModalOpen(true)}
           activeOpacity={0.7}
@@ -382,8 +401,10 @@ export default function ProfileScreen() {
             <Bell size={18} color="#2F7F7C" />
           </View>
           <View style={styles.itemTextCol}>
-            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>Lembretes e horários</Text>
-            <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
+            <Text style={[styles.itemTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              Lembretes e horários
+            </Text>
+            <Text style={[styles.itemSubtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
               Configurar horários de pausa e hábitos gentis
             </Text>
           </View>
@@ -392,7 +413,9 @@ export default function ProfileScreen() {
       </View>
 
       {/* 4. Seção "Privacidade e dados" */}
-      <Text style={[styles.sectionTitle, { color: '#173D3B' }]}>Privacidade e dados</Text>
+      <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+        Privacidade e dados
+      </Text>
       <View
         style={[
           styles.groupedCard,
@@ -408,16 +431,19 @@ export default function ProfileScreen() {
             <ShieldCheck size={18} color="#2F7F7C" />
           </View>
           <View style={styles.itemTextCol}>
-            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>
+            <Text style={[styles.itemTitle, { color: isDark ? colors.text : '#173D3B' }]}>
               Salvar histórico da IA
             </Text>
-            <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
+            <Text style={[styles.itemSubtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
               Quando desativado, novas conversas não são salvas.
             </Text>
           </View>
           <Switch
             value={saveAiHistory}
-            onValueChange={setSaveAiHistory}
+            onValueChange={(val) => {
+              setSaveAiHistory(val);
+              showToast({ message: 'Alterações salvas.', type: 'success' });
+            }}
             trackColor={{ false: '#DCE5E2', true: '#2F7F7C' }}
             thumbColor="#FFFFFF"
           />
@@ -437,8 +463,10 @@ export default function ProfileScreen() {
             <FileDown size={18} color="#2F7F7C" />
           </View>
           <View style={styles.itemTextCol}>
-            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>Gerar relatório mensal</Text>
-            <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
+            <Text style={[styles.itemTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              Gerar relatório mensal
+            </Text>
+            <Text style={[styles.itemSubtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
               Relatório em PDF para terapia ou acompanhamento
             </Text>
           </View>
@@ -459,8 +487,10 @@ export default function ProfileScreen() {
             <FileDown size={18} color="#2F7F7C" />
           </View>
           <View style={styles.itemTextCol}>
-            <Text style={[styles.itemTitle, { color: '#173D3B' }]}>Exportar meus dados</Text>
-            <Text style={[styles.itemSubtitle, { color: '#667775' }]}>
+            <Text style={[styles.itemTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              Exportar meus dados
+            </Text>
+            <Text style={[styles.itemSubtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
               Baixe uma cópia em formato ZIP ou JSON
             </Text>
           </View>
@@ -468,8 +498,10 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 5. Seção "Segurança e acesso" */}
-      <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>Segurança</Text>
+      {/* 5. Seção "Segurança" */}
+      <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+        Segurança
+      </Text>
       <View
         style={[
           styles.groupedCard,
@@ -479,7 +511,6 @@ export default function ProfileScreen() {
           },
         ]}
       >
-        {/* Segurança e acesso */}
         <TouchableOpacity
           onPress={() => setIsSecurityModalOpen(true)}
           activeOpacity={0.7}
@@ -491,7 +522,9 @@ export default function ProfileScreen() {
             <KeyRound size={18} color="#667775" />
           </View>
           <View style={styles.itemTextCol}>
-            <Text style={[styles.itemTitle, { color: isDark ? colors.text : '#173D3B' }]}>Segurança e acesso</Text>
+            <Text style={[styles.itemTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              Segurança e acesso
+            </Text>
             <Text style={[styles.itemSubtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
               Senha, e-mail e autenticação
             </Text>
@@ -500,8 +533,10 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 6. Seção "Sessões e dispositivos" (Última seção antes de encerrar e excluir conta) */}
-      <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>Sessões e dispositivos</Text>
+      {/* 6. Seção "Sessões e dispositivos" */}
+      <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+        Sessões e dispositivos
+      </Text>
       <View
         style={[
           styles.groupedCard,
@@ -534,7 +569,9 @@ export default function ProfileScreen() {
       </View>
 
       {/* 7. Ações de Encerramento e Exclusão */}
-      <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>Conta</Text>
+      <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+        Conta
+      </Text>
       <View
         style={[
           styles.groupedCard,
@@ -557,7 +594,9 @@ export default function ProfileScreen() {
             <LogOut size={18} color="#667775" />
           </View>
           <View style={styles.itemTextCol}>
-            <Text style={[styles.itemTitle, { color: isDark ? colors.text : '#173D3B' }]}>Sair da conta</Text>
+            <Text style={[styles.itemTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              Sair da conta
+            </Text>
             <Text style={[styles.itemSubtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
               Encerrar sessão neste dispositivo
             </Text>
@@ -799,67 +838,68 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   itemIconCircle: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E7F3EF',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
   itemTextCol: {
     flex: 1,
-    marginRight: 10,
+    paddingRight: 8,
   },
   itemTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
-    letterSpacing: -0.1,
   },
   itemSubtitle: {
-    fontSize: 12,
+    fontSize: 11,
     marginTop: 1,
-    lineHeight: 16,
+    lineHeight: 15,
   },
   rowDivider: {
     height: 1,
-    width: '100%',
   },
 
-  // Toggle Segmentado de Tema
+  // Toggle Claro / Escuro
   themeToggleBox: {
     flexDirection: 'row',
+    padding: 3,
     borderRadius: 10,
     borderWidth: 1,
-    padding: 2,
   },
   themeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 8,
   },
   themeBtnActive: {
     shadowColor: '#173D3B',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
     elevation: 1,
   },
   themeBtnText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
 
-  // Input do Diálogo de Exclusão
+  // Input de Confirmação de Exclusão
   deleteInput: {
     height: 44,
+    borderWidth: 1.5,
+    borderColor: '#D9534F',
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#DCE5E2',
     paddingHorizontal: 12,
-    marginTop: 10,
     fontSize: 13,
     fontWeight: '700',
     color: '#D9534F',
+    marginTop: 14,
+    textAlign: 'center',
   },
 });

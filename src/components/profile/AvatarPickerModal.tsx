@@ -6,8 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Platform,
-  Image,
 } from 'react-native';
 import {
   X,
@@ -26,7 +24,7 @@ import { AppButton } from '../ui/AppButton';
 
 export interface AvatarPickerModalProps {
   visible: boolean;
-  currentAvatarUrl?: string;
+  currentAvatarUrl?: string | null;
   userName: string;
   onClose: () => void;
   onSelectAvatar: (avatarUrl: string | null) => Promise<void>;
@@ -62,9 +60,17 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
   onSelectAvatar,
 }) => {
   const { colors, isDark } = useTheme();
-  const [selectedType, setSelectedType] = useState<'initials' | 'icon'>('initials');
-  const [selectedColor, setSelectedColor] = useState<string>(AVATAR_COLORS[0]);
-  const [selectedIconId, setSelectedIconId] = useState<string>('user');
+
+  // Parse existing avatar if available
+  const initialIsCustom = !!(currentAvatarUrl && currentAvatarUrl.startsWith('custom-icon:'));
+  const initialIconId = initialIsCustom ? currentAvatarUrl.split(':')[1] || 'user' : 'user';
+  const initialColor = initialIsCustom ? currentAvatarUrl.split(':')[2] || AVATAR_COLORS[0] : AVATAR_COLORS[0];
+
+  const [selectedType, setSelectedType] = useState<'initials' | 'icon'>(
+    initialIsCustom ? 'icon' : 'initials'
+  );
+  const [selectedColor, setSelectedColor] = useState<string>(initialColor);
+  const [selectedIconId, setSelectedIconId] = useState<string>(initialIconId);
   const [isSaving, setIsSaving] = useState(false);
 
   const initialLetter = userName.trim().charAt(0).toUpperCase() || 'A';
@@ -75,12 +81,11 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
       if (selectedType === 'initials') {
         await onSelectAvatar(null);
       } else {
-        // Encode custom avatar identifier
         await onSelectAvatar(`custom-icon:${selectedIconId}:${selectedColor}`);
       }
       onClose();
     } catch {
-      // Handled by parent
+      // Trata erro no componente pai
     } finally {
       setIsSaving(false);
     }
@@ -110,14 +115,14 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
         >
           {/* Header */}
           <View style={styles.headerRow}>
-            <Text style={[styles.modalTitle, { color: '#173D3B' }]}>
+            <Text style={[styles.modalTitle, { color: isDark ? colors.text : '#173D3B' }]}>
               Escolha seu avatar
             </Text>
             <TouchableOpacity
               onPress={onClose}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
-              accessibilityLabel="Fechar"
+              accessibilityLabel="Fechar modal"
             >
               <X size={20} color="#8C9E9B" />
             </TouchableOpacity>
@@ -140,7 +145,7 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
                 <SelectedIcon size={36} color="#FFFFFF" strokeWidth={2.2} />
               )}
             </View>
-            <Text style={[styles.previewLabel, { color: '#667775' }]}>
+            <Text style={[styles.previewLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
               Prévia do seu avatar
             </Text>
           </View>
@@ -165,10 +170,10 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
               <Text style={styles.miniCircleText}>{initialLetter}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.optionTitle, { color: '#173D3B' }]}>
+              <Text style={[styles.optionTitle, { color: isDark ? colors.text : '#173D3B' }]}>
                 Usar iniciais do nome ({initialLetter})
               </Text>
-              <Text style={[styles.optionSubtitle, { color: '#667775' }]}>
+              <Text style={[styles.optionSubtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
                 Simples e elegante com sua letra inicial.
               </Text>
             </View>
@@ -177,7 +182,7 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
 
           {/* Opção 2: Ícone Ilustrado com Cor de Fundo */}
           <View style={{ marginTop: 12 }}>
-            <Text style={[styles.sectionHeading, { color: '#173D3B' }]}>
+            <Text style={[styles.sectionHeading, { color: isDark ? colors.text : '#173D3B' }]}>
               Ou escolha um ícone e cor
             </Text>
 
@@ -200,13 +205,14 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
                         backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
                       },
                       {
-                        borderColor: isDark ? colors.border : '#EBF1EF',
+                        borderColor: isSelected ? '#2F7F7C' : isDark ? colors.border : '#EBF1EF',
+                        backgroundColor: isDark ? colors.surface : '#FFFFFF',
                       },
                     ]}
                   >
                     <Icon
                       size={20}
-                      color={isSelected ? '#2F7F7C' : colors.text}
+                      color={isSelected ? '#2F7F7C' : isDark ? colors.text : '#173D3B'}
                       strokeWidth={2}
                     />
                   </TouchableOpacity>
@@ -267,10 +273,11 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(23, 61, 59, 0.55)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 18,
+    zIndex: 1000,
   },
   modalCard: {
     width: '100%',
@@ -278,9 +285,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    shadowColor: '#173D3B',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.18,
     shadowRadius: 18,
     elevation: 8,
   },
@@ -305,9 +312,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
-    shadowColor: '#173D3B',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.12,
     shadowRadius: 6,
     elevation: 2,
   },

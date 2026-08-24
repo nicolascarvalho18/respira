@@ -37,15 +37,18 @@ export default function SplashScreen() {
   useEffect(() => {
     if (isLoading) return;
 
+    if (isAuthenticated) {
+      router.replace('/(tabs)');
+      return;
+    }
+
     const timer = setTimeout(() => {
-      if (isAuthenticated) {
-        router.replace('/(tabs)');
-      } else if (!isOnboardingCompleted) {
+      if (!isOnboardingCompleted) {
         router.replace('/(auth)/onboarding');
       } else {
         router.replace('/(auth)/login');
       }
-    }, 600);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [isLoading, isAuthenticated, isOnboardingCompleted, router]);

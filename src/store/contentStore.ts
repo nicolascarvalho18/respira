@@ -28,6 +28,7 @@ interface ContentState {
   setSelectedCategory: (categoryId: string) => void;
   setSearchQuery: (query: string) => void;
   setSelectedFilter: (filter: ArticleFilterOption) => void;
+  clearFilters: () => void;
   loadMoreArticles: () => void;
   toggleFavorite: (articleId: string) => Promise<void>;
   updateProgress: (articleId: string, progress: number) => Promise<void>;
@@ -67,6 +68,14 @@ export const useContentStore = create<ContentState>((set, get) => ({
   setSelectedFilter: (filter) =>
     set({ selectedFilter: filter, pageLimit: 10 }),
 
+  clearFilters: () =>
+    set({
+      selectedCategory: 'all',
+      searchQuery: '',
+      selectedFilter: 'all',
+      pageLimit: 10,
+    }),
+
   loadMoreArticles: () => {
     const { pageLimit, articles } = get();
     const nextLimit = Math.min(articles.length, pageLimit + 10);
@@ -93,18 +102,20 @@ export const useContentStore = create<ContentState>((set, get) => ({
     const { articles, selectedCategory, searchQuery, selectedFilter } = get();
 
     const result = articles.filter((a) => {
-      // Category matching
+      // 1. Filtro por Categoria
       if (selectedCategory !== 'all') {
         const itemCat = normalizeText(a.category || a.categoryName || '');
         const targetCat = normalizeText(selectedCategory);
 
-        if (targetCat.includes('ansiedade') && !itemCat.includes('ansiedade')) return false;
-        if (targetCat.includes('sono') && !itemCat.includes('sono')) return false;
-        if (targetCat.includes('bem-estar') && !itemCat.includes('bem-estar')) return false;
-        if (targetCat.includes('regulacao') && (!itemCat.includes('regulacao') && !itemCat.includes('atencao'))) return false;
+        const matchCat =
+          itemCat === targetCat ||
+          itemCat.includes(targetCat) ||
+          targetCat.includes(itemCat);
+
+        if (!matchCat) return false;
       }
 
-      // Search query matching across title, category, summary, keywords, tags, content
+      // 2. Filtro por Busca Textual (Título, Resumo, Categoria, Tags, Conteúdo)
       const q = normalizeText(searchQuery);
       if (q) {
         const titleMatch = normalizeText(a.title).includes(q);
@@ -114,12 +125,19 @@ export const useContentStore = create<ContentState>((set, get) => ({
         const keywordsMatch = a.keywords?.some((k) => normalizeText(k).includes(q)) ?? false;
         const contentMatch = a.content ? normalizeText(a.content).includes(q) : false;
 
-        if (!titleMatch && !summaryMatch && !catMatch && !tagsMatch && !keywordsMatch && !contentMatch) {
+        if (
+          !titleMatch &&
+          !summaryMatch &&
+          !catMatch &&
+          !tagsMatch &&
+          !keywordsMatch &&
+          !contentMatch
+        ) {
           return false;
         }
       }
 
-      // Status filters
+      // 3. Filtro por Status / Favoritos
       const prog = a.readProgress || 0;
       if (selectedFilter === 'not_started' && prog > 0) return false;
       if (selectedFilter === 'in_progress' && (prog <= 0 || prog >= 90)) return false;
@@ -129,13 +147,17 @@ export const useContentStore = create<ContentState>((set, get) => ({
       return true;
     });
 
-    // Sorting
+    // 4. Ordenação
     if (selectedFilter === 'shortest') {
       result.sort((a, b) => (a.readingTimeMinutes || 4) - (b.readingTimeMinutes || 4));
     } else if (selectedFilter === 'longest') {
       result.sort((a, b) => (b.readingTimeMinutes || 4) - (a.readingTimeMinutes || 4));
     } else if (selectedFilter === 'recent') {
-      result.sort((a, b) => new Date(b.publishedAt || b.updatedAt).getTime() - new Date(a.publishedAt || a.updatedAt).getTime());
+      result.sort(
+        (a, b) =>
+          new Date(b.publishedAt || b.updatedAt).getTime() -
+          new Date(a.publishedAt || a.updatedAt).getTime()
+      );
     }
 
     return result;
@@ -145,12 +167,12 @@ export const useContentStore = create<ContentState>((set, get) => ({
     const { selectedCategory, pageLimit } = get();
     const filtered = get().getFilteredArticles();
 
-    // If "all" category and no active search filter limit: progressive loading
-    if (selectedCategory === 'all') {
+    // Se categoria for "Todos" e não houver filtro restritivo de texto/status: paginação suave
+    if (selectedCategory === 'all' && !get().searchQuery && get().selectedFilter === 'all') {
       return filtered.slice(0, pageLimit);
     }
 
-    // In specific categories, show all filtered items
+    // Nas categorias específicas ou com busca/filtros ativos, exibe todos os resultados combinados
     return filtered;
   },
 }));

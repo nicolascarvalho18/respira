@@ -20,6 +20,7 @@ import {
   Sun,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
+import { AnaAvatar } from '../illustrations/AnaAvatar';
 import { useAuth } from '../../hooks/useAuth';
 import { useThemeStore } from '../../store/themeStore';
 
@@ -135,10 +136,12 @@ export const DesktopSidebar: React.FC = () => {
       {/* Rodapé da Sidebar: Perfil do Usuário e Alternador de Tema */}
       <View style={[styles.footer, { borderTopColor: colors.border }]}>
         <View style={styles.userRow}>
-          <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
-            <Text style={styles.avatarText}>
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
-            </Text>
+          <View style={{ marginRight: 10 }}>
+            <AnaAvatar
+              size={38}
+              avatarUrl={user?.avatarUrl}
+              name={user?.name || 'Ana'}
+            />
           </View>
           <View style={{ flex: 1, marginRight: 8 }}>
             <Text style={[styles.userName, { color: colors.text }]} numberOfLines={1}>

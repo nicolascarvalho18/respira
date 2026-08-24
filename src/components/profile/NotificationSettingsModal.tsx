@@ -15,6 +15,7 @@ import {
   Calendar,
   Sparkles,
   CheckCircle2,
+  Check,
   Coffee,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
@@ -111,10 +112,10 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
           {/* Header */}
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.title, { color: '#173D3B' }]}>
+              <Text style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}>
                 Lembretes e Notificações
               </Text>
-              <Text style={[styles.subtitle, { color: '#667775' }]}>
+              <Text style={[styles.subtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
                 Avisos gentis para desacelerar no seu ritmo
               </Text>
             </View>
@@ -128,7 +129,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={{ maxHeight: 380 }}>
+          <ScrollView style={{ maxHeight: 390 }} showsVerticalScrollIndicator={false}>
             {/* 1. Lembrete Diário */}
             <View
               style={[
@@ -143,10 +144,10 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                   <Bell size={18} color="#2F7F7C" style={{ marginRight: 8 }} />
                   <View>
-                    <Text style={[styles.cardTitle, { color: '#173D3B' }]}>
+                    <Text style={[styles.cardTitle, { color: isDark ? colors.text : '#173D3B' }]}>
                       Lembrete diário
                     </Text>
-                    <Text style={[styles.cardSub, { color: '#667775' }]}>
+                    <Text style={[styles.cardSub, { color: isDark ? colors.textMuted : '#667775' }]}>
                       Momento para check-in e respiração
                     </Text>
                   </View>
@@ -163,7 +164,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
 
               {config.dailyReminderEnabled && (
                 <View style={{ marginTop: 12 }}>
-                  <Text style={[styles.fieldLabel, { color: '#173D3B' }]}>
+                  <Text style={[styles.fieldLabel, { color: isDark ? colors.text : '#173D3B' }]}>
                     Horário preferido:
                   </Text>
                   <View style={styles.pillsRow}>
@@ -179,15 +180,19 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                             styles.timePill,
                             isSelected && {
                               backgroundColor: '#2F7F7C',
-                              borderColor: '#2F7F7C',
+                              borderColor: '#79B8A4',
                             },
                             {
-                              backgroundColor: isDark
-                                ? colors.surface
-                                : isSelected
+                              backgroundColor: isSelected
                                 ? '#2F7F7C'
+                                : isDark
+                                ? colors.surface
                                 : '#FFFFFF',
-                              borderColor: isDark ? colors.border : '#DCE5E2',
+                              borderColor: isSelected
+                                ? '#79B8A4'
+                                : isDark
+                                ? colors.borderStrong || colors.border
+                                : '#DCE5E2',
                             },
                           ]}
                         >
@@ -206,12 +211,20 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                           >
                             {time}
                           </Text>
+                          {isSelected && (
+                            <Check size={12} color="#FFFFFF" strokeWidth={3} style={{ marginLeft: 3 }} />
+                          )}
                         </TouchableOpacity>
                       );
                     })}
                   </View>
 
-                  <Text style={[styles.fieldLabel, { color: '#173D3B', marginTop: 12 }]}>
+                  <Text
+                    style={[
+                      styles.fieldLabel,
+                      { color: isDark ? colors.text : '#173D3B', marginTop: 12 },
+                    ]}
+                  >
                     Dias da semana:
                   </Text>
                   <View style={styles.daysRow}>
@@ -225,15 +238,19 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                             styles.dayCircle,
                             isSelected && {
                               backgroundColor: '#2F7F7C',
-                              borderColor: '#2F7F7C',
+                              borderColor: '#79B8A4',
                             },
                             {
-                              backgroundColor: isDark
-                                ? colors.surface
-                                : isSelected
+                              backgroundColor: isSelected
                                 ? '#2F7F7C'
+                                : isDark
+                                ? colors.surface
                                 : '#FFFFFF',
-                              borderColor: isDark ? colors.border : '#DCE5E2',
+                              borderColor: isSelected
+                                ? '#79B8A4'
+                                : isDark
+                                ? colors.borderStrong || colors.border
+                                : '#DCE5E2',
                             },
                           ]}
                         >
@@ -275,10 +292,10 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                   <Coffee size={18} color="#2F7F7C" style={{ marginRight: 8 }} />
                   <View>
-                    <Text style={[styles.cardTitle, { color: '#173D3B' }]}>
+                    <Text style={[styles.cardTitle, { color: isDark ? colors.text : '#173D3B' }]}>
                       Micro-pausas na rotina
                     </Text>
-                    <Text style={[styles.cardSub, { color: '#667775' }]}>
+                    <Text style={[styles.cardSub, { color: isDark ? colors.textMuted : '#667775' }]}>
                       Lembretes para afastar os olhos da tela
                     </Text>
                   </View>
@@ -295,7 +312,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
 
               {config.microPausesEnabled && (
                 <View style={{ marginTop: 10 }}>
-                  <Text style={[styles.fieldLabel, { color: '#173D3B' }]}>
+                  <Text style={[styles.fieldLabel, { color: isDark ? colors.text : '#173D3B' }]}>
                     Frequência das pausas:
                   </Text>
                   <View style={styles.pillsRow}>
@@ -314,15 +331,19 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                             styles.timePill,
                             isSelected && {
                               backgroundColor: '#2F7F7C',
-                              borderColor: '#2F7F7C',
+                              borderColor: '#79B8A4',
                             },
                             {
-                              backgroundColor: isDark
-                                ? colors.surface
-                                : isSelected
+                              backgroundColor: isSelected
                                 ? '#2F7F7C'
+                                : isDark
+                                ? colors.surface
                                 : '#FFFFFF',
-                              borderColor: isDark ? colors.border : '#DCE5E2',
+                              borderColor: isSelected
+                                ? '#79B8A4'
+                                : isDark
+                                ? colors.borderStrong || colors.border
+                                : '#DCE5E2',
                             },
                           ]}
                         >
@@ -330,13 +351,20 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                             style={[
                               styles.timePillText,
                               {
-                                color: isSelected ? '#FFFFFF' : '#173D3B',
+                                color: isSelected
+                                  ? '#FFFFFF'
+                                  : isDark
+                                  ? colors.text
+                                  : '#173D3B',
                                 fontWeight: isSelected ? '700' : '500',
                               },
                             ]}
                           >
-                            A cada {hours} horas
+                            A cada {hours}h
                           </Text>
+                          {isSelected && (
+                            <Check size={12} color="#FFFFFF" strokeWidth={3} style={{ marginLeft: 3 }} />
+                          )}
                         </TouchableOpacity>
                       );
                     })}
@@ -370,10 +398,10 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                   <Bell size={12} color="#2F7F7C" style={{ marginRight: 4 }} />
                   <Text style={styles.previewAppTitle}>Respira • Momento de pausa</Text>
                 </View>
-                <Text style={[styles.previewMessage, { color: '#173D3B' }]}>
+                <Text style={[styles.previewMessage, { color: isDark ? colors.text : '#173D3B' }]}>
                   {`"${GENTLE_NOTIFICATION_MESSAGES[0]}"`}
                 </Text>
-                <Text style={[styles.previewNote, { color: '#667775' }]}>
+                <Text style={[styles.previewNote, { color: isDark ? colors.textMuted : '#667775' }]}>
                   Mensagens acolhedoras, sem cobranças ou pressão por sequências.
                 </Text>
               </View>
@@ -409,10 +437,11 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(23, 61, 59, 0.55)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 18,
+    zIndex: 1000,
   },
   modalCard: {
     width: '100%',
@@ -420,9 +449,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    shadowColor: '#173D3B',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.18,
     shadowRadius: 18,
     elevation: 8,
   },
@@ -469,10 +498,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   timePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    borderWidth: 1,
+    borderWidth: 1.5,
   },
   timePillText: {
     fontSize: 11,
@@ -482,15 +513,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   dayCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   dayText: {
-    fontSize: 10,
+    fontSize: 11,
   },
   previewToggleBtn: {
     flexDirection: 'row',
