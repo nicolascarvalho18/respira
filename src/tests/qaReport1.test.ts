@@ -7,18 +7,17 @@ import path from 'path';
 
 describe('Relatório QA #1 — Regras, Validações e Persistência', () => {
   describe('1. Paleta de Cores e Tokens de Design', () => {
-    it('deve possuir os tokens oficiais da paleta profissional', () => {
-      expect(COLOR_TOKENS.primaryLight).toBe('#426A8C'); // Azul Sereno
-      expect(COLOR_TOKENS.secondaryLight).toBe('#8176A8'); // Lilás Suave
-      expect(COLOR_TOKENS.accentLight).toBe('#D6AD55'); // Amarelo Acolhedor
-      expect(COLOR_TOKENS.backgroundLight).toBe('#F6F8FA'); // Fundo Neutro
-      expect(COLOR_TOKENS.error).toBe('#C9795B'); // Coral Alerta
+    it('deve possuir os tokens oficiais do Respira', () => {
+      expect(COLOR_TOKENS.primaryLight).toBe('#2F7F7C'); // Verde Esmeralda / Teal clássico
+      expect(COLOR_TOKENS.backgroundLight).toBe('#F7F9F7'); // Fundo Neutro Respira
+      expect(COLOR_TOKENS.textPrimaryLight).toBe('#173D3B'); // Texto Escuro
+      expect(COLOR_TOKENS.warning).toBe('#D98968'); // Coral Acolhedor
     });
 
     it('deve ter tokens semânticos completos no tema claro e escuro', () => {
-      expect(COLORS.light.primary).toBe('#426A8C');
+      expect(COLORS.light.primary).toBe('#2F7F7C');
       expect(COLORS.dark.primary).toBeDefined();
-      expect(COLORS.dark.background).toBe('#0E161C');
+      expect(COLORS.dark.background).toBe('#0F1B1A');
     });
   });
 
