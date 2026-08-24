@@ -3,6 +3,7 @@ import {
   TouchableOpacity,
   View,
   ViewStyle,
+  StyleProp,
   Platform,
 } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
@@ -12,7 +13,7 @@ export interface CardProps {
   children: React.ReactNode;
   variant?: 'elevated' | 'bordered' | 'flat' | 'interactive';
   onPress?: () => void;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   padding?: 'none' | 'sm' | 'md' | 'lg';
   accessibilityLabel?: string;
 }

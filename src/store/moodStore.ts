@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { MoodRecord, MoodStats } from '../types';
+import { MoodRecord, MoodStats, PlannedExercise } from '../types';
 import { moodService } from '../services/mood/moodService';
 import { calculateMoodStats } from '../utils/stats';
 
@@ -14,6 +14,12 @@ interface MoodState {
   fetchRecords: () => Promise<void>;
   addRecord: (record: Omit<MoodRecord, 'id' | 'createdAt'>) => Promise<MoodRecord>;
   updateRecord: (id: string, partial: Partial<MoodRecord>) => Promise<MoodRecord>;
+  updateExerciseStatus: (
+    recordId: string,
+    exerciseId: string,
+    status: 'pending' | 'in_progress' | 'completed',
+    notes?: string
+  ) => Promise<void>;
   deleteRecord: (id: string) => Promise<void>;
   setTimeRange: (range: '7d' | '30d' | 'all') => void;
   getFilteredRecords: () => MoodRecord[];
@@ -69,6 +75,24 @@ export const useMoodStore = create<MoodState>((set, get) => ({
       set({ isLoading: false, error: err.message || 'Erro ao atualizar registro' });
       throw err;
     }
+  },
+
+  updateExerciseStatus: async (recordId, exerciseId, status, notes) => {
+    const record = get().records.find((r) => r.id === recordId);
+    if (!record || !record.plannedExercises) return;
+
+    const updatedExercises = record.plannedExercises.map((e) =>
+      e.id === exerciseId
+        ? {
+            ...e,
+            status,
+            notes: notes !== undefined ? notes : e.notes,
+            completedAt: status === 'completed' ? new Date().toISOString() : e.completedAt,
+          }
+        : e
+    );
+
+    await get().updateRecord(recordId, { plannedExercises: updatedExercises });
   },
 
   deleteRecord: async (id) => {

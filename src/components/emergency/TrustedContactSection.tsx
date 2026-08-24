@@ -23,6 +23,9 @@ import {
   Copy,
   AlertCircle,
   PhoneCall,
+  Star,
+  Shield,
+  Info,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuth } from '../../hooks/useAuth';
@@ -33,11 +36,13 @@ import { ConfirmationModal } from '../ui/ConfirmationModal';
 import {
   trustedContactService,
   TrustedContact,
+  formatBrazilianPhone,
+  validateBrazilianPhone,
 } from '../../services/emergency/trustedContactService';
 
 const RELATIONSHIPS = [
   'Familiar',
-  'Amigo',
+  'Amigo(a)',
   'Responsável',
   'Parceiro(a)',
   'Profissional de confiança',
@@ -55,8 +60,10 @@ export const TrustedContactSection: React.FC = () => {
 
   // Form states
   const [name, setName] = useState('');
-  const [relationship, setRelationship] = useState('Amigo');
+  const [relationship, setRelationship] = useState('Amigo(a)');
   const [phone, setPhone] = useState('');
+  const [notes, setNotes] = useState('');
+  const [isPrimary, setIsPrimary] = useState(false);
   const [allowCall, setAllowCall] = useState(true);
   const [allowMessage, setAllowMessage] = useState(true);
   const [contactIsAware, setContactIsAware] = useState(true);
@@ -86,8 +93,10 @@ export const TrustedContactSection: React.FC = () => {
   const openAddModal = () => {
     setEditingContact(null);
     setName('');
-    setRelationship('Amigo');
+    setRelationship('Amigo(a)');
     setPhone('');
+    setNotes('');
+    setIsPrimary(contacts.length === 0);
     setAllowCall(true);
     setAllowMessage(true);
     setContactIsAware(true);
@@ -99,7 +108,9 @@ export const TrustedContactSection: React.FC = () => {
     setEditingContact(c);
     setName(c.name);
     setRelationship(c.relationship);
-    setPhone(c.phone);
+    setPhone(c.phoneFormatted || c.phone);
+    setNotes(c.notes || '');
+    setIsPrimary(!!c.isPrimary);
     setAllowCall(c.allowCall);
     setAllowMessage(c.allowMessage);
     setContactIsAware(c.contactIsAware);
@@ -107,18 +118,26 @@ export const TrustedContactSection: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  const handlePhoneChange = (val: string) => {
+    const formatted = formatBrazilianPhone(val);
+    setPhone(formatted);
+    if (formError) setFormError('');
+  };
+
   const handleSave = async () => {
     if (!name.trim()) {
       setFormError('Por favor, informe o nome do contato.');
       return;
     }
-    const cleanPhone = phone.replace(/\D/g, '');
-    if (cleanPhone.length < 10 || cleanPhone.length > 11) {
-      setFormError('Informe um telefone brasileiro válido com DDD (ex: 11987654321).');
+
+    const validation = validateBrazilianPhone(phone);
+    if (!validation.isValid) {
+      setFormError(validation.message || 'Telefone brasileiro inválido.');
       return;
     }
+
     if (!contactIsAware) {
-      setFormError('Confirme que o contato está ciente de que foi adicionado como pessoa de confiança.');
+      setFormError('Confirme que o contato está ciente de que foi indicado como sua pessoa de confiança.');
       return;
     }
 
@@ -128,7 +147,9 @@ export const TrustedContactSection: React.FC = () => {
         userId: user?.id || 'user-demo-1',
         name: name.trim(),
         relationship,
-        phone: cleanPhone,
+        phone,
+        notes: notes.trim() || undefined,
+        isPrimary,
         allowCall,
         allowMessage,
         contactIsAware,
@@ -157,7 +178,9 @@ export const TrustedContactSection: React.FC = () => {
   const handleCallConfirm = () => {
     if (!contactToCall) return;
     const cleanNumber = contactToCall.phone.replace(/\D/g, '');
-    Linking.openURL(`tel:${cleanNumber}`);
+    Linking.openURL(`tel:${cleanNumber}`).catch(() => {
+      showToast({ message: 'Não foi possível abrir o discador.', type: 'error' });
+    });
     setContactToCall(null);
   };
 
@@ -165,7 +188,9 @@ export const TrustedContactSection: React.FC = () => {
     if (!messageModalContact) return;
     const cleanNumber = messageModalContact.phone.replace(/\D/g, '');
     const encoded = encodeURIComponent(customMessage);
-    Linking.openURL(`https://wa.me/55${cleanNumber}?text=${encoded}`);
+    Linking.openURL(`https://wa.me/55${cleanNumber}?text=${encoded}`).catch(() => {
+      showToast({ message: 'Não foi possível abrir o WhatsApp.', type: 'error' });
+    });
     setMessageModalContact(null);
   };
 
@@ -174,7 +199,9 @@ export const TrustedContactSection: React.FC = () => {
     const cleanNumber = messageModalContact.phone.replace(/\D/g, '');
     const encoded = encodeURIComponent(customMessage);
     const separator = Platform.OS === 'ios' ? '&' : '?';
-    Linking.openURL(`sms:${cleanNumber}${separator}body=${encoded}`);
+    Linking.openURL(`sms:${cleanNumber}${separator}body=${encoded}`).catch(() => {
+      showToast({ message: 'Não foi possível abrir o aplicativo de SMS.', type: 'error' });
+    });
     setMessageModalContact(null);
   };
 
@@ -190,24 +217,54 @@ export const TrustedContactSection: React.FC = () => {
       <View style={styles.headerRow}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <HeartHandshake size={20} color={colors.primary} />
-          <Text style={[styles.title, { color: colors.text }]}>Seu contato de confiança</Text>
+          <Text style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}>
+            Contatos de Confiança
+          </Text>
         </View>
         {contacts.length > 0 && (
           <TouchableOpacity onPress={openAddModal} style={styles.addSmallBtn}>
             <Plus size={16} color={colors.primary} />
-            <Text style={[styles.addSmallText, { color: colors.primary }]}>Adicionar</Text>
+            <Text style={[styles.addSmallText, { color: colors.primary }]}>Novo contato</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-        Cadastre alguém com quem você se sinta seguro para conversar quando precisar de apoio.
+      <Text style={[styles.subtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
+        Cadastre pessoas próximas e de sua confiança para apoio em momentos difíceis.
       </Text>
 
+      {/* Aviso Explicativo e Ético */}
+      <View
+        style={[
+          styles.disclaimerBox,
+          {
+            backgroundColor: isDark ? colors.surfaceSecondary : '#F0F7F6',
+            borderColor: isDark ? colors.border : '#D8EBE4',
+          },
+        ]}
+      >
+        <Info size={15} color={colors.primary} style={{ marginRight: 6, marginTop: 1 }} />
+        <Text style={[styles.disclaimerText, { color: isDark ? colors.textMuted : '#567571' }]}>
+          Este recurso facilita o contato rápido com uma pessoa de sua confiança, mas não substitui
+          serviços profissionais ou de emergência. Nenhuma mensagem ou ligação é realizada automaticamente.
+        </Text>
+      </View>
+
       {contacts.length === 0 ? (
-        <Card variant="bordered" style={styles.emptyCard}>
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>Nenhum contato adicionado</Text>
-          <Text style={[styles.emptyDesc, { color: colors.textMuted }]}>
+        <Card
+          variant="bordered"
+          style={[
+            styles.emptyCard,
+            {
+              backgroundColor: isDark ? colors.surface : '#FFFFFF',
+              borderColor: isDark ? colors.border : '#DCE5E2',
+            },
+          ]}
+        >
+          <Text style={[styles.emptyTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+            Nenhum contato cadastrado
+          </Text>
+          <Text style={[styles.emptyDesc, { color: isDark ? colors.textMuted : '#667775' }]}>
             Ter uma pessoa de confiança cadastrada facilita o contato rápido em momentos de sobrecarga.
           </Text>
           <AppButton
@@ -215,39 +272,79 @@ export const TrustedContactSection: React.FC = () => {
             leftIcon={<Plus size={18} color="#FFFFFF" />}
             onPress={openAddModal}
             size="md"
-            style={{ marginTop: 12 }}
+            style={{ marginTop: 14 }}
           />
         </Card>
       ) : (
         <View style={{ gap: 12 }}>
           {contacts.map((contact) => (
-            <Card key={contact.id} variant="bordered" style={styles.contactCard}>
+            <Card
+              key={contact.id}
+              variant="bordered"
+              style={[
+                styles.contactCard,
+                contact.isPrimary && {
+                  borderColor: '#2F7F7C',
+                  borderWidth: 1.5,
+                },
+                {
+                  backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                },
+              ]}
+            >
               <View style={styles.contactHeader}>
-                <View style={[styles.avatarCircle, { backgroundColor: colors.secondaryLight }]}>
-                  <Text style={[styles.avatarText, { color: colors.secondaryDark }]}>
+                <View
+                  style={[
+                    styles.avatarCircle,
+                    { backgroundColor: contact.isPrimary ? '#2F7F7C' : isDark ? colors.surfaceSecondary : '#E7F3EF' },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.avatarText,
+                      { color: contact.isPrimary ? '#FFFFFF' : '#2F7F7C' },
+                    ]}
+                  >
                     {contact.name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
+
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.contactName, { color: colors.text }]}>{contact.name}</Text>
-                  <Text style={[styles.contactRel, { color: colors.textMuted }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={[styles.contactName, { color: isDark ? colors.text : '#173D3B' }]}>
+                      {contact.name}
+                    </Text>
+                    {contact.isPrimary && (
+                      <View style={styles.primaryBadge}>
+                        <Star size={10} color="#FFFFFF" fill="#FFFFFF" style={{ marginRight: 3 }} />
+                        <Text style={styles.primaryBadgeText}>Principal</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={[styles.contactRel, { color: isDark ? colors.textMuted : '#667775' }]}>
                     {contact.relationship} • {contact.phoneMasked}
                   </Text>
+                  {contact.notes ? (
+                    <Text style={[styles.contactNote, { color: isDark ? colors.textMuted : '#8C9E9B' }]}>
+                      Obs: {contact.notes}
+                    </Text>
+                  ) : null}
                 </View>
+
                 <View style={styles.actionsRow}>
                   <TouchableOpacity
                     onPress={() => openEditModal(contact)}
                     style={styles.iconBtn}
                     accessibilityLabel={`Editar ${contact.name}`}
                   >
-                    <Edit2 size={16} color={colors.textMuted} />
+                    <Edit2 size={16} color={isDark ? colors.textMuted : '#667775'} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => setContactToDelete(contact)}
                     style={styles.iconBtn}
                     accessibilityLabel={`Remover ${contact.name}`}
                   >
-                    <Trash2 size={16} color={colors.error} />
+                    <Trash2 size={16} color="#D9534F" />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -257,10 +354,16 @@ export const TrustedContactSection: React.FC = () => {
                 {contact.allowCall && (
                   <TouchableOpacity
                     onPress={() => setContactToCall(contact)}
-                    style={[styles.actionBtn, { backgroundColor: colors.highlight, borderColor: colors.primary }]}
+                    style={[
+                      styles.actionBtn,
+                      {
+                        backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
+                        borderColor: '#2F7F7C',
+                      },
+                    ]}
                   >
-                    <PhoneCall size={16} color={colors.primary} />
-                    <Text style={[styles.actionBtnText, { color: colors.primary }]}>
+                    <PhoneCall size={15} color="#2F7F7C" />
+                    <Text style={[styles.actionBtnText, { color: '#2F7F7C' }]}>
                       Ligar para {contact.name.split(' ')[0]}
                     </Text>
                   </TouchableOpacity>
@@ -269,10 +372,16 @@ export const TrustedContactSection: React.FC = () => {
                 {contact.allowMessage && (
                   <TouchableOpacity
                     onPress={() => setMessageModalContact(contact)}
-                    style={[styles.actionBtn, { backgroundColor: colors.surfaceSecondary, borderColor: colors.secondary }]}
+                    style={[
+                      styles.actionBtn,
+                      {
+                        backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFA',
+                        borderColor: isDark ? colors.border : '#DCE5E2',
+                      },
+                    ]}
                   >
-                    <MessageCircle size={16} color={colors.secondary} />
-                    <Text style={[styles.actionBtnText, { color: colors.secondaryDark }]}>
+                    <MessageCircle size={15} color="#2F7F7C" />
+                    <Text style={[styles.actionBtnText, { color: isDark ? colors.text : '#173D3B' }]}>
                       Enviar mensagem
                     </Text>
                   </TouchableOpacity>
@@ -284,7 +393,7 @@ export const TrustedContactSection: React.FC = () => {
       )}
 
       {/* Modal de Cadastro / Edição */}
-      <Modal visible={isModalOpen} transparent animationType="fade">
+      <Modal visible={isModalOpen} transparent animationType="fade" onRequestClose={() => setIsModalOpen(false)}>
         <View style={styles.modalOverlay}>
           <View
             style={[
@@ -293,34 +402,36 @@ export const TrustedContactSection: React.FC = () => {
             ]}
           >
             <View style={styles.modalTop}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                {editingContact ? 'Editar contato' : 'Novo contato de confiança'}
+              <Text style={[styles.modalTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+                {editingContact ? 'Editar contato de confiança' : 'Novo contato de confiança'}
               </Text>
               <TouchableOpacity onPress={() => setIsModalOpen(false)}>
-                <X size={20} color={colors.textMuted} />
+                <X size={20} color="#8C9E9B" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14 }}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
               {formError ? (
-                <View style={[styles.errorBox, { backgroundColor: colors.errorLight }]}>
-                  <AlertCircle size={16} color={colors.error} />
-                  <Text style={[styles.errorText, { color: colors.error }]}>{formError}</Text>
+                <View style={[styles.errorBox, { backgroundColor: '#FDF0F0', borderColor: '#F2B5A0' }]}>
+                  <AlertCircle size={15} color="#D9534F" />
+                  <Text style={[styles.errorText, { color: '#D9534F' }]}>{formError}</Text>
                 </View>
               ) : null}
 
               <View>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>Nome completo</Text>
+                <Text style={[styles.inputLabel, { color: isDark ? colors.text : '#173D3B' }]}>
+                  Nome da pessoa *
+                </Text>
                 <TextInput
                   value={name}
                   onChangeText={setName}
                   placeholder="Ex: Mariana Silva"
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor="#8C9E9B"
                   style={[
                     styles.inputField,
                     {
-                      color: colors.text,
-                      borderColor: colors.border,
+                      color: isDark ? colors.text : '#173D3B',
+                      borderColor: isDark ? colors.border : '#DCE5E2',
                       backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
                     },
                   ]}
@@ -328,7 +439,9 @@ export const TrustedContactSection: React.FC = () => {
               </View>
 
               <View>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>Relação</Text>
+                <Text style={[styles.inputLabel, { color: isDark ? colors.text : '#173D3B' }]}>
+                  Vínculo / Parentesco
+                </Text>
                 <View style={styles.relWrap}>
                   {RELATIONSHIPS.map((rel) => {
                     const isSelected = relationship === rel;
@@ -339,15 +452,22 @@ export const TrustedContactSection: React.FC = () => {
                         style={[
                           styles.relChip,
                           {
-                            backgroundColor: isSelected ? colors.primary : isDark ? colors.surfaceSecondary : '#FFFFFF',
-                            borderColor: isSelected ? colors.primary : colors.border,
+                            backgroundColor: isSelected
+                              ? '#2F7F7C'
+                              : isDark
+                              ? colors.surfaceSecondary
+                              : '#FFFFFF',
+                            borderColor: isSelected ? '#2F7F7C' : isDark ? colors.border : '#DCE5E2',
                           },
                         ]}
                       >
                         <Text
                           style={[
                             styles.relText,
-                            { color: isSelected ? '#FFFFFF' : colors.text, fontWeight: isSelected ? '700' : '500' },
+                            {
+                              color: isSelected ? '#FFFFFF' : isDark ? colors.text : '#173D3B',
+                              fontWeight: isSelected ? '700' : '500',
+                            },
                           ]}
                         >
                           {rel}
@@ -359,77 +479,139 @@ export const TrustedContactSection: React.FC = () => {
               </View>
 
               <View>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>Telefone celular (DDD + Número)</Text>
+                <Text style={[styles.inputLabel, { color: isDark ? colors.text : '#173D3B' }]}>
+                  Telefone celular com DDD *
+                </Text>
                 <TextInput
                   value={phone}
-                  onChangeText={setPhone}
+                  onChangeText={handlePhoneChange}
                   keyboardType="phone-pad"
-                  placeholder="Ex: 11987654321"
-                  placeholderTextColor={colors.textMuted}
+                  placeholder="(11) 98765-4321"
+                  placeholderTextColor="#8C9E9B"
+                  maxLength={15}
                   style={[
                     styles.inputField,
                     {
-                      color: colors.text,
-                      borderColor: colors.border,
+                      color: isDark ? colors.text : '#173D3B',
+                      borderColor: isDark ? colors.border : '#DCE5E2',
                       backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
                     },
                   ]}
                 />
               </View>
 
+              <View>
+                <Text style={[styles.inputLabel, { color: isDark ? colors.text : '#173D3B' }]}>
+                  Observação opcional
+                </Text>
+                <TextInput
+                  value={notes}
+                  onChangeText={setNotes}
+                  placeholder="Ex: Mora perto, disponível à noite"
+                  placeholderTextColor="#8C9E9B"
+                  style={[
+                    styles.inputField,
+                    {
+                      color: isDark ? colors.text : '#173D3B',
+                      borderColor: isDark ? colors.border : '#DCE5E2',
+                      backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
+                    },
+                  ]}
+                />
+              </View>
+
+              {/* Definir como Contato Principal */}
+              <TouchableOpacity
+                onPress={() => setIsPrimary(!isPrimary)}
+                style={styles.checkRow}
+              >
+                <View
+                  style={[
+                    styles.checkbox,
+                    isPrimary && { backgroundColor: '#2F7F7C', borderColor: '#2F7F7C' },
+                  ]}
+                >
+                  {isPrimary && <Check size={13} color="#FFFFFF" strokeWidth={3} />}
+                </View>
+                <Text style={[styles.checkText, { color: isDark ? colors.text : '#173D3B' }]}>
+                  Destacar como meu contato principal de apoio
+                </Text>
+              </TouchableOpacity>
+
               {/* Opções de Comunicação */}
               <TouchableOpacity
                 onPress={() => setAllowCall(!allowCall)}
                 style={styles.checkRow}
               >
-                <View style={[styles.checkbox, allowCall && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
-                  {allowCall && <Check size={14} color="#FFFFFF" />}
+                <View
+                  style={[
+                    styles.checkbox,
+                    allowCall && { backgroundColor: '#2F7F7C', borderColor: '#2F7F7C' },
+                  ]}
+                >
+                  {allowCall && <Check size={13} color="#FFFFFF" strokeWidth={3} />}
                 </View>
-                <Text style={[styles.checkText, { color: colors.text }]}>Permitir botão de ligação</Text>
+                <Text style={[styles.checkText, { color: isDark ? colors.text : '#173D3B' }]}>
+                  Permitir botão de ligação direta
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() => setAllowMessage(!allowMessage)}
                 style={styles.checkRow}
               >
-                <View style={[styles.checkbox, allowMessage && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
-                  {allowMessage && <Check size={14} color="#FFFFFF" />}
+                <View
+                  style={[
+                    styles.checkbox,
+                    allowMessage && { backgroundColor: '#2F7F7C', borderColor: '#2F7F7C' },
+                  ]}
+                >
+                  {allowMessage && <Check size={13} color="#FFFFFF" strokeWidth={3} />}
                 </View>
-                <Text style={[styles.checkText, { color: colors.text }]}>Permitir envio de mensagem</Text>
+                <Text style={[styles.checkText, { color: isDark ? colors.text : '#173D3B' }]}>
+                  Permitir envio de mensagem (WhatsApp / SMS)
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() => setContactIsAware(!contactIsAware)}
                 style={styles.checkRow}
               >
-                <View style={[styles.checkbox, contactIsAware && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
-                  {contactIsAware && <Check size={14} color="#FFFFFF" />}
+                <View
+                  style={[
+                    styles.checkbox,
+                    contactIsAware && { backgroundColor: '#2F7F7C', borderColor: '#2F7F7C' },
+                  ]}
+                >
+                  {contactIsAware && <Check size={13} color="#FFFFFF" strokeWidth={3} />}
                 </View>
-                <Text style={[styles.checkText, { color: colors.text }]}>
-                  Esta pessoa sabe que foi indicada como meu contato de apoio
+                <Text style={[styles.checkText, { color: isDark ? colors.text : '#173D3B' }]}>
+                  Esta pessoa sabe que foi indicada como meu contato de confiança *
                 </Text>
               </TouchableOpacity>
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-                <AppButton
-                  title="Cancelar"
-                  variant="outline"
-                  onPress={() => setIsModalOpen(false)}
-                  style={{ flex: 1 }}
-                />
-                <AppButton
-                  title="Salvar Contato"
-                  onPress={handleSave}
-                  style={{ flex: 1 }}
-                />
+                <View style={{ flex: 1 }}>
+                  <AppButton
+                    title="Cancelar"
+                    variant="outline"
+                    onPress={() => setIsModalOpen(false)}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppButton
+                    title="Salvar Contato"
+                    onPress={handleSave}
+                  />
+                </View>
               </View>
             </ScrollView>
           </View>
         </View>
       </Modal>
 
-      {/* Modal de Enviar Mensagem */}
-      <Modal visible={!!messageModalContact} transparent animationType="fade">
+      {/* Modal de Enviar Mensagem (WhatsApp / SMS) */}
+      <Modal visible={!!messageModalContact} transparent animationType="fade" onRequestClose={() => setMessageModalContact(null)}>
         <View style={styles.modalOverlay}>
           <View
             style={[
@@ -438,16 +620,16 @@ export const TrustedContactSection: React.FC = () => {
             ]}
           >
             <View style={styles.modalTop}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
+              <Text style={[styles.modalTitle, { color: isDark ? colors.text : '#173D3B' }]}>
                 Enviar mensagem para {messageModalContact?.name.split(' ')[0]}
               </Text>
               <TouchableOpacity onPress={() => setMessageModalContact(null)}>
-                <X size={20} color={colors.textMuted} />
+                <X size={20} color="#8C9E9B" />
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.msgPrompt, { color: colors.textSecondary }]}>
-              Você pode editar a mensagem antes de enviar:
+            <Text style={[styles.msgPrompt, { color: isDark ? colors.textMuted : '#667775' }]}>
+              Você pode personalizar a mensagem antes de enviar:
             </Text>
 
             <TextInput
@@ -457,9 +639,9 @@ export const TrustedContactSection: React.FC = () => {
               style={[
                 styles.msgInput,
                 {
-                  color: colors.text,
-                  borderColor: colors.border,
-                  backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
+                  color: isDark ? colors.text : '#173D3B',
+                  borderColor: isDark ? colors.border : '#DCE5E2',
+                  backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFA',
                 },
               ]}
             />
@@ -474,13 +656,13 @@ export const TrustedContactSection: React.FC = () => {
               <AppButton
                 title="Enviar por SMS"
                 variant="outline"
-                leftIcon={<MessageCircle size={16} color={colors.primary} />}
+                leftIcon={<MessageCircle size={16} color="#2F7F7C" />}
                 onPress={handleSendSMS}
               />
               <AppButton
                 title="Copiar Texto"
                 variant="ghost"
-                leftIcon={<Copy size={16} color={colors.text} />}
+                leftIcon={<Copy size={16} color={isDark ? colors.text : '#173D3B'} />}
                 onPress={handleCopyMessage}
               />
             </View>
@@ -492,7 +674,7 @@ export const TrustedContactSection: React.FC = () => {
       <ConfirmationModal
         visible={!!contactToCall}
         title={`Ligar para ${contactToCall?.name}?`}
-        message="Seu celular abrirá a chamada para o contato escolhido."
+        message="Seu aplicativo de chamadas será aberto com o número pronto para ligar."
         confirmTitle="Ligar agora"
         cancelTitle="Cancelar"
         onConfirm={handleCallConfirm}
@@ -525,13 +707,27 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   title: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '800',
+    letterSpacing: -0.2,
   },
   subtitle: {
     fontSize: 13,
     lineHeight: 18,
-    marginBottom: 12,
+    marginBottom: 10,
+  },
+  disclaimerBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 14,
+  },
+  disclaimerText: {
+    fontSize: 11,
+    lineHeight: 16,
+    flex: 1,
   },
   addSmallBtn: {
     flexDirection: 'row',
@@ -544,8 +740,9 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     alignItems: 'center',
-    padding: 20,
+    padding: 22,
     borderRadius: 18,
+    borderWidth: 1,
   },
   emptyTitle: {
     fontSize: 15,
@@ -558,32 +755,51 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   contactCard: {
-    padding: 16,
-    borderRadius: 18,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
   },
   contactHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
   },
   avatarCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
   },
   contactName: {
     fontSize: 15,
     fontWeight: '700',
   },
+  primaryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2F7F7C',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  primaryBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
   contactRel: {
     fontSize: 12,
     marginTop: 2,
+  },
+  contactNote: {
+    fontSize: 11,
+    marginTop: 2,
+    fontStyle: 'italic',
   },
   actionsRow: {
     flexDirection: 'row',
@@ -595,16 +811,16 @@ const styles = StyleSheet.create({
   btnRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 14,
+    marginTop: 12,
   },
   actionBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 9,
     paddingHorizontal: 8,
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
     gap: 6,
   },
@@ -614,18 +830,24 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 18,
+    zIndex: 1000,
   },
   modalBox: {
     width: '100%',
-    maxWidth: 480,
+    maxWidth: 460,
     maxHeight: '90%',
     borderRadius: 20,
     borderWidth: 1,
     padding: 20,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
+    elevation: 8,
   },
   modalTop: {
     flexDirection: 'row',
@@ -638,16 +860,16 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   inputLabel: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     marginBottom: 6,
   },
   inputField: {
-    height: 44,
-    borderRadius: 12,
+    height: 42,
+    borderRadius: 10,
     borderWidth: 1,
     paddingHorizontal: 12,
-    fontSize: 14,
+    fontSize: 13,
   },
   relWrap: {
     flexDirection: 'row',
@@ -655,54 +877,56 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   relChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    borderRadius: 8,
     borderWidth: 1,
   },
   relText: {
-    fontSize: 12,
+    fontSize: 11,
   },
   checkRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginVertical: 2,
+    marginVertical: 3,
   },
   checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
+    width: 18,
+    height: 18,
+    borderRadius: 5,
     borderWidth: 1.5,
-    borderColor: '#DDE5E9',
+    borderColor: '#8C9E9B',
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkText: {
-    fontSize: 13,
+    fontSize: 12,
     flex: 1,
   },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
-    borderRadius: 10,
-    gap: 8,
+    padding: 9,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 6,
   },
   errorText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
+    flex: 1,
   },
   msgPrompt: {
-    fontSize: 13,
+    fontSize: 12,
     marginBottom: 8,
   },
   msgInput: {
-    minHeight: 80,
-    borderRadius: 12,
+    minHeight: 70,
+    borderRadius: 10,
     borderWidth: 1,
-    padding: 12,
-    fontSize: 14,
+    padding: 10,
+    fontSize: 13,
     textAlignVertical: 'top',
     marginBottom: 14,
   },

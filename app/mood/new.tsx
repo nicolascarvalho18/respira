@@ -23,6 +23,8 @@ import {
   Activity,
   ArrowRight,
   ChevronRight,
+  Clock,
+  Calendar,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
 import { PageHeader } from '../../src/components/ui/PageHeader';
@@ -35,85 +37,92 @@ import { useToast } from '../../src/components/ui/Toast';
 import { useMoodStore } from '../../src/store/moodStore';
 import { useTheme } from '../../src/hooks/useTheme';
 import { AVAILABLE_EMOTIONS, AVAILABLE_ACTIVITIES } from '../../src/mocks/moods.mock';
-import { MoodValue } from '../../src/types';
+import { MoodValue, PlannedExercise } from '../../src/types';
 import { formatDateTime } from '../../src/utils/date';
 import { storage } from '../../src/services/storage/asyncStorage';
 
 const DRAFT_STORAGE_KEY = 'respira_mood_draft';
 
-interface PracticeOption {
-  id: string;
-  title: string;
-  desc: string;
-  duration: string;
-  icon: any;
-  route: string;
-}
-
-const SUPPORT_PRACTICES: PracticeOption[] = [
+const DAILY_EXERCISE_OPTIONS = [
   {
-    id: 'p-breath-2m',
-    title: 'Respiração de 2 minutos',
-    desc: 'Ciclos suaves de inspiração e expiração para desacelerar o ritmo.',
-    duration: '2 min',
-    icon: Wind,
-    route: '/practices/breathing',
-  },
-  {
-    id: 'p-breath-478',
-    title: 'Respiração 4-7-8',
-    desc: 'Técnica compassada de relaxamento e ancoragem do sistema nervoso.',
-    duration: '4 min',
-    icon: Wind,
-    route: '/practices/breathing',
-  },
-  {
-    id: 'p-54321',
-    title: 'Técnica 5-4-3-2-1',
-    desc: 'Aterramento sensorial com os 5 sentidos para sair da sobrecarga mental.',
-    duration: '3 min',
-    icon: Compass,
-    route: '/practices/grounding',
-  },
-  {
-    id: 'p-pause',
-    title: 'Pausa consciente',
-    desc: 'Momento de silêncio e presença para observar o corpo sem julgamento.',
-    duration: '3 min',
-    icon: Heart,
-    route: '/practices/relaxation',
-  },
-  {
-    id: 'p-stretch',
-    title: 'Alongamento leve',
-    desc: 'Movimentos suaves nos ombros, pescoço e coluna para aliviar a tensão.',
-    duration: '5 min',
-    icon: Activity,
-    route: '/practices/relaxation',
-  },
-  {
-    id: 'p-muscle',
-    title: 'Relaxamento muscular',
-    desc: 'Tensionar e soltar grupos musculares para liberar o estresse acumulado.',
-    duration: '6 min',
-    icon: Activity,
-    route: '/practices/relaxation',
-  },
-  {
-    id: 'p-walk',
-    title: 'Caminhada breve',
-    desc: 'Passos conscientes com atenção ao contato dos pés com o chão.',
-    duration: '5 min',
+    id: 'ex-walk',
+    title: 'Caminhada leve',
+    category: 'Corpo e movimento',
+    durationMinutes: 5,
+    description: 'Passos lentos e conscientes com atenção ao contato dos pés com o chão.',
     icon: Footprints,
-    route: '/practices/relaxation',
   },
   {
-    id: 'p-soundscape',
-    title: 'Ouvir uma paisagem sonora',
-    desc: 'Sons suaves de chuva, mar ou floresta para descansar a mente.',
-    duration: '10 min',
+    id: 'ex-stretch',
+    title: 'Alongamento suave',
+    category: 'Corpo e movimento',
+    durationMinutes: 5,
+    description: 'Soltar os ombros, pescoço e coluna para aliviar a tensão muscular.',
+    icon: Activity,
+  },
+  {
+    id: 'ex-guided-breath',
+    title: 'Respiração guiada 4-7-8',
+    category: 'Respiração',
+    durationMinutes: 4,
+    description: 'Técnica clássica para desacelerar o ritmo cardíaco e relaxar.',
+    icon: Wind,
+  },
+  {
+    id: 'ex-muscle',
+    title: 'Relaxamento muscular',
+    category: 'Relaxamento',
+    durationMinutes: 6,
+    description: 'Contrair e soltar grupos musculares aliviando a rigidez corporal.',
+    icon: Activity,
+  },
+  {
+    id: 'ex-grounding',
+    title: 'Atenção plena 5-4-3-2-1',
+    category: 'Atenção e foco',
+    durationMinutes: 3,
+    description: 'Aterramento sensorial com os 5 sentidos para sair da sobrecarga mental.',
+    icon: Compass,
+  },
+  {
+    id: 'ex-pause',
+    title: 'Pausa sem telas',
+    category: 'Pausas rápidas',
+    durationMinutes: 5,
+    description: 'Descanso visual e mental olhando para o horizonte ou pela janela.',
+    icon: Heart,
+  },
+  {
+    id: 'ex-task',
+    title: 'Organizar pequena tarefa',
+    category: 'Atividades criativas',
+    durationMinutes: 8,
+    description: 'Arrumar um cantinho ou mesa com atenção focada para clareza.',
+    icon: Sparkles,
+  },
+  {
+    id: 'ex-creative',
+    title: 'Atividade criativa / Rabiscar',
+    category: 'Atividades criativas',
+    durationMinutes: 5,
+    description: 'Desenhar ou escrever pensamentos livremente sem cobrança estética.',
+    icon: Sparkles,
+  },
+  {
+    id: 'ex-focus',
+    title: 'Exercício de concentração',
+    category: 'Atenção e foco',
+    durationMinutes: 3,
+    description: 'Contagem regressiva sincronizada com a respiração calma.',
+    icon: Sparkles,
+  },
+  {
+    id: 'ex-sounds',
+    title: 'Escuta de sons relaxantes',
+    category: 'Sons e ambientes',
+    durationMinutes: 10,
+    description: 'Sons suaves de chuva, mar ou floresta para descansar a mente.',
     icon: Headphones,
-    route: '/(tabs)/practices',
   },
 ];
 
@@ -127,6 +136,7 @@ export default function NewMoodScreen() {
   const [anxietyLevel, setAnxietyLevel] = useState<number>(3);
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>(['Calmo']);
   const [selectedActivities, setSelectedActivities] = useState<string[]>(['Descanso']);
+  const [selectedPlannedExIds, setSelectedPlannedExIds] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -138,6 +148,7 @@ export default function NewMoodScreen() {
         anxietyLevel: number;
         emotions: string[];
         activities: string[];
+        plannedExIds?: string[];
         notes: string;
       }>(DRAFT_STORAGE_KEY);
 
@@ -146,6 +157,7 @@ export default function NewMoodScreen() {
         setAnxietyLevel(draft.anxietyLevel ?? 3);
         setSelectedEmotions(draft.emotions || ['Calmo']);
         setSelectedActivities(draft.activities || ['Descanso']);
+        setSelectedPlannedExIds(draft.plannedExIds || []);
         setNotes(draft.notes || '');
       }
     }
@@ -159,10 +171,11 @@ export default function NewMoodScreen() {
         anxietyLevel,
         emotions: selectedEmotions,
         activities: selectedActivities,
+        plannedExIds: selectedPlannedExIds,
         notes,
       });
     }
-  }, [mood, anxietyLevel, selectedEmotions, selectedActivities, notes, isSaved]);
+  }, [mood, anxietyLevel, selectedEmotions, selectedActivities, selectedPlannedExIds, notes, isSaved]);
 
   const toggleEmotion = (emotion: string) => {
     if (selectedEmotions.includes(emotion)) {
@@ -180,18 +193,41 @@ export default function NewMoodScreen() {
     }
   };
 
+  const togglePlannedExercise = (exId: string) => {
+    if (selectedPlannedExIds.includes(exId)) {
+      setSelectedPlannedExIds(selectedPlannedExIds.filter((id) => id !== exId));
+    } else {
+      setSelectedPlannedExIds([...selectedPlannedExIds, exId]);
+    }
+  };
+
   const handleSave = async () => {
     if (isSaving) return;
     try {
       setIsSaving(true);
+
+      const plannedExercises: PlannedExercise[] = selectedPlannedExIds.map((id) => {
+        const option = DAILY_EXERCISE_OPTIONS.find((o) => o.id === id)!;
+        return {
+          id: `${id}-${Date.now()}`,
+          title: option.title,
+          category: option.category,
+          durationMinutes: option.durationMinutes,
+          description: option.description,
+          status: 'pending',
+        };
+      });
+
       await addRecord({
         userId: 'user-demo-1',
         mood,
         anxietyLevel,
         emotions: selectedEmotions,
         activities: selectedActivities,
+        plannedExercises: plannedExercises.length > 0 ? plannedExercises : undefined,
         notes: notes.trim() || undefined,
       });
+
       await storage.removeItem(DRAFT_STORAGE_KEY);
       setIsSaved(true);
       showToast({ message: 'Registro de humor salvo com sucesso!', type: 'success' });
@@ -203,11 +239,11 @@ export default function NewMoodScreen() {
   };
 
   const moodOptions: { value: MoodValue; label: string; icon: any; color: string }[] = [
-    { value: 5, label: 'Muito bem', icon: Smile, color: colors.primary },
-    { value: 4, label: 'Bem', icon: Smile, color: colors.secondary },
-    { value: 3, label: 'Neutro', icon: Meh, color: colors.info },
-    { value: 2, label: 'Difícil', icon: Frown, color: colors.warning },
-    { value: 1, label: 'Muito difícil', icon: AlertCircle, color: colors.error },
+    { value: 5, label: 'Muito bem', icon: Smile, color: '#2F7F7C' },
+    { value: 4, label: 'Bem', icon: Smile, color: '#79B8A4' },
+    { value: 3, label: 'Neutro', icon: Meh, color: '#D98968' },
+    { value: 2, label: 'Difícil', icon: Frown, color: '#C87A24' },
+    { value: 1, label: 'Muito difícil', icon: AlertCircle, color: '#D9534F' },
   ];
 
   return (
@@ -221,8 +257,14 @@ export default function NewMoodScreen() {
       {!isSaved ? (
         <View style={styles.formContainer}>
           {/* 1. Bloco de Humor Geral (1 a 5) */}
-          <Card variant="bordered" style={styles.sectionCard}>
-            <Text style={[styles.blockTitle, { color: colors.text }]}>
+          <Card
+            variant="bordered"
+            style={[
+              styles.sectionCard,
+              { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+            ]}
+          >
+            <Text style={[styles.blockTitle, { color: isDark ? colors.text : '#173D3B' }]}>
               1. Como você descreve seu estado geral agora?
             </Text>
             <View style={styles.moodSelectorRow}>
@@ -239,23 +281,24 @@ export default function NewMoodScreen() {
                     accessibilityState={{ selected: isSelected }}
                     style={[
                       styles.moodOptionItem,
+                      isSelected && { backgroundColor: '#2F7F7C', borderColor: '#2F7F7C' },
                       {
                         backgroundColor: isSelected
-                          ? colors.primary
+                          ? '#2F7F7C'
                           : isDark
-                            ? colors.surfaceSecondary
-                            : '#FFFFFF',
-                        borderColor: isSelected ? colors.primary : colors.border,
+                          ? colors.surfaceSecondary
+                          : '#FFFFFF',
+                        borderColor: isSelected ? '#2F7F7C' : isDark ? colors.border : '#DCE5E2',
                       },
                     ]}
                   >
-                    <Icon size={24} color={isSelected ? '#FFFFFF' : opt.color} />
+                    <Icon size={26} color={isSelected ? '#FFFFFF' : opt.color} />
                     <Text
                       style={[
-                        styles.moodOptionText,
+                        styles.moodLabel,
                         {
-                          color: isSelected ? '#FFFFFF' : colors.text,
-                          fontWeight: isSelected ? '700' : '500',
+                          color: isSelected ? '#FFFFFF' : isDark ? colors.text : '#173D3B',
+                          fontWeight: isSelected ? '800' : '500',
                         },
                       ]}
                     >
@@ -267,18 +310,30 @@ export default function NewMoodScreen() {
             </View>
           </Card>
 
-          {/* 2. Bloco de Ansiedade (0 a 10 Slider) */}
-          <Card variant="bordered" style={styles.sectionCard}>
-            <Text style={[styles.blockTitle, { color: colors.text }]}>
-              2. Qual o seu nível de ansiedade ou agitação? (0 a 10)
+          {/* 2. Bloco de Ansiedade (0 a 10) */}
+          <Card
+            variant="bordered"
+            style={[
+              styles.sectionCard,
+              { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+            ]}
+          >
+            <Text style={[styles.blockTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              2. Qual o nível de ansiedade que você sente neste momento?
             </Text>
             <AnxietySlider value={anxietyLevel} onChange={setAnxietyLevel} />
           </Card>
 
-          {/* 3. Bloco de Emoções */}
-          <Card variant="bordered" style={styles.sectionCard}>
-            <Text style={[styles.blockTitle, { color: colors.text }]}>
-              3. O que melhor descreve seus sentimentos?
+          {/* 3. Bloco de Emoções e Sensações */}
+          <Card
+            variant="bordered"
+            style={[
+              styles.sectionCard,
+              { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+            ]}
+          >
+            <Text style={[styles.blockTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              3. O que melhor descreve seus sentimentos agora?
             </Text>
             <View style={styles.chipsWrap}>
               {AVAILABLE_EMOTIONS.map((emo) => (
@@ -292,10 +347,16 @@ export default function NewMoodScreen() {
             </View>
           </Card>
 
-          {/* 4. Bloco de Atividades / Contexto */}
-          <Card variant="bordered" style={styles.sectionCard}>
-            <Text style={[styles.blockTitle, { color: colors.text }]}>
-              4. O que você estava fazendo?
+          {/* 4. Bloco de Atividades do Momento */}
+          <Card
+            variant="bordered"
+            style={[
+              styles.sectionCard,
+              { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+            ]}
+          >
+            <Text style={[styles.blockTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              4. O que você esteve fazendo antes deste momento?
             </Text>
             <View style={styles.chipsWrap}>
               {AVAILABLE_ACTIVITIES.map((act) => (
@@ -309,224 +370,305 @@ export default function NewMoodScreen() {
             </View>
           </Card>
 
-          {/* 5. Observações com Contador */}
-          <Card variant="bordered" style={styles.sectionCard}>
-            <Text style={[styles.blockTitle, { color: colors.text }]}>
-              5. Observações ou reflexões (opcional)
+          {/* 5. Bloco de Exercícios Planejados para o Dia */}
+          <Card
+            variant="bordered"
+            style={[
+              styles.sectionCard,
+              { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+            ]}
+          >
+            <View style={styles.exSectionHeader}>
+              <Sparkles size={18} color="#2F7F7C" style={{ marginRight: 6 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.blockTitle, { color: isDark ? colors.text : '#173D3B', marginBottom: 2 }]}>
+                  5. Exercícios e atividades para o seu dia
+                </Text>
+                <Text style={[styles.blockSub, { color: isDark ? colors.textMuted : '#667775' }]}>
+                  Selecione práticas simples para cuidar de você hoje (opcional):
+                </Text>
+              </View>
+            </View>
+
+            <View style={{ gap: 8, marginTop: 10 }}>
+              {DAILY_EXERCISE_OPTIONS.map((ex) => {
+                const isSelected = selectedPlannedExIds.includes(ex.id);
+                const Icon = ex.icon;
+
+                return (
+                  <TouchableOpacity
+                    key={ex.id}
+                    onPress={() => togglePlannedExercise(ex.id)}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.exerciseCardItem,
+                      isSelected && {
+                        borderColor: '#2F7F7C',
+                        backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
+                      },
+                      {
+                        borderColor: isSelected ? '#2F7F7C' : isDark ? colors.border : '#EBF1EF',
+                        backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFA',
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.exerciseIconCircle,
+                        { backgroundColor: isSelected ? '#2F7F7C' : '#D4EAE3' },
+                      ]}
+                    >
+                      <Icon size={16} color={isSelected ? '#FFFFFF' : '#2F7F7C'} />
+                    </View>
+
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={[styles.exerciseItemTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+                          {ex.title}
+                        </Text>
+                        <Text style={[styles.exerciseDurationText, { color: '#2F7F7C' }]}>
+                          {ex.durationMinutes} min
+                        </Text>
+                      </View>
+                      <Text
+                        style={[styles.exerciseItemDesc, { color: isDark ? colors.textMuted : '#667775' }]}
+                        numberOfLines={2}
+                      >
+                        {ex.description}
+                      </Text>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.exerciseCheckCircle,
+                        isSelected && { backgroundColor: '#2F7F7C', borderColor: '#2F7F7C' },
+                      ]}
+                    >
+                      {isSelected && <Check size={12} color="#FFFFFF" strokeWidth={3} />}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </Card>
+
+          {/* 6. Bloco de Observações Livres */}
+          <Card
+            variant="bordered"
+            style={[
+              styles.sectionCard,
+              { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+            ]}
+          >
+            <Text style={[styles.blockTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              6. Quer anotar algum pensamento ou acontecimento? (opcional)
             </Text>
             <AppTextarea
-              placeholder="Escreva livremente sobre pensamentos, gatilhos ou o que vivenciou..."
               value={notes}
               onChangeText={setNotes}
-              maxLength={500}
+              placeholder="Escreva livremente o que estiver passando pela sua cabeça..."
               minHeight={90}
             />
           </Card>
 
-          {/* Botão Salvar */}
+          {/* Botão Salvar Registro */}
           <AppButton
             title="Salvar Registro"
             leftIcon={<Check size={18} color="#FFFFFF" />}
             onPress={handleSave}
             isLoading={isSaving}
             size="lg"
-            style={{ marginTop: 8, marginBottom: 24 }}
+            style={{ marginVertical: 10 }}
           />
         </View>
       ) : (
-        /* Fluxo Acolhedor de Práticas Pós-Registro */
-        <View style={{ gap: 16, marginBottom: 32 }}>
-          <Card variant="bordered" style={styles.savedCard}>
-            <View style={[styles.savedIconCircle, { backgroundColor: colors.highlight }]}>
-              <Heart size={36} color={colors.primary} />
+        /* Tela de Confirmação Acolhedora */
+        <View style={styles.successContainer}>
+          <Card
+            variant="bordered"
+            style={[
+              styles.successCard,
+              { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+            ]}
+          >
+            <View style={styles.successIconCircle}>
+              <Sparkles size={36} color="#FFFFFF" />
             </View>
 
-            <Text style={[styles.savedTitle, { color: colors.text }]}>
-              Check-in registrado com sucesso!
+            <Text style={[styles.successTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              Check-in registrado com carinho!
             </Text>
-            <Text style={[styles.savedDesc, { color: colors.textSecondary }]}>
-              Reconhecer seu estado é o primeiro passo para cuidar de si.
+            <Text style={[styles.successDesc, { color: isDark ? colors.textMuted : '#667775' }]}>
+              Reconhecer suas emoções é um passo fundamental para o seu autocuidado e autoconhecimento.
             </Text>
-          </Card>
 
-          {/* Pergunta de Apoio */}
-          <View style={styles.practiceSectionHeader}>
-            <Sparkles size={18} color={colors.primary} style={{ marginRight: 6 }} />
-            <Text style={[styles.practiceSectionTitle, { color: colors.text }]}>
-              Que tipo de apoio faria sentido agora?
-            </Text>
-          </View>
-          <Text style={[styles.practiceSectionSub, { color: colors.textSecondary }]}>
-            Escolha uma prática curta para realizar durante o seu dia. Lembre-se: são ferramentas de autocuidado sem promessa médica.
-          </Text>
-
-          {/* Lista de Opções de Práticas */}
-          <View style={{ gap: 10 }}>
-            {SUPPORTPRACTICES_LIST(colors, isDark).map((practice) => {
-              const Icon = practice.icon;
-
-              return (
-                <TouchableOpacity
-                  key={practice.id}
-                  onPress={() => router.replace(practice.route as any)}
-                  activeOpacity={0.75}
-                  style={[
-                    styles.practiceCard,
-                    {
-                      backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                      borderColor: colors.border,
-                    },
-                  ]}
-                >
-                  <View style={[styles.practiceIconWrap, { backgroundColor: colors.highlight }]}>
-                    <Icon size={20} color={colors.primary} />
-                  </View>
-
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Text style={[styles.practiceName, { color: colors.text }]}>{practice.title}</Text>
-                      <Text style={[styles.practiceDur, { color: colors.secondaryDark }]}>{practice.duration}</Text>
-                    </View>
-                    <Text style={[styles.practiceDescription, { color: colors.textSecondary }]}>
-                      {practice.desc}
+            {selectedPlannedExIds.length > 0 && (
+              <View style={styles.plannedSummaryBox}>
+                <Text style={styles.plannedSummaryTitle}>
+                  {selectedPlannedExIds.length} {selectedPlannedExIds.length === 1 ? 'atividade planejada' : 'atividades planejadas'} para hoje:
+                </Text>
+                {selectedPlannedExIds.map((id) => {
+                  const item = DAILY_EXERCISE_OPTIONS.find((o) => o.id === id);
+                  return (
+                    <Text key={id} style={[styles.plannedSummaryItem, { color: isDark ? colors.text : '#173D3B' }]}>
+                      • {item?.title} ({item?.durationMinutes} min)
                     </Text>
-                  </View>
+                  );
+                })}
+              </View>
+            )}
 
-                  <ChevronRight size={18} color={colors.textMuted} />
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Botão Pular / Continuar sem exercício */}
-          <TouchableOpacity
-            onPress={() => router.replace('/(tabs)')}
-            style={[styles.skipBtn, { borderColor: colors.border }]}
-          >
-            <Text style={[styles.skipText, { color: colors.textSecondary }]}>
-              Prefiro continuar sem exercício por enquanto
-            </Text>
-          </TouchableOpacity>
+            <View style={{ width: '100%', gap: 10, marginTop: 16 }}>
+              <AppButton
+                title="Ver meu histórico de evolução"
+                leftIcon={<Calendar size={18} color="#FFFFFF" />}
+                onPress={() => router.push('/diary/history' as any)}
+                size="md"
+              />
+              <AppButton
+                title="Ir para a página inicial"
+                variant="outline"
+                onPress={() => router.replace('/(tabs)')}
+                size="md"
+              />
+            </View>
+          </Card>
         </View>
       )}
     </AppShell>
   );
 }
 
-function SUPPORTPRACTICES_LIST(colors: any, isDark: boolean): PracticeOption[] {
-  return SUPPORT_PRACTICES;
-}
-
 const styles = StyleSheet.create({
   formContainer: {
     gap: 16,
+    paddingBottom: 32,
   },
   sectionCard: {
-    gap: 12,
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
   },
   blockTitle: {
     fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 22,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+    marginBottom: 12,
+  },
+  blockSub: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   moodSelectorRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    justifyContent: 'space-between',
+    gap: 6,
   },
   moodOptionItem: {
     flex: 1,
-    minWidth: 90,
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderRadius: 14,
     borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
   },
-  moodOptionText: {
-    fontSize: 12,
+  moodLabel: {
+    fontSize: 11,
     textAlign: 'center',
   },
   chipsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 8,
   },
-  savedCard: {
-    alignItems: 'center',
-    padding: 20,
-    borderRadius: 18,
+  exSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
   },
-  savedIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  savedTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  savedDesc: {
-    fontSize: 13,
-    textAlign: 'center',
-  },
-  practiceSectionHeader: {
+  exerciseCardItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-  },
-  practiceSectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  practiceSectionSub: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 4,
-  },
-  practiceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    gap: 12,
-  },
-  practiceIconWrap: {
-    width: 40,
-    height: 40,
+    padding: 12,
     borderRadius: 12,
+    borderWidth: 1.5,
+    gap: 10,
+  },
+  exerciseIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  practiceName: {
-    fontSize: 14,
+  exerciseItemTitle: {
+    fontSize: 13,
     fontWeight: '700',
   },
-  practiceDur: {
-    fontSize: 12,
-    fontWeight: '600',
+  exerciseDurationText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
-  practiceDescription: {
+  exerciseItemDesc: {
+    fontSize: 11,
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  exerciseCheckCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#8C9E9B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successContainer: {
+    paddingVertical: 16,
+  },
+  successCard: {
+    alignItems: 'center',
+    padding: 24,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  successIconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#2F7F7C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  successTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  successDesc: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 16,
+  },
+  plannedSummaryBox: {
+    width: '100%',
+    backgroundColor: '#E7F3EF',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+  },
+  plannedSummaryTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#2F7F7C',
+    marginBottom: 4,
+  },
+  plannedSummaryItem: {
     fontSize: 12,
     marginTop: 2,
-    lineHeight: 16,
-  },
-  skipBtn: {
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  skipText: {
-    fontSize: 13,
-    fontWeight: '600',
   },
 });

@@ -16,6 +16,9 @@ import {
   Star,
   Bookmark,
   Play,
+  Filter,
+  CheckCircle2,
+  Sparkles,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
 import { PracticeCard } from '../../src/components/practices/PracticeCard';
@@ -23,7 +26,7 @@ import { usePracticeStore } from '../../src/store/practiceStore';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
 import { HarmonicWaves } from '../../src/components/illustrations/HarmonicWaves';
-import { Practice } from '../../src/types';
+import { Practice, PracticeCategory } from '../../src/types';
 
 export default function PracticesScreen() {
   const router = useRouter();
@@ -34,21 +37,25 @@ export default function PracticesScreen() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedFilterType, setSelectedFilterType] = useState<'all' | 'physical' | 'mental' | 'breathing' | 'sound'>('all');
 
-  // Filter tabs
+  // Filter tabs with 7 requested categories + Todas + Favoritas
   const filterTabs = [
     { id: 'all', label: 'Todas' },
     { id: 'breathing', label: 'Respiração' },
+    { id: 'body_movement', label: 'Corpo e movimento' },
+    { id: 'mindfulness', label: 'Atenção e foco' },
     { id: 'relaxation', label: 'Relaxamento' },
-    { id: 'mindfulness', label: 'Atenção' },
-    { id: 'soundscapes', label: 'Sons' },
+    { id: 'creative', label: 'Atividades criativas' },
+    { id: 'quick_pauses', label: 'Pausas rápidas' },
+    { id: 'soundscapes', label: 'Sons e ambientes' },
+    { id: 'favorites', label: 'Favoritas' },
   ];
 
   // Calculate weekly completed count from practice completions
   const totalWeeklyCompleted = useMemo(() => {
     const sum = practices.reduce((acc, p) => acc + (p.completedCount || 0), 0);
-    // Illustrative calculation for weekly completed practices
-    return Math.max(3, Math.min(sum, 15));
+    return Math.max(3, Math.min(sum, 24));
   }, [practices]);
 
   const recommendedPractice: Practice =
@@ -57,6 +64,7 @@ export default function PracticesScreen() {
   const filteredPractices = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     return practices.filter((item) => {
+      // 1. Busca textual
       const matchesSearch =
         !q ||
         item.title.toLowerCase().includes(q) ||
@@ -67,31 +75,34 @@ export default function PracticesScreen() {
 
       if (!matchesSearch) return false;
 
-      if (selectedCategory === 'all') return true;
-      if (selectedCategory === 'breathing') return item.category === 'breathing';
-      if (selectedCategory === 'relaxation') return item.category === 'relaxation';
-      if (selectedCategory === 'mindfulness') {
-        return item.category === 'mindfulness' || item.category === 'quick_routine';
+      // 2. Filtro por Categoria
+      if (selectedCategory === 'favorites') {
+        if (!item.isFavorite) return false;
+      } else if (selectedCategory !== 'all') {
+        if (selectedCategory === 'soundscapes' && item.category !== 'soundscapes') return false;
+        if (item.category !== selectedCategory) return false;
       }
+
+      // 3. Filtro por Tipo de Atividade (Física / Mental / Som)
+      if (selectedFilterType !== 'all') {
+        if (item.activityType && item.activityType !== selectedFilterType) return false;
+      }
+
       return true;
     });
-  }, [practices, searchQuery, selectedCategory]);
+  }, [practices, searchQuery, selectedCategory, selectedFilterType]);
 
   const handlePracticeNavigation = (practice: Practice) => {
-    router.push(`/practices/player/${practice.id}` as any);
+    if (practice.category === 'soundscapes') {
+      router.push('/practices/soundscapes' as any);
+    } else {
+      router.push(`/practices/player/${practice.id}` as any);
+    }
   };
 
   const getCategoryTitle = () => {
-    switch (selectedCategory) {
-      case 'breathing':
-        return 'Práticas de Respiração';
-      case 'relaxation':
-        return 'Práticas de Relaxamento';
-      case 'mindfulness':
-        return 'Práticas de Atenção';
-      default:
-        return 'Todas as práticas';
-    }
+    const match = filterTabs.find((t) => t.id === selectedCategory);
+    return match ? match.label : 'Todas as práticas';
   };
 
   return (
@@ -99,9 +110,11 @@ export default function PracticesScreen() {
       {/* 1. Cabeçalho com Título, Subtítulo e Indicador Semanal */}
       <View style={styles.headerRow}>
         <View style={{ flex: 1, paddingRight: 8 }}>
-          <Text style={[styles.title, { color: '#173D3B' }]}>Práticas</Text>
-          <Text style={[styles.subtitle, { color: '#667775' }]}>
-            Exercícios para desacelerar, respirar e recuperar o foco.
+          <Text style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}>
+            Relaxar & Práticas
+          </Text>
+          <Text style={[styles.subtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
+            Exercícios físicos e mentais para desacelerar, respirar e recuperar o equilíbrio.
           </Text>
         </View>
 
@@ -116,12 +129,12 @@ export default function PracticesScreen() {
         >
           <TrendingUp size={16} color="#2F7F7C" style={{ marginRight: 6 }} />
           <View>
-            <Text style={[styles.weeklyBadgeCount, { color: '#173D3B' }]}>
+            <Text style={[styles.weeklyBadgeCount, { color: isDark ? colors.text : '#173D3B' }]}>
               {totalWeeklyCompleted > 0
                 ? `${totalWeeklyCompleted} práticas`
                 : 'Nenhuma prática'}
             </Text>
-            <Text style={[styles.weeklyBadgeLabel, { color: '#667775' }]}>
+            <Text style={[styles.weeklyBadgeLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
               esta semana
             </Text>
           </View>
@@ -169,17 +182,20 @@ export default function PracticesScreen() {
             </View>
 
             {/* Título da Prática */}
-            <Text style={[styles.heroRecTitle, { color: '#173D3B' }]}>
+            <Text style={[styles.heroRecTitle, { color: isDark ? colors.text : '#173D3B' }]}>
               {recommendedPractice.title}
             </Text>
 
             {/* Metadados: Duração e Nível */}
-            <Text style={styles.heroRecMeta}>
+            <Text style={[styles.heroRecMeta, { color: isDark ? colors.textMuted : '#567571' }]}>
               {recommendedPractice.durationMinutes} min • {recommendedPractice.level}
             </Text>
 
             {/* Descrição Curta */}
-            <Text style={[styles.heroRecDesc, { color: '#567571' }]} numberOfLines={2}>
+            <Text
+              style={[styles.heroRecDesc, { color: isDark ? colors.textMuted : '#567571' }]}
+              numberOfLines={2}
+            >
               {recommendedPractice.description}
             </Text>
 
@@ -212,9 +228,9 @@ export default function PracticesScreen() {
         <TextInput
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Buscar práticas"
+          placeholder="Buscar práticas ou atividades..."
           placeholderTextColor="#8C9E9B"
-          style={[styles.searchInput, { color: colors.text }]}
+          style={[styles.searchInput, { color: isDark ? colors.text : '#173D3B' }]}
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity
@@ -228,7 +244,7 @@ export default function PracticesScreen() {
         )}
       </View>
 
-      {/* 4. Filtros Horizontais com Linha Inferior Ativa */}
+      {/* 4. Categorias com Scroll Horizontal */}
       <View style={styles.filterTabsWrapper}>
         <ScrollView
           horizontal
@@ -240,13 +256,7 @@ export default function PracticesScreen() {
             return (
               <TouchableOpacity
                 key={tab.id}
-                onPress={() => {
-                  if (tab.id === 'soundscapes') {
-                    router.push('/practices/soundscapes' as any);
-                  } else {
-                    setSelectedCategory(tab.id);
-                  }
-                }}
+                onPress={() => setSelectedCategory(tab.id)}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: isSelected }}
                 accessibilityLabel={`Filtrar por ${tab.label}`}
@@ -259,7 +269,7 @@ export default function PracticesScreen() {
                   style={[
                     styles.tabItemText,
                     {
-                      color: isSelected ? '#2F7F7C' : '#667775',
+                      color: isSelected ? '#2F7F7C' : isDark ? colors.textMuted : '#667775',
                       fontWeight: isSelected ? '800' : '500',
                     },
                   ]}
@@ -275,15 +285,15 @@ export default function PracticesScreen() {
 
       {/* 5. Título da Seção e Contagem de Exercícios */}
       <View style={styles.sectionHeaderRow}>
-        <Text style={[styles.sectionTitle, { color: '#173D3B' }]}>
+        <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>
           {getCategoryTitle()}
         </Text>
-        <Text style={[styles.sectionCountText, { color: '#8C9E9B' }]}>
-          {filteredPractices.length} {filteredPractices.length === 1 ? 'exercício' : 'exercícios'}
+        <Text style={[styles.sectionCountText, { color: isDark ? colors.textMuted : '#8C9E9B' }]}>
+          {filteredPractices.length} {filteredPractices.length === 1 ? 'atividade' : 'atividades'}
         </Text>
       </View>
 
-      {/* 6. Lista Compacta de Práticas */}
+      {/* 6. Lista de Práticas */}
       {filteredPractices.length === 0 ? (
         <View
           style={[
@@ -294,11 +304,11 @@ export default function PracticesScreen() {
             },
           ]}
         >
-          <Text style={[styles.emptyTitle, { color: '#173D3B' }]}>
-            Nenhuma prática encontrada
+          <Text style={[styles.emptyTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+            Nenhuma atividade encontrada
           </Text>
-          <Text style={[styles.emptySubtitle, { color: '#667775' }]}>
-            Tente buscar por outro termo ou selecione todas as práticas.
+          <Text style={[styles.emptySubtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
+            Tente buscar por outro termo ou escolha outra categoria.
           </Text>
           <TouchableOpacity
             onPress={() => {
@@ -307,7 +317,7 @@ export default function PracticesScreen() {
             }}
             style={styles.emptyResetBtn}
           >
-            <Text style={styles.emptyResetBtnText}>Ver todas as práticas</Text>
+            <Text style={styles.emptyResetBtnText}>Ver todas as atividades</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -332,11 +342,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 18,
+    marginBottom: 16,
     paddingTop: 4,
   },
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '800',
     letterSpacing: -0.3,
   },
@@ -407,7 +417,6 @@ const styles = StyleSheet.create({
   heroRecMeta: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#567571',
     marginTop: 2,
     marginBottom: 6,
   },
@@ -463,7 +472,7 @@ const styles = StyleSheet.create({
   },
   filterTabsRow: {
     flexDirection: 'row',
-    gap: 20,
+    gap: 18,
     paddingHorizontal: 4,
   },
   tabItem: {
@@ -474,7 +483,7 @@ const styles = StyleSheet.create({
   },
   tabItemActive: {},
   tabItemText: {
-    fontSize: 14,
+    fontSize: 13,
   },
   activeUnderline: {
     position: 'absolute',
@@ -494,13 +503,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
     letterSpacing: -0.2,
   },
   sectionCountText: {
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '600',
   },
 
   // Lista

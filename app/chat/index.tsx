@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
+  KeyboardAvoidingView,
+  SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -27,12 +29,13 @@ import {
   Square,
   ShieldCheck,
   EyeOff,
+  Sparkles,
 } from 'lucide-react-native';
-import { AppShell } from '../../src/components/layout/AppShell';
 import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
 import { useToast } from '../../src/components/ui/Toast';
 import { useChatStore } from '../../src/store/chatStore';
 import { useTheme } from '../../src/hooks/useTheme';
+import { useBreakpoint } from '../../src/hooks/useBreakpoint';
 import { QUICK_SUGGESTIONS } from '../../src/mocks/chat.mock';
 import { formatTime } from '../../src/utils/date';
 import { chatService } from '../../src/services/chat/chatService';
@@ -40,6 +43,7 @@ import { chatService } from '../../src/services/chat/chatService';
 export default function ChatScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { isDesktop } = useBreakpoint();
   const { messages, isTyping, sendMessage, clearHistory } = useChatStore();
   const { showToast } = useToast();
 
@@ -54,9 +58,13 @@ export default function ChatScreen() {
     chatService.isTemporaryMode().then(setIsTemporary);
   }, []);
 
+  // Leva o usuário automaticamente para a mensagem mais recente ao abrir ou ao receber mensagens
   useEffect(() => {
-    scrollViewRef.current?.scrollToEnd({ animated: true });
-  }, [messages, isTyping]);
+    const timer = setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [messages.length, isTyping]);
 
   const handleSend = async (textToSend?: string) => {
     const message = textToSend || inputText;
@@ -86,7 +94,10 @@ export default function ChatScreen() {
     setFeedbackGiven((prev) => ({ ...prev, [msgId]: type }));
     await chatService.recordFeedback(msgId, type === 'up' ? 'helpful' : 'unhelpful');
     showToast({
-      message: type === 'up' ? 'Obrigado pela avaliação positiva!' : 'Agradecemos o retorno para aperfeiçoar as respostas.',
+      message:
+        type === 'up'
+          ? 'Obrigado pela avaliação positiva!'
+          : 'Agradecemos o retorno para aperfeiçoar as respostas.',
       type: 'info',
     });
   };
@@ -96,325 +107,378 @@ export default function ChatScreen() {
     setIsTemporary(next);
     await chatService.setTemporaryMode(next);
     showToast({
-      message: next ? 'Modo temporário ativado (esta conversa não será salva).' : 'Modo normal ativado.',
+      message: next
+        ? 'Modo temporário ativado (esta conversa não será salva).'
+        : 'Modo normal ativado.',
       type: 'info',
     });
   };
 
-  const handleRegenerateLast = async () => {
-    const lastUserMsg = [...messages].reverse().find((m) => m.sender === 'user');
-    if (lastUserMsg && !isTyping) {
-      await sendMessage(lastUserMsg.text);
-    }
-  };
-
   return (
-    <AppShell scrollable={false}>
-      {/* 1. Cabeçalho do Chat Compacto */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            accessibilityRole="button"
-            accessibilityLabel="Voltar"
-            style={[styles.backBtn, { backgroundColor: colors.surfaceSecondary }]}
-          >
-            <ArrowLeft size={18} color={colors.text} />
-          </TouchableOpacity>
-
-          <View style={[styles.avatarBot, { backgroundColor: colors.highlight }]}>
-            <Bot size={20} color={colors.primary} />
-          </View>
-
-          <View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={[styles.headerTitle, { color: colors.text }]}>Assistente Respira</Text>
-              <View style={[styles.onlineDot, { backgroundColor: colors.success }]} />
-            </View>
-            <Text style={[styles.headerStatus, { color: colors.textMuted }]}>
-              {isTemporary ? 'Modo Temporário' : 'Psicoeducação e acolhimento'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            onPress={handleToggleTemporary}
-            accessibilityRole="button"
-            accessibilityLabel="Alternar conversa temporária"
-            style={[
-              styles.actionHeaderBtn,
-              { backgroundColor: isTemporary ? colors.highlight : colors.surfaceSecondary },
-            ]}
-          >
-            <EyeOff size={16} color={isTemporary ? colors.primary : colors.textMuted} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setShowClearModal(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Limpar histórico"
-            style={[styles.actionHeaderBtn, { backgroundColor: colors.surfaceSecondary }]}
-          >
-            <Trash2 size={16} color={colors.textMuted} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* 2. Área de Mensagens */}
-      <ScrollView
-        ref={scrollViewRef}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.messagesContainer}
+    <SafeAreaView
+      style={[
+        styles.safeArea,
+        { backgroundColor: isDark ? colors.background : '#F7F9F7' },
+      ]}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        style={styles.keyboardContainer}
       >
-        {/* Aviso de Privacidade e Limites Éticos */}
+        {/* Painel Centralizado Responsivo */}
         <View
           style={[
-            styles.safetyBanner,
+            styles.chatWrapper,
+            isDesktop && styles.chatWrapperDesktop,
             {
-              backgroundColor: isDark ? colors.surfaceSecondary : '#F0F7F6',
-              borderColor: colors.border,
+              backgroundColor: isDark ? colors.surface : '#FFFFFF',
+              borderColor: isDark ? colors.border : '#DCE5E2',
             },
           ]}
         >
-          <ShieldCheck size={14} color={colors.primary} style={{ marginRight: 6 }} />
-          <Text style={[styles.safetyText, { color: colors.textSecondary }]}>
-            Este assistente é educativo e não substitui avaliação médica ou psicológica.
-          </Text>
-        </View>
+          {/* 1. Cabeçalho do Chat */}
+          <View
+            style={[
+              styles.header,
+              {
+                backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                borderBottomColor: isDark ? colors.border : '#EBF1EF',
+              },
+            ]}
+          >
+            <View style={styles.headerLeft}>
+              <TouchableOpacity
+                onPress={() => router.back()}
+                accessibilityRole="button"
+                accessibilityLabel="Voltar"
+                style={[
+                  styles.backBtn,
+                  { backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF' },
+                ]}
+              >
+                <ArrowLeft size={18} color={isDark ? colors.text : '#173D3B'} />
+              </TouchableOpacity>
 
-        {messages.map((msg) => {
-          const isUser = msg.sender === 'user';
-          const feedback = feedbackGiven[msg.id];
-          const isCopied = copiedId === msg.id;
+              <View style={[styles.avatarBot, { backgroundColor: '#2F7F7C' }]}>
+                <Bot size={18} color="#FFFFFF" />
+              </View>
 
-          return (
-            <View
-              key={msg.id}
-              style={[
-                styles.messageRow,
-                isUser ? styles.userMessageRow : styles.botMessageRow,
-              ]}
-            >
-              {!isUser && (
-                <View style={[styles.msgAvatar, { backgroundColor: colors.highlight }]}>
-                  <Bot size={14} color={colors.primary} />
-                </View>
-              )}
-
-              <View style={{ maxWidth: '82%' }}>
-                {/* Alerta de Emergência se houver risco clínico */}
-                {msg.isEmergencyAlert && (
-                  <View
-                    style={[
-                      styles.alertBadge,
-                      {
-                        backgroundColor: isDark ? '#3D251C' : '#FFF2EB',
-                        borderColor: colors.warning,
-                      },
-                    ]}
-                  >
-                    <ShieldAlert size={14} color={colors.warning} style={{ marginRight: 6 }} />
-                    <Text style={[styles.alertBadgeText, { color: colors.warning }]}>
-                      Precisa de apoio humano imediato? Disque 188 (CVV gratuito)
-                    </Text>
-                  </View>
-                )}
-
-                {/* Balão da Mensagem */}
-                <View
-                  style={[
-                    styles.bubble,
-                    isUser
-                      ? [styles.userBubble, { backgroundColor: colors.primary }]
-                      : [
-                          styles.botBubble,
-                          {
-                            backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                            borderColor: colors.border,
-                          },
-                        ],
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.bubbleText,
-                      { color: isUser ? '#FFFFFF' : colors.text },
-                    ]}
-                  >
-                    {msg.text}
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[styles.headerTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+                    Assistente Respira
                   </Text>
-                  <Text
-                    style={[
-                      styles.timestampText,
-                      { color: isUser ? 'rgba(255,255,255,0.7)' : colors.textMuted },
-                    ]}
-                  >
-                    {formatTime(msg.timestamp)}
-                  </Text>
+                  <View style={styles.onlineDot} />
                 </View>
-
-                {/* Recomendações de Práticas / Artigos RAG */}
-                {!isUser && msg.recommendedPracticeId && (
-                  <TouchableOpacity
-                    onPress={() => router.push('/practices/breathing')}
-                    style={[
-                      styles.recActionBtn,
-                      {
-                        backgroundColor: isDark ? colors.surfaceSecondary : '#F0F9F8',
-                        borderColor: colors.primary,
-                      },
-                    ]}
-                  >
-                    <Wind size={14} color={colors.primary} />
-                    <Text style={[styles.recActionText, { color: colors.primaryDark }]}>
-                      Abrir prática recomendada no app
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-                {/* Barra de Ações da Mensagem do Bot */}
-                {!isUser && (
-                  <View style={styles.msgActionsRow}>
-                    <TouchableOpacity
-                      onPress={() => handleCopy(msg.text, msg.id)}
-                      accessibilityRole="button"
-                      accessibilityLabel="Copiar mensagem"
-                      style={styles.msgActionIconBtn}
-                    >
-                      {isCopied ? (
-                        <Check size={13} color={colors.success} />
-                      ) : (
-                        <Copy size={13} color={colors.textMuted} />
-                      )}
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      onPress={() => handleFeedback(msg.id, 'up')}
-                      accessibilityRole="button"
-                      accessibilityLabel="Mensagem útil"
-                      style={styles.msgActionIconBtn}
-                    >
-                      <ThumbsUp
-                        size={13}
-                        color={feedback === 'up' ? colors.primary : colors.textMuted}
-                        fill={feedback === 'up' ? colors.primary : 'none'}
-                      />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      onPress={() => handleFeedback(msg.id, 'down')}
-                      accessibilityRole="button"
-                      accessibilityLabel="Mensagem não útil"
-                      style={styles.msgActionIconBtn}
-                    >
-                      <ThumbsDown
-                        size={13}
-                        color={feedback === 'down' ? colors.warning : colors.textMuted}
-                        fill={feedback === 'down' ? colors.warning : 'none'}
-                      />
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-                {/* Sugestões Rápidas de Resposta */}
-                {!isUser && msg.suggestions && msg.suggestions.length > 0 && (
-                  <View style={styles.suggestionsList}>
-                    {msg.suggestions.map((sug, sIdx) => (
-                      <TouchableOpacity
-                        key={sIdx}
-                        onPress={() => handleSend(sug)}
-                        style={[
-                          styles.suggestionChip,
-                          {
-                            backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
-                            borderColor: colors.border,
-                          },
-                        ]}
-                      >
-                        <Text style={[styles.suggestionText, { color: colors.primary }]}>
-                          {sug}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
+                <Text style={[styles.headerStatus, { color: isDark ? colors.textMuted : '#667775' }]}>
+                  {isTemporary ? 'Modo Temporário' : 'Psicoeducação e acolhimento'}
+                </Text>
               </View>
             </View>
-          );
-        })}
 
-        {/* Indicador de Digitação */}
-        {isTyping && (
-          <View style={[styles.messageRow, styles.botMessageRow]}>
-            <View style={[styles.msgAvatar, { backgroundColor: colors.highlight }]}>
-              <Bot size={14} color={colors.primary} />
+            <View style={styles.headerRight}>
+              <TouchableOpacity
+                onPress={handleToggleTemporary}
+                accessibilityRole="button"
+                accessibilityLabel="Alternar conversa temporária"
+                style={[
+                  styles.actionHeaderBtn,
+                  {
+                    backgroundColor: isTemporary
+                      ? '#2F7F7C'
+                      : isDark
+                      ? colors.surfaceSecondary
+                      : '#F2F6F5',
+                  },
+                ]}
+              >
+                <EyeOff
+                  size={16}
+                  color={isTemporary ? '#FFFFFF' : isDark ? colors.textMuted : '#667775'}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setShowClearModal(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Limpar histórico"
+                style={[
+                  styles.actionHeaderBtn,
+                  { backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5' },
+                ]}
+              >
+                <Trash2 size={16} color={isDark ? colors.textMuted : '#667775'} />
+              </TouchableOpacity>
             </View>
+          </View>
+
+          {/* 2. Área de Mensagens com Rolagem Própria */}
+          <ScrollView
+            ref={scrollViewRef}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.messagesContainer}
+            style={styles.messagesScrollView}
+          >
+            {/* Aviso Educativo e Ético */}
             <View
               style={[
-                styles.bubble,
-                styles.botBubble,
+                styles.safetyBanner,
                 {
-                  backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                  borderColor: colors.border,
+                  backgroundColor: isDark ? colors.surfaceSecondary : '#F0F7F6',
+                  borderColor: isDark ? colors.border : '#D8EBE4',
                 },
               ]}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 }}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={{ fontSize: 13, color: colors.textSecondary }}>Escrevendo resposta...</Text>
-              </View>
+              <ShieldCheck size={14} color="#2F7F7C" style={{ marginRight: 6, marginTop: 1 }} />
+              <Text style={[styles.safetyText, { color: isDark ? colors.textMuted : '#567571' }]}>
+                Este assistente oferece acolhimento e psicoeducação. Não constitui laudo clínico nem
+                substitui avaliação psicológica ou médica.
+              </Text>
             </View>
+
+            {messages.map((msg) => {
+              const isUser = msg.sender === 'user';
+              const feedback = feedbackGiven[msg.id];
+              const isCopied = copiedId === msg.id;
+
+              return (
+                <View
+                  key={msg.id}
+                  style={[
+                    styles.messageRow,
+                    isUser ? styles.userMessageRow : styles.botMessageRow,
+                  ]}
+                >
+                  {!isUser && (
+                    <View style={[styles.msgAvatar, { backgroundColor: '#2F7F7C' }]}>
+                      <Bot size={13} color="#FFFFFF" />
+                    </View>
+                  )}
+
+                  <View style={styles.bubbleCol}>
+                    {/* Alerta de Emergência se houver risco clínico */}
+                    {msg.isEmergencyAlert && (
+                      <View
+                        style={[
+                          styles.alertBadge,
+                          {
+                            backgroundColor: isDark ? '#3D251C' : '#FFF2EB',
+                            borderColor: '#F2B5A0',
+                          },
+                        ]}
+                      >
+                        <ShieldAlert size={14} color="#D98968" style={{ marginRight: 6 }} />
+                        <Text style={[styles.alertBadgeText, { color: '#D98968' }]}>
+                          Precisa de apoio humano imediato? Disque 188 (CVV gratuito 24h)
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Balão da Mensagem com Quebra de Linha Automática */}
+                    <View
+                      style={[
+                        styles.bubble,
+                        isUser
+                          ? styles.userBubble
+                          : [
+                              styles.botBubble,
+                              {
+                                backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFA',
+                                borderColor: isDark ? colors.border : '#EBF1EF',
+                              },
+                            ],
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.bubbleText,
+                          { color: isUser ? '#FFFFFF' : isDark ? colors.text : '#173D3B' },
+                        ]}
+                      >
+                        {msg.text}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.timestampText,
+                          {
+                            color: isUser
+                              ? 'rgba(255,255,255,0.75)'
+                              : isDark
+                              ? colors.textMuted
+                              : '#8C9E9B',
+                          },
+                        ]}
+                      >
+                        {formatTime(msg.timestamp)}
+                      </Text>
+                    </View>
+
+                    {/* Recomendações de Práticas / Artigos */}
+                    {!isUser && msg.recommendedPracticeId && (
+                      <TouchableOpacity
+                        onPress={() => router.push('/practices/player/practice-breathing-guided' as any)}
+                        style={[
+                          styles.recActionBtn,
+                          {
+                            backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
+                            borderColor: '#2F7F7C',
+                          },
+                        ]}
+                      >
+                        <Wind size={14} color="#2F7F7C" />
+                        <Text style={styles.recActionText}>
+                          Abrir exercício de respiração guiada
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Barra de Ações da Mensagem da IA */}
+                    {!isUser && (
+                      <View style={styles.msgActionsRow}>
+                        <TouchableOpacity
+                          onPress={() => handleCopy(msg.text, msg.id)}
+                          accessibilityRole="button"
+                          accessibilityLabel="Copiar mensagem"
+                          style={styles.msgActionIconBtn}
+                        >
+                          {isCopied ? (
+                            <Check size={13} color="#2F7F7C" />
+                          ) : (
+                            <Copy size={13} color={isDark ? colors.textMuted : '#8C9E9B'} />
+                          )}
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => handleFeedback(msg.id, 'up')}
+                          accessibilityRole="button"
+                          accessibilityLabel="Mensagem útil"
+                          style={styles.msgActionIconBtn}
+                        >
+                          <ThumbsUp
+                            size={13}
+                            color={feedback === 'up' ? '#2F7F7C' : isDark ? colors.textMuted : '#8C9E9B'}
+                            fill={feedback === 'up' ? '#2F7F7C' : 'none'}
+                          />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => handleFeedback(msg.id, 'down')}
+                          accessibilityRole="button"
+                          accessibilityLabel="Mensagem não útil"
+                          style={styles.msgActionIconBtn}
+                        >
+                          <ThumbsDown
+                            size={13}
+                            color={feedback === 'down' ? '#D9534F' : isDark ? colors.textMuted : '#8C9E9B'}
+                            fill={feedback === 'down' ? '#D9534F' : 'none'}
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    {/* Sugestões Rápidas de Resposta */}
+                    {!isUser && msg.suggestions && msg.suggestions.length > 0 && (
+                      <View style={styles.suggestionsList}>
+                        {msg.suggestions.map((sug, sIdx) => (
+                          <TouchableOpacity
+                            key={sIdx}
+                            onPress={() => handleSend(sug)}
+                            style={[
+                              styles.suggestionChip,
+                              {
+                                backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                                borderColor: isDark ? colors.border : '#DCE5E2',
+                              },
+                            ]}
+                          >
+                            <Sparkles size={11} color="#2F7F7C" style={{ marginRight: 4 }} />
+                            <Text style={styles.suggestionText}>{sug}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+
+            {/* Indicador de Digitação */}
+            {isTyping && (
+              <View style={[styles.messageRow, styles.botMessageRow]}>
+                <View style={[styles.msgAvatar, { backgroundColor: '#2F7F7C' }]}>
+                  <Bot size={13} color="#FFFFFF" />
+                </View>
+                <View
+                  style={[
+                    styles.bubble,
+                    styles.botBubble,
+                    {
+                      backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFA',
+                      borderColor: isDark ? colors.border : '#EBF1EF',
+                    },
+                  ]}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 }}>
+                    <ActivityIndicator size="small" color="#2F7F7C" />
+                    <Text style={{ fontSize: 13, color: isDark ? colors.textMuted : '#667775' }}>
+                      Escrevendo resposta...
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+
+          {/* 3. Barra Inferior de Digitação e Envio */}
+          <View
+            style={[
+              styles.inputContainer,
+              {
+                backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                borderTopColor: isDark ? colors.border : '#EBF1EF',
+              },
+            ]}
+          >
+            <TextInput
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Escreva como você está se sentindo..."
+              placeholderTextColor="#8C9E9B"
+              onKeyPress={handleKeyDown}
+              multiline
+              maxLength={1000}
+              style={[
+                styles.inputField,
+                {
+                  backgroundColor: isDark ? colors.surfaceSecondary : '#F7F9F8',
+                  borderColor: isDark ? colors.border : '#DCE5E2',
+                  color: isDark ? colors.text : '#173D3B',
+                },
+              ]}
+            />
+
+            <TouchableOpacity
+              onPress={() => handleSend()}
+              disabled={!inputText.trim() || isTyping}
+              accessibilityRole="button"
+              accessibilityLabel="Enviar mensagem"
+              style={[
+                styles.sendBtn,
+                {
+                  backgroundColor:
+                    inputText.trim() && !isTyping ? '#2F7F7C' : isDark ? colors.surfaceSecondary : '#EBF1EF',
+                },
+              ]}
+            >
+              <Send
+                size={17}
+                color={inputText.trim() && !isTyping ? '#FFFFFF' : '#8C9E9B'}
+              />
+            </TouchableOpacity>
           </View>
-        )}
-      </ScrollView>
-
-      {/* 3. Barra Inferior de Envio Compacta */}
-      <View
-        style={[
-          styles.inputContainer,
-          {
-            backgroundColor: isDark ? colors.surface : '#FFFFFF',
-            borderTopColor: colors.border,
-          },
-        ]}
-      >
-        <TextInput
-          value={inputText}
-          onChangeText={setInputText}
-          placeholder="Escreva sua dúvida sobre ansiedade..."
-          placeholderTextColor={colors.textMuted}
-          onKeyPress={handleKeyDown}
-          multiline
-          maxLength={1000}
-          style={[
-            styles.inputField,
-            {
-              backgroundColor: isDark ? colors.surfaceSecondary : '#F5F8F7',
-              borderColor: colors.border,
-              color: colors.text,
-            },
-          ]}
-        />
-
-        <TouchableOpacity
-          onPress={() => handleSend()}
-          disabled={!inputText.trim() || isTyping}
-          accessibilityRole="button"
-          accessibilityLabel="Enviar mensagem"
-          style={[
-            styles.sendBtn,
-            {
-              backgroundColor: inputText.trim() && !isTyping ? colors.primary : colors.surfaceSecondary,
-            },
-          ]}
-        >
-          <Send
-            size={18}
-            color={inputText.trim() && !isTyping ? '#FFFFFF' : colors.textMuted}
-          />
-        </TouchableOpacity>
-      </View>
+        </View>
+      </KeyboardAvoidingView>
 
       {/* Modal de Confirmação para Limpar Histórico */}
       <ConfirmDialog
@@ -430,23 +494,52 @@ export default function ChatScreen() {
         }}
         onCancel={() => setShowClearModal(false)}
       />
-    </AppShell>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
+  keyboardContainer: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  chatWrapper: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+  },
+  chatWrapperDesktop: {
+    maxWidth: 860,
+    alignSelf: 'center',
+    borderRadius: 20,
+    marginVertical: 12,
+    borderWidth: 1,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: 1,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+    flex: 1,
   },
   backBtn: {
     width: 36,
@@ -456,23 +549,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarBot: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   headerStatus: {
     fontSize: 11,
+    marginTop: 1,
   },
   onlineDot: {
     width: 7,
     height: 7,
     borderRadius: 4,
+    backgroundColor: '#2F7F7C',
   },
   headerRight: {
     flexDirection: 'row',
@@ -485,15 +581,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  messagesScrollView: {
+    flex: 1,
+  },
   messagesContainer: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 24,
+    paddingBottom: 20,
     gap: 12,
   },
   safetyBanner: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     padding: 10,
     borderRadius: 12,
     borderWidth: 1,
@@ -508,6 +607,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
+    width: '100%',
   },
   userMessageRow: {
     justifyContent: 'flex-end',
@@ -523,21 +623,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 4,
   },
+  bubbleCol: {
+    maxWidth: '85%',
+    flexShrink: 1,
+  },
   bubble: {
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 16,
+    flexShrink: 1,
   },
   userBubble: {
+    backgroundColor: '#2F7F7C',
     borderBottomRightRadius: 4,
+    alignSelf: 'flex-end',
   },
   botBubble: {
     borderBottomLeftRadius: 4,
     borderWidth: 1,
+    alignSelf: 'flex-start',
   },
   bubbleText: {
     fontSize: 14,
     lineHeight: 21,
+    flexShrink: 1,
   },
   timestampText: {
     fontSize: 10,
@@ -569,6 +678,7 @@ const styles = StyleSheet.create({
   recActionText: {
     fontSize: 12,
     fontWeight: '700',
+    color: '#2F7F7C',
   },
   msgActionsRow: {
     flexDirection: 'row',
@@ -578,27 +688,30 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
   },
   msgActionIconBtn: {
-    padding: 3,
+    padding: 4,
   },
   suggestionsList: {
-    marginTop: 6,
+    marginTop: 8,
     gap: 6,
   },
   suggestionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 10,
     borderWidth: 1,
     alignSelf: 'flex-start',
   },
   suggestionText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: '#2F7F7C',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     borderTopWidth: 1,
     gap: 8,

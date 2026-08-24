@@ -29,7 +29,8 @@ class MoodService {
               mood: m.mood_score,
               anxietyLevel: m.anxiety_score,
               emotions: m.emotions || [],
-              activities: [],
+              activities: m.activities || [],
+              plannedExercises: m.planned_exercises || [],
               notes: m.notes || '',
               createdAt: m.created_at,
               updatedAt: m.updated_at,
@@ -79,6 +80,8 @@ class MoodService {
               mood_score: record.mood,
               anxiety_score: record.anxietyLevel,
               emotions: record.emotions,
+              activities: record.activities || [],
+              planned_exercises: record.plannedExercises || [],
               notes: record.notes || null,
             })
             .select()
@@ -113,6 +116,8 @@ class MoodService {
         if (partial.mood !== undefined) payload.mood_score = partial.mood;
         if (partial.anxietyLevel !== undefined) payload.anxiety_score = partial.anxietyLevel;
         if (partial.emotions !== undefined) payload.emotions = partial.emotions;
+        if (partial.activities !== undefined) payload.activities = partial.activities;
+        if (partial.plannedExercises !== undefined) payload.planned_exercises = partial.plannedExercises;
         if (partial.notes !== undefined) payload.notes = partial.notes;
 
         await supabase.from('mood_entries').update(payload).eq('id', id);

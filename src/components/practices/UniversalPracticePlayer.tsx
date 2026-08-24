@@ -22,6 +22,7 @@ import {
   ArrowRight,
   ChevronRight,
   ShieldAlert,
+  Smile,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { useToast } from '../ui/Toast';
@@ -492,47 +493,56 @@ export const UniversalPracticePlayer: React.FC<UniversalPracticePlayerProps> = (
             Muito bem! Você completou este momento de autocuidado com presença e calma.
           </Text>
 
-          {/* Botão de Avanço Automático para o Próximo Exercício */}
-          {hasNextPractice && nextPractice ? (
-            <View style={styles.nextPracticeBox}>
-              <Text style={styles.nextPracticeLabel}>PRÓXIMO EXERCÍCIO DISPONÍVEL</Text>
-              <Text style={styles.nextPracticeName}>{nextPractice.title}</Text>
-              <Text style={styles.nextPracticeMeta}>
-                {nextPractice.durationMinutes} min • {nextPractice.subtitle}
-              </Text>
+          {/* Ações pós-conclusão solicitadas */}
+          <View style={{ width: '100%', marginTop: 14, gap: 8 }}>
+            <AppButton
+              title="Registrar como estou me sentindo"
+              leftIcon={<Smile size={18} color="#FFFFFF" />}
+              onPress={() => router.push('/mood/new')}
+              size="md"
+              style={{ width: '100%', backgroundColor: '#2F7F7C' }}
+            />
 
+            {hasNextPractice && nextPractice ? (
               <AppButton
-                title="Continuar para o Próximo Exercício"
+                title="Avançar para o próximo exercício"
                 rightIcon={<ArrowRight size={18} color="#FFFFFF" />}
                 onPress={handleAdvanceToNext}
-                size="lg"
-                style={{ marginTop: 12 }}
+                size="md"
+                variant="outline"
+                style={{ width: '100%' }}
               />
-            </View>
-          ) : (
-            <View style={styles.lastPracticeBox}>
-              <Text style={styles.lastPracticeText}>
-                Você completou todas as práticas desta sequência!
-              </Text>
-              <AppButton
-                title="Voltar às Práticas"
-                onPress={onBack}
-                size="lg"
-                style={{ marginTop: 12, width: '100%' }}
-              />
-            </View>
-          )}
+            ) : null}
 
-          {/* Opção de Repetir Exercício Concluído */}
-          <TouchableOpacity
-            onPress={handleReset}
-            style={styles.repeatBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Reiniciar exercício"
-          >
-            <RotateCcw size={14} color="#2F7F7C" style={{ marginRight: 4 }} />
-            <Text style={styles.repeatBtnText}>Reiniciar exercício</Text>
-          </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+              <View style={{ flex: 1 }}>
+                <AppButton
+                  title="Escolher outra atividade"
+                  variant="outline"
+                  size="sm"
+                  onPress={() => setIsSelectorOpen(true)}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <AppButton
+                  title="Voltar para Relaxar"
+                  variant="outline"
+                  size="sm"
+                  onPress={onBack}
+                />
+              </View>
+            </View>
+
+            <TouchableOpacity
+              onPress={handleReset}
+              style={[styles.repeatBtn, { alignSelf: 'center', marginTop: 6 }]}
+              accessibilityRole="button"
+              accessibilityLabel="Repetir exercício"
+            >
+              <RotateCcw size={14} color="#2F7F7C" style={{ marginRight: 4 }} />
+              <Text style={styles.repeatBtnText}>Repetir este exercício</Text>
+            </TouchableOpacity>
+          </View>
         </Card>
       )}
 

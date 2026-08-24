@@ -232,14 +232,14 @@ export default function HomeScreen() {
             <Text style={styles.primaryActionText}>Registrar meu momento</Text>
           </TouchableOpacity>
 
-          {/* Link para o Diário / Histórico de Evolução */}
+          {/* Link para o Histórico de Momento Atual */}
           <TouchableOpacity
             onPress={() => router.push('/diary/history' as any)}
             accessibilityRole="link"
-            accessibilityLabel="Ver histórico de evolução"
+            accessibilityLabel="Visualizar histórico de momento atual"
             style={styles.historyLinkBtn}
           >
-            <Text style={styles.historyLinkText}>Ver histórico de evolução →</Text>
+            <Text style={styles.historyLinkText}>Visualizar histórico de momento atual →</Text>
           </TouchableOpacity>
         </View>
       </View>

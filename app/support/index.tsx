@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
-import { Phone, HeartHandshake, ShieldAlert, Compass, ExternalLink } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, ScrollView } from 'react-native';
+import { Phone, HeartHandshake, ShieldAlert, ExternalLink, PhoneCall, Globe } from 'lucide-react-native';
 import { ScreenContainer } from '../../src/components/ui/ScreenContainer';
 import { AppHeader } from '../../src/components/ui/AppHeader';
 import { ConfirmationModal } from '../../src/components/ui/ConfirmationModal';
@@ -22,9 +22,12 @@ export default function SupportScreen() {
   const countryData = HELPLINES_BY_COUNTRY.BR;
 
   const handleAction = (service: { name: string; number: string }) => {
-    if (service.number.startsWith('http')) {
+    if (service.number.startsWith('http://') || service.number.startsWith('https://')) {
       Linking.openURL(service.number).catch(() => {
-        showToast({ message: 'Não foi possível abrir este canal no momento.', type: 'error' });
+        showToast({
+          message: 'Não foi possível abrir este endereço online no momento. Tente novamente mais tarde.',
+          type: 'error',
+        });
       });
     } else {
       setSelectedServiceToCall(service);
@@ -33,8 +36,9 @@ export default function SupportScreen() {
 
   const handleDialConfirm = () => {
     if (!selectedServiceToCall) return;
-    Linking.openURL(`tel:${selectedServiceToCall.number}`).catch(() => {
-      showToast({ message: 'Não foi possível abrir o discador.', type: 'error' });
+    const cleanNumber = selectedServiceToCall.number.replace(/\D/g, '');
+    Linking.openURL(`tel:${cleanNumber}`).catch(() => {
+      showToast({ message: 'Não foi possível abrir o discador de telefone.', type: 'error' });
     });
     setSelectedServiceToCall(null);
   };
@@ -49,13 +53,13 @@ export default function SupportScreen() {
           styles.alertBanner,
           {
             backgroundColor: isDark ? '#3D201A' : '#FFF1EB',
-            borderColor: colors.error,
+            borderColor: '#F2B5A0',
           },
         ]}
       >
-        <ShieldAlert size={22} color={colors.error} style={{ marginRight: 10, marginTop: 2 }} />
+        <ShieldAlert size={22} color="#D98968" style={{ marginRight: 10, marginTop: 2 }} />
         <View style={{ flex: 1 }}>
-          <Text style={[styles.alertTitle, { color: colors.error }]}>
+          <Text style={[styles.alertTitle, { color: '#D98968' }]}>
             O Respira não é um serviço de emergência
           </Text>
           <Text style={[styles.alertBody, { color: isDark ? '#F0D0C8' : '#733722' }]}>
@@ -65,7 +69,7 @@ export default function SupportScreen() {
         </View>
       </View>
 
-      {/* Seção 1: Contato de Confiança */}
+      {/* Seção 1: Contatos de Confiança Pessoais */}
       <TrustedContactSection />
 
       {/* Seção 2: Canal Principal de Apoio (CVV 188) */}
@@ -73,30 +77,30 @@ export default function SupportScreen() {
         style={[
           styles.primaryCard,
           {
-            backgroundColor: isDark ? colors.surfaceSubtle : '#FFFFFF',
-            borderColor: colors.primary,
+            backgroundColor: isDark ? colors.surface : '#FFFFFF',
+            borderColor: '#2F7F7C',
           },
         ]}
       >
-        <View style={[styles.primaryBadge, { backgroundColor: colors.highlight }]}>
-          <HeartHandshake size={16} color={colors.primary} style={{ marginRight: 6 }} />
-          <Text style={[styles.primaryBadgeText, { color: colors.primaryDark }]}>
-            Apoio Emocional Gratuito
+        <View style={styles.primaryBadge}>
+          <HeartHandshake size={15} color="#2F7F7C" style={{ marginRight: 5 }} />
+          <Text style={styles.primaryBadgeText}>
+            Apoio Emocional Gratuito 24h
           </Text>
         </View>
 
-        <Text style={[styles.serviceName, { color: colors.text }]}>
+        <Text style={[styles.serviceName, { color: isDark ? colors.text : '#173D3B' }]}>
           {countryData.primaryService.name}
         </Text>
-        <Text style={[styles.serviceDesc, { color: colors.textSecondary }]}>
+        <Text style={[styles.serviceDesc, { color: isDark ? colors.textMuted : '#667775' }]}>
           {countryData.primaryService.description}
         </Text>
-        <Text style={[styles.serviceHours, { color: colors.primary }]}>
+        <Text style={styles.serviceHours}>
           Disponibilidade: {countryData.primaryService.availableHours}
         </Text>
 
         <AppButton
-          title={`Ligar para ${countryData.primaryService.number}`}
+          title={`Ligar para ${countryData.primaryService.number} (Gratuito)`}
           leftIcon={<Phone size={18} color="#FFFFFF" />}
           onPress={() =>
             handleAction({
@@ -105,18 +109,18 @@ export default function SupportScreen() {
             })
           }
           size="lg"
-          style={{ marginTop: 16 }}
+          style={{ marginTop: 14 }}
         />
       </View>
 
-      {/* Seção 3: Outros Serviços Oficiais do Brasil */}
+      {/* Seção 3: Outros Serviços e Canais Públicos do Brasil */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+        <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>
           Outros Contatos e Serviços Públicos do Brasil
         </Text>
 
         {countryData.secondaryServices.map((service, index) => {
-          const isLink = service.number.startsWith('http');
+          const isWebLink = service.number.startsWith('http');
 
           return (
             <View
@@ -124,40 +128,50 @@ export default function SupportScreen() {
               style={[
                 styles.secondaryCard,
                 {
-                  backgroundColor: isDark ? colors.surfaceSubtle : '#FFFFFF',
-                  borderColor: colors.border,
+                  backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                  borderColor: isDark ? colors.border : '#DCE5E2',
                 },
               ]}
             >
-              <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={[styles.secName, { color: colors.text }]}>{service.name}</Text>
-                <Text style={[styles.secDesc, { color: colors.textSecondary }]}>{service.description}</Text>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={[styles.secName, { color: isDark ? colors.text : '#173D3B' }]}>
+                  {service.name}
+                </Text>
+                <Text style={[styles.secDesc, { color: isDark ? colors.textMuted : '#667775' }]}>
+                  {service.description}
+                </Text>
               </View>
 
               <TouchableOpacity
                 onPress={() => handleAction(service)}
                 accessibilityRole="button"
-                accessibilityLabel={`${isLink ? 'Abrir' : 'Ligar para'} ${service.name}`}
+                accessibilityLabel={`${isWebLink ? 'Abrir página de' : 'Ligar para'} ${service.name}`}
                 style={[
-                  styles.callSmallBtn,
+                  styles.actionSmallBtn,
                   {
-                    backgroundColor: isLink ? colors.surfaceSecondary : colors.highlight,
-                    borderColor: isLink ? colors.secondary : colors.primary,
+                    backgroundColor: isWebLink
+                      ? isDark
+                        ? colors.surfaceSecondary
+                        : '#E7F3EF'
+                      : isDark
+                      ? colors.surfaceSecondary
+                      : '#FFF5F0',
+                    borderColor: isWebLink ? '#2F7F7C' : '#D98968',
                   },
                 ]}
               >
-                {isLink ? (
-                  <ExternalLink size={15} color={colors.secondaryDark} />
+                {isWebLink ? (
+                  <ExternalLink size={14} color="#2F7F7C" />
                 ) : (
-                  <Phone size={15} color={colors.primary} />
+                  <PhoneCall size={14} color="#D98968" />
                 )}
                 <Text
                   style={[
-                    styles.callSmallText,
-                    { color: isLink ? colors.secondaryDark : colors.primary },
+                    styles.actionSmallText,
+                    { color: isWebLink ? '#2F7F7C' : '#D98968' },
                   ]}
                 >
-                  {isLink ? 'Abrir' : service.number}
+                  {isWebLink ? 'Abrir' : `Ligar (${service.number})`}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -165,52 +179,12 @@ export default function SupportScreen() {
         })}
       </View>
 
-      {/* Seção 4: Exercício Rápido de Aterramento Sensorial (5-4-3-2-1) */}
-      <View
-        style={[
-          styles.groundingCard,
-          {
-            backgroundColor: isDark ? colors.surfaceSubtle : '#FFFFFF',
-            borderColor: colors.border,
-          },
-        ]}
-      >
-        <View style={styles.groundingHeader}>
-          <Compass size={20} color={colors.primary} style={{ marginRight: 8 }} />
-          <Text style={[styles.groundingTitle, { color: colors.text }]}>
-            Técnica de Aterramento Sensorial (5-4-3-2-1)
-          </Text>
-        </View>
-
-        <Text style={[styles.groundingDesc, { color: colors.textSecondary }]}>
-          Se você estiver com a mente acelerada, experimente focar no ambiente ao seu redor:
-        </Text>
-
-        <View style={styles.stepsList}>
-          <Text style={[styles.stepItem, { color: colors.text }]}>
-            👀 <Text style={{ fontWeight: '700' }}>5 coisas</Text> que você pode ver agora
-          </Text>
-          <Text style={[styles.stepItem, { color: colors.text }]}>
-            ✋ <Text style={{ fontWeight: '700' }}>4 coisas</Text> que você pode tocar
-          </Text>
-          <Text style={[styles.stepItem, { color: colors.text }]}>
-            👂 <Text style={{ fontWeight: '700' }}>3 sons</Text> que você pode ouvir
-          </Text>
-          <Text style={[styles.stepItem, { color: colors.text }]}>
-            👃 <Text style={{ fontWeight: '700' }}>2 cheiros</Text> que você pode notar
-          </Text>
-          <Text style={[styles.stepItem, { color: colors.text }]}>
-            🌱 <Text style={{ fontWeight: '700' }}>1 palavra</Text> de gentileza consigo mesmo(a)
-          </Text>
-        </View>
-      </View>
-
-      {/* Modal de Confirmação antes de Efetuar Ligação Telefônica */}
+      {/* Modal de Confirmação para Chamada Telefônica */}
       <ConfirmationModal
         visible={!!selectedServiceToCall}
-        title="Confirmar Ligação"
-        message={`Deseja abrir o discador para ligar para ${selectedServiceToCall?.name} (${selectedServiceToCall?.number})?`}
-        confirmTitle="Ligar Agora"
+        title={`Ligar para ${selectedServiceToCall?.name}?`}
+        message={`Esta ação abrirá o discador telefônico no número ${selectedServiceToCall?.number}.`}
+        confirmTitle="Ligar agora"
         cancelTitle="Cancelar"
         onConfirm={handleDialConfirm}
         onCancel={() => setSelectedServiceToCall(null)}
@@ -223,10 +197,10 @@ const styles = StyleSheet.create({
   alertBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    padding: 16,
-    borderRadius: 18,
+    padding: 14,
+    borderRadius: 14,
     borderWidth: 1,
-    marginVertical: 12,
+    marginBottom: 16,
   },
   alertTitle: {
     fontSize: 14,
@@ -234,108 +208,89 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   alertBody: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 17,
   },
   primaryCard: {
-    padding: 20,
-    borderRadius: 20,
+    padding: 18,
+    borderRadius: 18,
     borderWidth: 1.5,
-    marginVertical: 14,
+    marginBottom: 20,
+    shadowColor: '#2F7F7C',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   primaryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
+    backgroundColor: '#E7F3EF',
+    paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
+    alignSelf: 'flex-start',
     marginBottom: 10,
   },
   primaryBadgeText: {
     fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    fontWeight: '800',
+    color: '#2F7F7C',
   },
   serviceName: {
     fontSize: 18,
     fontWeight: '800',
-    marginBottom: 6,
+    letterSpacing: -0.2,
+    marginBottom: 4,
   },
   serviceDesc: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 6,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 8,
   },
   serviceHours: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: '#2F7F7C',
   },
   section: {
-    marginVertical: 12,
+    marginBottom: 30,
   },
   sectionTitle: {
     fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 10,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+    marginBottom: 12,
   },
   secondaryCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 14,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     marginBottom: 10,
   },
   secName: {
     fontSize: 14,
     fontWeight: '700',
+    marginBottom: 2,
   },
   secDesc: {
     fontSize: 12,
-    marginTop: 2,
     lineHeight: 16,
   },
-  callSmallBtn: {
+  actionSmallBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
-    borderWidth: 1,
-    gap: 6,
+    borderWidth: 1.5,
+    gap: 5,
   },
-  callSmallText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  groundingCard: {
-    padding: 20,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginVertical: 14,
-    marginBottom: 32,
-  },
-  groundingHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  groundingTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  groundingDesc: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  stepsList: {
-    gap: 8,
-  },
-  stepItem: {
-    fontSize: 14,
-    lineHeight: 20,
+  actionSmallText: {
+    fontSize: 12,
+    fontWeight: '800',
   },
 });

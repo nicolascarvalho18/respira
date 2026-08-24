@@ -2,6 +2,18 @@
 
 export type MoodValue = 1 | 2 | 3 | 4 | 5;
 
+export interface PlannedExercise {
+  id: string;
+  title: string;
+  category: string;
+  durationMinutes: number;
+  description: string;
+  scheduledTime?: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  notes?: string;
+  completedAt?: string;
+}
+
 export interface MoodRecord {
   id: string;
   userId: string;
@@ -9,6 +21,7 @@ export interface MoodRecord {
   anxietyLevel: number; // 0 a 10
   emotions: string[]; // e.g. ["Preocupado", "Inquieto", "Cansado", "Esperançoso", "Grato"]
   activities: string[]; // e.g. ["Trabalho", "Estudos", "Exercício", "Descanso", "Família"]
+  plannedExercises?: PlannedExercise[];
   notes?: string;
   createdAt: string; // ISO date string
   updatedAt?: string;
@@ -24,8 +37,12 @@ export interface MoodStats {
 
 export type PracticeCategory =
   | 'breathing'
-  | 'relaxation'
+  | 'body_movement'
   | 'mindfulness'
+  | 'relaxation'
+  | 'creative'
+  | 'quick_pauses'
+  | 'soundscapes'
   | 'meditation'
   | 'quick_routine';
 
@@ -37,6 +54,8 @@ export interface Practice {
   category: PracticeCategory;
   durationMinutes: number;
   level: 'Iniciante' | 'Intermediário' | 'Avançado';
+  effortLevel?: 'Suave' | 'Leve' | 'Moderado';
+  activityType?: 'physical' | 'mental' | 'breathing' | 'sound';
   icon: string;
   audioUrl?: string;
   isFavorite?: boolean;

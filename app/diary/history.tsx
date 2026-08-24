@@ -20,11 +20,16 @@ import {
   Edit2,
   Calendar,
   Sparkles,
+  CheckCircle2,
+  Circle,
+  Plus,
+  Play,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
 import { PageHeader } from '../../src/components/ui/PageHeader';
 import { Card } from '../../src/components/ui/Card';
 import { Badge } from '../../src/components/ui/Badge';
+import { AppButton } from '../../src/components/ui/AppButton';
 import { MoodLineChart } from '../../src/components/mood/MoodLineChart';
 import { CorrelationInsightsCard } from '../../src/components/mood/CorrelationInsightsCard';
 import { ConfirmationModal } from '../../src/components/ui/ConfirmationModal';
@@ -42,7 +47,7 @@ export default function DiaryHistoryScreen() {
   const { colors, isDark } = useTheme();
   const { showToast } = useToast();
 
-  const { records, deleteRecord } = useMoodStore();
+  const { records, deleteRecord, updateExerciseStatus } = useMoodStore();
   const { practices } = usePracticeStore();
 
   const [selectedFilterDays, setSelectedFilterDays] = useState<7 | 30 | 90>(7);
@@ -63,10 +68,23 @@ export default function DiaryHistoryScreen() {
     }
   };
 
+  const handleToggleExercise = async (recordId: string, exId: string, currentStatus: string) => {
+    const nextStatus = currentStatus === 'completed' ? 'pending' : 'completed';
+    try {
+      await updateExerciseStatus(recordId, exId, nextStatus);
+      showToast({
+        message: nextStatus === 'completed' ? 'Atividade concluída!' : 'Atividade marcada como pendente.',
+        type: 'success',
+      });
+    } catch {
+      showToast({ message: 'Erro ao atualizar atividade.', type: 'error' });
+    }
+  };
+
   const getMoodIcon = (score: number) => {
-    if (score >= 4) return <Smile size={18} color={colors.primary} />;
-    if (score === 3) return <Meh size={18} color={colors.warning} />;
-    return <Frown size={18} color={colors.error} />;
+    if (score >= 4) return <Smile size={20} color="#2F7F7C" />;
+    if (score === 3) return <Meh size={20} color="#D98968" />;
+    return <Frown size={20} color="#D9534F" />;
   };
 
   const getMoodLabel = (score: number) => {
@@ -84,42 +102,74 @@ export default function DiaryHistoryScreen() {
     <AppShell>
       <PageHeader
         showBack
-        title="Histórico de Evolução"
-        subtitle="Acompanhe sua trajetória e padrões emocionais"
+        title="Histórico do Momento Atual"
+        subtitle="Seus registros emocionais e atividades do dia em ordem cronológica"
       />
 
       {/* 1. Métricas Gerais em Destaque */}
       <View style={styles.metricsRow}>
-        <Card variant="bordered" style={styles.metricCard}>
-          <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Média de Humor</Text>
-          <Text style={[styles.metricValue, { color: colors.primary }]}>
+        <Card
+          variant="bordered"
+          style={[
+            styles.metricCard,
+            { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+          ]}
+        >
+          <Text style={[styles.metricLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
+            Média de Humor
+          </Text>
+          <Text style={[styles.metricValue, { color: '#2F7F7C' }]}>
             {stats.averageMood > 0 ? stats.averageMood.toFixed(1) : '—'}
-            <Text style={{ fontSize: 13, color: colors.textMuted }}> / 5</Text>
+            <Text style={{ fontSize: 12, color: isDark ? colors.textMuted : '#8C9E9B' }}> / 5</Text>
           </Text>
         </Card>
 
-        <Card variant="bordered" style={styles.metricCard}>
-          <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Nível de Ansiedade</Text>
-          <Text style={[styles.metricValue, { color: colors.secondaryDark }]}>
+        <Card
+          variant="bordered"
+          style={[
+            styles.metricCard,
+            { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+          ]}
+        >
+          <Text style={[styles.metricLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
+            Ansiedade Média
+          </Text>
+          <Text style={[styles.metricValue, { color: '#D98968' }]}>
             {stats.averageAnxiety > 0 ? stats.averageAnxiety.toFixed(1) : '—'}
-            <Text style={{ fontSize: 13, color: colors.textMuted }}> / 10</Text>
+            <Text style={{ fontSize: 12, color: isDark ? colors.textMuted : '#8C9E9B' }}> / 10</Text>
           </Text>
         </Card>
 
-        <Card variant="bordered" style={styles.metricCard}>
-          <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Total de Check-ins</Text>
-          <Text style={[styles.metricValue, { color: colors.accentDark }]}>
+        <Card
+          variant="bordered"
+          style={[
+            styles.metricCard,
+            { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+          ]}
+        >
+          <Text style={[styles.metricLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
+            Total Check-ins
+          </Text>
+          <Text style={[styles.metricValue, { color: isDark ? colors.text : '#173D3B' }]}>
             {stats.totalCheckins}
           </Text>
         </Card>
       </View>
 
       {/* 2. Filtros de Período e Gráfico */}
-      <Card variant="bordered" style={styles.chartCard}>
+      <Card
+        variant="bordered"
+        style={[
+          styles.chartCard,
+          { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+        ]}
+      >
         <View style={styles.chartHeader}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <TrendingUp size={18} color={colors.primary} />
-            <Text style={[styles.chartTitle, { color: colors.text }]}>Evolução no Período</Text>
+            <TrendingUp size={18} color="#2F7F7C" />
+            <Text style={[styles.chartTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              Evolução no Período
+            </Text>
           </View>
 
           <View style={styles.filterPills}>
@@ -130,8 +180,8 @@ export default function DiaryHistoryScreen() {
                 style={[
                   styles.filterPill,
                   {
-                    backgroundColor: selectedFilterDays === days ? colors.primary : 'transparent',
-                    borderColor: selectedFilterDays === days ? colors.primary : colors.border,
+                    backgroundColor: selectedFilterDays === days ? '#2F7F7C' : 'transparent',
+                    borderColor: selectedFilterDays === days ? '#2F7F7C' : isDark ? colors.border : '#DCE5E2',
                   },
                 ]}
               >
@@ -139,7 +189,7 @@ export default function DiaryHistoryScreen() {
                   style={[
                     styles.filterPillText,
                     {
-                      color: selectedFilterDays === days ? '#FFFFFF' : colors.textSecondary,
+                      color: selectedFilterDays === days ? '#FFFFFF' : isDark ? colors.text : '#173D3B',
                       fontWeight: selectedFilterDays === days ? '700' : '500',
                     },
                   ]}
@@ -161,16 +211,43 @@ export default function DiaryHistoryScreen() {
         </View>
       )}
 
-      {/* 4. Lista Completa de Registros Anteriores */}
+      {/* 4. Lista Completa de Registros Anteriores em Ordem Cronológica */}
       <View style={styles.recordsSection}>
-        <Text style={[styles.sectionHeading, { color: colors.text }]}>Registros Detalhados</Text>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={[styles.sectionHeading, { color: isDark ? colors.text : '#173D3B' }]}>
+            Registros do Momento Atual
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push('/mood/new')}
+            style={styles.newCheckinBtn}
+          >
+            <Plus size={14} color="#FFFFFF" />
+            <Text style={styles.newCheckinBtnText}>Novo registro</Text>
+          </TouchableOpacity>
+        </View>
 
         {records.length === 0 ? (
-          <Card variant="bordered" style={styles.emptyCard}>
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>Nenhum registro ainda</Text>
-            <Text style={[styles.emptyDesc, { color: colors.textSecondary }]}>
-              Seus check-ins diários aparecerão listados aqui com detalhes de emoções e notas.
+          <Card
+            variant="bordered"
+            style={[
+              styles.emptyCard,
+              { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+            ]}
+          >
+            <Smile size={36} color="#2F7F7C" style={{ marginBottom: 8 }} />
+            <Text style={[styles.emptyTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              Nenhum registro no momento atual ainda
             </Text>
+            <Text style={[styles.emptyDesc, { color: isDark ? colors.textMuted : '#667775' }]}>
+              Faça seu primeiro check-in de humor para começar a acompanhar sua evolução emocional e exercícios do dia.
+            </Text>
+            <AppButton
+              title="Registrar meu momento agora"
+              leftIcon={<Plus size={18} color="#FFFFFF" />}
+              onPress={() => router.push('/mood/new')}
+              size="md"
+              style={{ marginTop: 14 }}
+            />
           </Card>
         ) : (
           <View style={{ gap: 10 }}>
@@ -178,7 +255,14 @@ export default function DiaryHistoryScreen() {
               const isExpanded = expandedRecordId === rec.id;
 
               return (
-                <Card key={rec.id} variant="bordered" style={styles.recordItemCard}>
+                <Card
+                  key={rec.id}
+                  variant="bordered"
+                  style={[
+                    styles.recordItemCard,
+                    { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+                  ]}
+                >
                   <TouchableOpacity
                     onPress={() => setExpandedRecordId(isExpanded ? null : rec.id)}
                     style={styles.recordRowTop}
@@ -187,79 +271,159 @@ export default function DiaryHistoryScreen() {
                     <View style={styles.recordMoodCol}>
                       {getMoodIcon(rec.mood)}
                       <View>
-                        <Text style={[styles.recordDateText, { color: colors.text }]}>
+                        <Text style={[styles.recordDateText, { color: isDark ? colors.text : '#173D3B' }]}>
                           {formatDate(rec.createdAt)} às {formatTime(rec.createdAt)}
                         </Text>
-                        <Text style={[styles.recordMoodText, { color: colors.textSecondary }]}>
-                          Humor: <Text style={{ fontWeight: '700' }}>{getMoodLabel(rec.mood)}</Text> • Ansiedade: <Text style={{ fontWeight: '700' }}>{rec.anxietyLevel}/10</Text>
+                        <Text style={[styles.recordMoodText, { color: isDark ? colors.textMuted : '#667775' }]}>
+                          Humor: <Text style={{ fontWeight: '700', color: '#2F7F7C' }}>{getMoodLabel(rec.mood)}</Text> • Ansiedade: <Text style={{ fontWeight: '700', color: '#D98968' }}>{rec.anxietyLevel}/10</Text>
                         </Text>
                       </View>
                     </View>
 
                     {isExpanded ? (
-                      <ChevronDown size={18} color={colors.textMuted} />
+                      <ChevronDown size={18} color="#8C9E9B" />
                     ) : (
-                      <ChevronRight size={18} color={colors.textMuted} />
+                      <ChevronRight size={18} color="#8C9E9B" />
                     )}
                   </TouchableOpacity>
 
-                  {/* Conteúdo Expandido */}
+                  {/* Conteúdo Expandido com Emoções, Atividades e Exercícios do Dia */}
                   {isExpanded && (
-                    <View style={[styles.expandedBody, { borderTopColor: colors.border }]}>
+                    <View style={[styles.expandedBody, { borderTopColor: isDark ? colors.border : '#EBF1EF' }]}>
+                      {/* Emoções */}
                       {rec.emotions && rec.emotions.length > 0 && (
                         <View style={styles.detailRow}>
-                          <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Emoções:</Text>
+                          <Text style={[styles.detailLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
+                            Emoções registradas:
+                          </Text>
                           <View style={styles.tagsWrap}>
                             {rec.emotions.map((emo, idx) => (
                               <View
                                 key={idx}
-                                style={[styles.tagBadge, { backgroundColor: colors.surfaceSecondary }]}
+                                style={[
+                                  styles.tagBadge,
+                                  { backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF' },
+                                ]}
                               >
-                                <Text style={[styles.tagText, { color: colors.primary }]}>{emo}</Text>
+                                <Text style={styles.tagText}>{emo}</Text>
                               </View>
                             ))}
                           </View>
                         </View>
                       )}
 
+                      {/* Atividades do Momento */}
                       {rec.activities && rec.activities.length > 0 && (
                         <View style={styles.detailRow}>
-                          <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Atividades:</Text>
+                          <Text style={[styles.detailLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
+                            Atividades anteriores:
+                          </Text>
                           <View style={styles.tagsWrap}>
                             {rec.activities.map((act, idx) => (
                               <View
                                 key={idx}
-                                style={[styles.tagBadge, { backgroundColor: colors.surfaceSubtle }]}
+                                style={[
+                                  styles.tagBadge,
+                                  { backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5' },
+                                ]}
                               >
-                                <Text style={[styles.tagText, { color: colors.secondaryDark }]}>{act}</Text>
+                                <Text style={[styles.tagText, { color: '#567571' }]}>{act}</Text>
                               </View>
                             ))}
                           </View>
                         </View>
                       )}
 
+                      {/* Exercícios Planejados para o Dia */}
+                      {rec.plannedExercises && rec.plannedExercises.length > 0 && (
+                        <View style={styles.detailRow}>
+                          <Text style={[styles.detailLabel, { color: isDark ? colors.text : '#173D3B', fontWeight: '700' }]}>
+                            🌿 Exercícios planejados para o dia:
+                          </Text>
+                          <View style={{ gap: 6, marginTop: 4 }}>
+                            {rec.plannedExercises.map((ex) => {
+                              const isCompleted = ex.status === 'completed';
+                              return (
+                                <View
+                                  key={ex.id}
+                                  style={[
+                                    styles.plannedExCard,
+                                    {
+                                      backgroundColor: isCompleted
+                                        ? isDark
+                                          ? colors.surfaceSecondary
+                                          : '#E7F3EF'
+                                        : isDark
+                                        ? colors.surfaceSecondary
+                                        : '#F8FAFA',
+                                      borderColor: isCompleted ? '#2F7F7C' : isDark ? colors.border : '#EBF1EF',
+                                    },
+                                  ]}
+                                >
+                                  <TouchableOpacity
+                                    onPress={() => handleToggleExercise(rec.id, ex.id, ex.status)}
+                                    style={styles.exToggleRow}
+                                  >
+                                    {isCompleted ? (
+                                      <CheckCircle2 size={18} color="#2F7F7C" />
+                                    ) : (
+                                      <Circle size={18} color="#8C9E9B" />
+                                    )}
+                                    <View style={{ flex: 1, marginLeft: 8 }}>
+                                      <Text
+                                        style={[
+                                          styles.exItemTitle,
+                                          isCompleted && { textDecorationLine: 'line-through', color: '#2F7F7C' },
+                                          { color: isDark ? colors.text : '#173D3B' },
+                                        ]}
+                                      >
+                                        {ex.title} ({ex.durationMinutes} min)
+                                      </Text>
+                                      <Text style={[styles.exItemCategory, { color: isDark ? colors.textMuted : '#667775' }]}>
+                                        {ex.category} • Status: {isCompleted ? 'Concluído' : 'Pendente'}
+                                      </Text>
+                                    </View>
+                                  </TouchableOpacity>
+
+                                  <TouchableOpacity
+                                    onPress={() => router.push('/(tabs)/practices')}
+                                    style={styles.exOpenBtn}
+                                  >
+                                    <Play size={11} color="#2F7F7C" fill="#2F7F7C" />
+                                    <Text style={styles.exOpenBtnText}>Abrir</Text>
+                                  </TouchableOpacity>
+                                </View>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Observações */}
                       {rec.notes ? (
-                        <View style={styles.notesBox}>
-                          <Text style={[styles.notesLabel, { color: colors.textSecondary }]}>Observações:</Text>
-                          <Text style={[styles.notesContent, { color: colors.text }]}>{rec.notes}</Text>
+                        <View
+                          style={[
+                            styles.notesBox,
+                            { backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFA' },
+                          ]}
+                        >
+                          <Text style={[styles.notesLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
+                            Observações do usuário:
+                          </Text>
+                          <Text style={[styles.notesContent, { color: isDark ? colors.text : '#173D3B' }]}>
+                            {rec.notes}
+                          </Text>
                         </View>
                       ) : null}
 
+                      {/* Ações: Editar e Excluir */}
                       <View style={styles.cardActionsRow}>
                         <TouchableOpacity
-                          onPress={() => router.push(`/mood/edit/${rec.id}` as any)}
-                          style={[styles.smallActionBtn, { borderColor: colors.border }]}
-                        >
-                          <Edit2 size={14} color={colors.textSecondary} />
-                          <Text style={[styles.smallActionText, { color: colors.textSecondary }]}>Editar</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
                           onPress={() => setRecordToDelete(rec.id)}
-                          style={[styles.smallActionBtn, { borderColor: colors.errorLight }]}
+                          style={styles.smallDeleteBtn}
                         >
-                          <Trash2 size={14} color={colors.error} />
-                          <Text style={[styles.smallActionText, { color: colors.error }]}>Excluir</Text>
+                          <Trash2 size={13} color="#D9534F" />
+                          <Text style={styles.smallDeleteText}>Excluir registro</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -297,6 +461,7 @@ const styles = StyleSheet.create({
     padding: 12,
     alignItems: 'center',
     borderRadius: 14,
+    borderWidth: 1,
   },
   metricLabel: {
     fontSize: 11,
@@ -312,6 +477,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 18,
     marginVertical: 8,
+    borderWidth: 1,
   },
   chartHeader: {
     flexDirection: 'row',
@@ -340,28 +506,51 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 32,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
   sectionHeading: {
     fontSize: 16,
     fontWeight: '800',
-    marginBottom: 12,
+  },
+  newCheckinBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2F7F7C',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 4,
+  },
+  newCheckinBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
   emptyCard: {
     padding: 24,
     alignItems: 'center',
     borderRadius: 16,
+    borderWidth: 1,
   },
   emptyTitle: {
     fontSize: 15,
     fontWeight: '700',
     marginBottom: 4,
+    textAlign: 'center',
   },
   emptyDesc: {
     fontSize: 13,
     textAlign: 'center',
+    lineHeight: 18,
   },
   recordItemCard: {
     padding: 14,
     borderRadius: 16,
+    borderWidth: 1,
   },
   recordRowTop: {
     flexDirection: 'row',
@@ -407,12 +596,47 @@ const styles = StyleSheet.create({
   },
   tagText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: '#2F7F7C',
+  },
+  plannedExCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  exToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  exItemTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  exItemCategory: {
+    fontSize: 10,
+    marginTop: 1,
+  },
+  exOpenBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#E7F3EF',
+    borderRadius: 6,
+  },
+  exOpenBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2F7F7C',
   },
   notesBox: {
     padding: 10,
     borderRadius: 10,
-    backgroundColor: 'rgba(0,0,0,0.02)',
     gap: 4,
   },
   notesLabel: {
@@ -427,20 +651,18 @@ const styles = StyleSheet.create({
   cardActionsRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 8,
     marginTop: 4,
   },
-  smallActionBtn: {
+  smallDeleteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  smallActionText: {
-    fontSize: 12,
+  smallDeleteText: {
+    fontSize: 11,
     fontWeight: '600',
+    color: '#D9534F',
   },
 });
