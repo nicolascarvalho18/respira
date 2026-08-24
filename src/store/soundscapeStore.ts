@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { Platform } from 'react-native';
 import { Soundscape } from '../constants/soundscapes';
 import { storage } from '../services/storage/asyncStorage';
+import { soundEngine, AmbienceType } from '../services/sound/soundEngine';
 
 interface SoundscapeState {
   currentSoundscape: Soundscape | null;
@@ -26,99 +26,13 @@ interface SoundscapeState {
 
 const FAVORITES_STORAGE_KEY = 'respira_soundscape_favorites';
 let audioInterval: ReturnType<typeof setInterval> | null = null;
-let webAudioContext: any = null;
-let webAudioGain: any = null;
-let webAudioSource: any = null;
 
-// Synthetic ambient sound generator on web
-function startWebAudioSynth(type: string, volume: number) {
-  if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-
-  try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioCtx) return;
-
-    if (!webAudioContext) {
-      webAudioContext = new AudioCtx();
-    }
-    if (webAudioContext.state === 'suspended') {
-      webAudioContext.resume();
-    }
-
-    if (webAudioSource) {
-      try {
-        webAudioSource.stop();
-        webAudioSource.disconnect();
-      } catch (_err) {
-        // Ignored
-      }
-    }
-
-    const bufferSize = webAudioContext.sampleRate * 2;
-    const buffer = webAudioContext.createBuffer(1, bufferSize, webAudioContext.sampleRate);
-    const data = buffer.getChannelData(0);
-
-    let lastOut = 0.0;
-    for (let i = 0; i < bufferSize; i++) {
-      const white = Math.random() * 2 - 1;
-      if (type === 'brown_noise' || type === 'waves') {
-        data[i] = (lastOut + 0.02 * white) / 1.02;
-        lastOut = data[i];
-        data[i] *= 3.5;
-      } else if (type === 'rain' || type === 'forest') {
-        data[i] = (lastOut + 0.05 * white) / 1.05;
-        lastOut = data[i];
-        data[i] *= 2.0;
-      } else {
-        data[i] = white * 0.15;
-      }
-    }
-
-    const noiseNode = webAudioContext.createBufferSource();
-    noiseNode.buffer = buffer;
-    noiseNode.loop = true;
-
-    // Filter
-    const filter = webAudioContext.createBiquadFilter();
-    filter.type = type === 'brown_noise' ? 'lowpass' : type === 'rain' ? 'bandpass' : 'lowpass';
-    filter.frequency.value = type === 'brown_noise' ? 400 : type === 'rain' ? 1200 : 800;
-
-    // Gain node for smooth fade-in
-    webAudioGain = webAudioContext.createGain();
-    webAudioGain.gain.setValueAtTime(0.01, webAudioContext.currentTime);
-    webAudioGain.gain.linearRampToValueAtTime(
-      Math.max(0.01, volume * 0.4),
-      webAudioContext.currentTime + 0.6
-    );
-
-    noiseNode.connect(filter);
-    filter.connect(webAudioGain);
-    webAudioGain.connect(webAudioContext.destination);
-
-    noiseNode.start();
-    webAudioSource = noiseNode;
-  } catch (err) {
-    console.warn('[SoundscapeAudio] Audio context init warning:', err);
-  }
-}
-
-function stopWebAudioSynth() {
-  if (webAudioGain && webAudioContext) {
-    try {
-      webAudioGain.gain.linearRampToValueAtTime(0.001, webAudioContext.currentTime + 0.4);
-      setTimeout(() => {
-        if (webAudioSource) {
-          try {
-            webAudioSource.stop();
-          } catch (_err) {
-            // Ignored
-          }
-        }
-      }, 450);
-    } catch (_err) {
-      // Ignored
-    }
-  }
+function mapGeneratorToAmbience(gen: string): AmbienceType {
+  if (gen === 'waves') return 'waves';
+  if (gen === 'rain') return 'rain';
+  if (gen === 'forest') return 'forest';
+  if (gen === 'brown_noise') return 'brown_noise';
+  return 'waves';
 }
 
 export const useSoundscapeStore = create<SoundscapeState>((set, get) => ({
@@ -132,8 +46,6 @@ export const useSoundscapeStore = create<SoundscapeState>((set, get) => ({
 
   playSoundscape: async (soundscape: Soundscape) => {
     const { volume, timerMinutes } = get();
-
-    // Set countdown if timer is set
     const remaining = timerMinutes ? timerMinutes * 60 : null;
 
     set({
@@ -143,9 +55,9 @@ export const useSoundscapeStore = create<SoundscapeState>((set, get) => ({
       isMiniPlayerVisible: true,
     });
 
-    startWebAudioSynth(soundscape.generatorType, volume);
+    const ambType = mapGeneratorToAmbience(soundscape.generatorType);
+    soundEngine.playAmbience(ambType, volume);
 
-    // Start timer interval
     if (audioInterval) clearInterval(audioInterval);
     audioInterval = setInterval(() => {
       get().tickTimer();
@@ -157,21 +69,22 @@ export const useSoundscapeStore = create<SoundscapeState>((set, get) => ({
     if (!currentSoundscape) return;
 
     if (isPlaying) {
-      stopWebAudioSynth();
+      soundEngine.stopAmbience();
       set({ isPlaying: false });
     } else {
       set({ isPlaying: true });
-      startWebAudioSynth(currentSoundscape.generatorType, volume);
+      const ambType = mapGeneratorToAmbience(currentSoundscape.generatorType);
+      soundEngine.playAmbience(ambType, volume);
     }
   },
 
   pauseSoundscape: async () => {
-    stopWebAudioSynth();
+    soundEngine.stopAmbience();
     set({ isPlaying: false });
   },
 
   stopSoundscape: async () => {
-    stopWebAudioSynth();
+    soundEngine.stopAmbience();
     if (audioInterval) clearInterval(audioInterval);
     set({
       isPlaying: false,
@@ -184,8 +97,10 @@ export const useSoundscapeStore = create<SoundscapeState>((set, get) => ({
   setVolume: async (newVolume: number) => {
     const clamped = Math.max(0, Math.min(1, newVolume));
     set({ volume: clamped });
-    if (webAudioGain && webAudioContext) {
-      webAudioGain.gain.setValueAtTime(clamped * 0.4, webAudioContext.currentTime);
+    const { isPlaying, currentSoundscape } = get();
+    if (isPlaying && currentSoundscape) {
+      const ambType = mapGeneratorToAmbience(currentSoundscape.generatorType);
+      soundEngine.playAmbience(ambType, clamped);
     }
   },
 
@@ -205,7 +120,7 @@ export const useSoundscapeStore = create<SoundscapeState>((set, get) => ({
   },
 
   closeMiniPlayer: async () => {
-    stopWebAudioSynth();
+    soundEngine.stopAmbience();
     if (audioInterval) clearInterval(audioInterval);
     set({
       isPlaying: false,
@@ -220,7 +135,6 @@ export const useSoundscapeStore = create<SoundscapeState>((set, get) => ({
     if (!isPlaying || remainingSeconds === null) return;
 
     if (remainingSeconds <= 1) {
-      // Timer finished, stop audio smoothly
       get().pauseSoundscape();
       set({ remainingSeconds: null, timerMinutes: null });
     } else {

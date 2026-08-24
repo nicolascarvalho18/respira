@@ -78,13 +78,7 @@ export default function PracticesScreen() {
   }, [practices, searchQuery, selectedCategory]);
 
   const handlePracticeNavigation = (practice: Practice) => {
-    if (practice.category === 'breathing') {
-      router.push('/practices/breathing');
-    } else if (practice.id === 'practice-pmr-relaxation') {
-      router.push('/practices/relaxation' as any);
-    } else {
-      router.push(`/practices/player/${practice.id}`);
-    }
+    router.push(`/practices/player/${practice.id}` as any);
   };
 
   const getCategoryTitle = () => {
