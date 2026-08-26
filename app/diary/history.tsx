@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -46,6 +47,12 @@ export default function DiaryHistoryScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { showToast } = useToast();
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.title = 'Histórico do Diário — Respira';
+    }
+  }, []);
 
   const { records, deleteRecord, updateExerciseStatus } = useMoodStore();
   const { practices } = usePracticeStore();

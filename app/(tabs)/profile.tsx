@@ -86,6 +86,10 @@ export default function ProfileScreen() {
   ]);
 
   useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.title = 'Perfil & Ajustes — Respira';
+    }
+
     if (user?.id) {
       userService
         .getActiveSessions(user.id)
@@ -169,7 +173,13 @@ export default function ProfileScreen() {
     <AppShell>
       {/* 1. Cabeçalho */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}>Perfil</Text>
+        <Text
+          accessibilityRole="header"
+          aria-level={1}
+          style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}
+        >
+          Perfil
+        </Text>
         <Text style={[styles.subtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
           Conta, preferências e privacidade
         </Text>

@@ -5,6 +5,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { X, User as UserIcon, Mail } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
@@ -31,7 +32,9 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (user) setName(user.name);
+    if (user) {
+      setName(user.name);
+    }
   }, [user]);
 
   if (!visible) return null;
@@ -57,6 +60,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     }
   };
 
+  const userEmail = user?.email || '';
+
   return (
     <Modal
       visible={visible}
@@ -77,12 +82,19 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
         >
           {/* Header */}
           <View style={styles.headerRow}>
-            <Text style={[styles.title, { color: '#173D3B' }]}>Editar Perfil</Text>
+            <Text
+              accessibilityRole="header"
+              aria-level={2}
+              style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}
+            >
+              Editar Perfil
+            </Text>
             <TouchableOpacity
               onPress={onClose}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
-              accessibilityLabel="Fechar"
+              accessibilityLabel="Fechar modal de edição de perfil"
+              {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
             >
               <X size={20} color="#8C9E9B" />
             </TouchableOpacity>
@@ -97,13 +109,14 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             autoFocus
           />
 
-          {/* E-mail (Informativo / não editável aqui) */}
+          {/* E-mail Real da Sessão (Informativo / não editável aqui) */}
           <AppInput
             label="E-mail"
-            value={user?.email || ''}
+            value={userEmail}
             editable={false}
-            placeholder="seu.email@exemplo.com"
-            helperText="Para alterar seu e-mail, utilize a seção de Segurança e Acesso."
+            readOnly={true}
+            placeholder="E-mail não informado"
+            helperText="Para alterar seu e-mail, acesse Segurança e acesso."
           />
 
           {/* Ações */}

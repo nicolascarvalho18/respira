@@ -55,6 +55,9 @@ export default function ChatScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.title = 'Assistente IA — Respira';
+    }
     chatService.isTemporaryMode().then(setIsTemporary);
   }, []);
 
@@ -166,7 +169,11 @@ export default function ChatScreen() {
 
               <View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={[styles.headerTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+                  <Text
+                    accessibilityRole="header"
+                    aria-level={1}
+                    style={[styles.headerTitle, { color: isDark ? colors.text : '#173D3B' }]}
+                  >
                     Assistente Respira
                   </Text>
                   <View style={styles.onlineDot} />

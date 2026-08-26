@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Platform,
 } from 'react-native';
 import {
   X,
@@ -107,9 +108,14 @@ export const SessionsModal: React.FC<SessionsModalProps> = ({
           ]}
         >
           {/* Header */}
+          {/* Header */}
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}>
+              <Text
+                accessibilityRole="header"
+                aria-level={2}
+                style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}
+              >
                 Sessões e dispositivos
               </Text>
               <Text style={[styles.subtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
@@ -120,7 +126,8 @@ export const SessionsModal: React.FC<SessionsModalProps> = ({
               onPress={onClose}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
-              accessibilityLabel="Fechar modal"
+              accessibilityLabel="Fechar modal de sessões"
+              {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
             >
               <X size={20} color="#8C9E9B" />
             </TouchableOpacity>

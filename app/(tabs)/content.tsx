@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -36,6 +36,12 @@ export default function ContentScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { isDesktop } = useBreakpoint();
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.title = 'Conteúdos — Respira';
+    }
+  }, []);
 
   const {
     articles,
@@ -106,7 +112,11 @@ export default function ContentScreen() {
       {/* 1. Cabeçalho com Título, Subtítulo e Indicador Semanal */}
       <View style={styles.headerRow}>
         <View style={{ flex: 1, paddingRight: 8 }}>
-          <Text style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}>
+          <Text
+            accessibilityRole="header"
+            aria-level={1}
+            style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}
+          >
             Conteúdos
           </Text>
           <Text style={[styles.subtitle, { color: isDark ? colors.textMuted : '#667775' }]}>

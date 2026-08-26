@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Sparkles, TrendingDown, Info } from 'lucide-react-native';
+import { Sparkles, Info, AlertCircle, CheckCircle2 } from 'lucide-react-native';
 import { CorrelationInsight } from '../../services/analytics/correlationInsightsService';
 import { useTheme } from '../../hooks/useTheme';
 
@@ -17,6 +17,36 @@ export const CorrelationInsightsCard: React.FC<CorrelationInsightsCardProps> = (
 
   const topInsight = insights[0];
 
+  const getBadgeConfig = () => {
+    switch (topInsight.confidence) {
+      case 'consistent_pattern':
+        return {
+          label: 'TENDÊNCIA IDENTIFICADA',
+          color: '#2F7F7C',
+          bg: '#E7F3EF',
+          icon: CheckCircle2,
+        };
+      case 'preliminary_observation':
+        return {
+          label: 'OBSERVAÇÃO PRELIMINAR',
+          color: '#2F7F7C',
+          bg: '#E7F3EF',
+          icon: Sparkles,
+        };
+      case 'insufficient_data':
+      default:
+        return {
+          label: 'DADOS PRELIMINARES',
+          color: '#D98968',
+          bg: '#FFF4EE',
+          icon: AlertCircle,
+        };
+    }
+  };
+
+  const badge = getBadgeConfig();
+  const BadgeIcon = badge.icon;
+
   return (
     <View
       style={[
@@ -29,27 +59,31 @@ export const CorrelationInsightsCard: React.FC<CorrelationInsightsCardProps> = (
     >
       {/* Topo com Ícone e Badge */}
       <View style={styles.topRow}>
-        <View style={styles.badgeRow}>
-          <Sparkles size={13} color="#2F7F7C" style={{ marginRight: 4 }} />
-          <Text style={styles.badgeText}>INSIGHT BASEADO NOS SEUS REGISTROS</Text>
+        <View style={[styles.badgeRow, { backgroundColor: badge.bg }]}>
+          <BadgeIcon size={12} color={badge.color} style={{ marginRight: 4 }} />
+          <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
         </View>
       </View>
 
       {/* Título do Insight */}
-      <Text style={[styles.title, { color: '#173D3B' }]}>
+      <Text
+        accessibilityRole="header"
+        aria-level={3}
+        style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}
+      >
         {topInsight.title}
       </Text>
 
       {/* Descrição Cuidadosa */}
-      <Text style={[styles.description, { color: '#567571' }]}>
+      <Text style={[styles.description, { color: isDark ? colors.textMuted : '#4A6562' }]}>
         {topInsight.description}
       </Text>
 
-      {/* Rodapé Metadados */}
+      {/* Rodapé com Amostra e Aviso Legal */}
       <View style={styles.footerRow}>
-        <Info size={11} color="#8C9E9B" style={{ marginRight: 4 }} />
+        <Info size={11} color="#8C9E9B" style={{ marginRight: 4, marginTop: 1 }} />
         <Text style={styles.footerText}>
-          Baseado em {topInsight.sampleSize} registros • {topInsight.periodDescription}
+          {topInsight.sampleSize} registros em {topInsight.distinctDays} dias distintos • {topInsight.disclaimer}
         </Text>
       </View>
     </View>
@@ -71,16 +105,18 @@ const styles = StyleSheet.create({
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   badgeText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#2F7F7C',
     letterSpacing: 0.5,
   },
   title: {
@@ -90,15 +126,20 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 12,
-    lineHeight: 17,
-    marginBottom: 8,
+    lineHeight: 18,
+    marginBottom: 10,
   },
   footerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(47, 127, 124, 0.15)',
+    paddingTop: 6,
   },
   footerText: {
     fontSize: 10,
-    color: '#8C9E9B',
+    color: '#667775',
+    lineHeight: 14,
+    flex: 1,
   },
 });

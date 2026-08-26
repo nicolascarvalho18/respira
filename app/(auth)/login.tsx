@@ -131,9 +131,9 @@ export default function LoginScreen() {
             onPress={() => router.push('/(auth)/forgot-password')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="link"
-            accessibilityLabel="Recuperar senha esquecida"
+            accessibilityLabel="Esqueci minha senha"
           >
-            <Text style={[styles.forgotLink, { color: colors.primary }]}>Esqueceu a senha?</Text>
+            <Text style={[styles.forgotLink, { color: colors.primary }]}>Esqueci minha senha</Text>
           </TouchableOpacity>
         </View>
 

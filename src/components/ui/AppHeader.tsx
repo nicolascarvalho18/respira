@@ -71,6 +71,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           {title && (
             <Text
               numberOfLines={1}
+              accessibilityRole="header"
+              aria-level={1}
               style={{
                 fontSize: 18,
                 fontWeight: '700',

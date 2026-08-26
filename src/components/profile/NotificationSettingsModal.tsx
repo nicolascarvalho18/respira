@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Switch,
   ScrollView,
+  Platform,
 } from 'react-native';
 import {
   X,
@@ -33,13 +34,13 @@ export interface NotificationSettingsModalProps {
 }
 
 const WEEK_DAYS = [
-  { id: 1, label: 'Seg' },
-  { id: 2, label: 'Ter' },
-  { id: 3, label: 'Qua' },
-  { id: 4, label: 'Qui' },
-  { id: 5, label: 'Sex' },
-  { id: 6, label: 'Sáb' },
-  { id: 0, label: 'Dom' },
+  { id: 1, label: 'Seg', fullName: 'Segunda-feira' },
+  { id: 2, label: 'Ter', fullName: 'Terça-feira' },
+  { id: 3, label: 'Qua', fullName: 'Quarta-feira' },
+  { id: 4, label: 'Qui', fullName: 'Quinta-feira' },
+  { id: 5, label: 'Sex', fullName: 'Sexta-feira' },
+  { id: 6, label: 'Sáb', fullName: 'Sábado' },
+  { id: 0, label: 'Dom', fullName: 'Domingo' },
 ];
 
 const PRESET_TIMES = ['08:00', '12:30', '18:00', '20:30', '22:00'];
@@ -112,7 +113,12 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
           {/* Header */}
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}>
+              <Text
+                id="notification-modal-title"
+                accessibilityRole="header"
+                aria-level={2}
+                style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}
+              >
                 Lembretes e Notificações
               </Text>
               <Text style={[styles.subtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
@@ -123,7 +129,8 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
               onPress={onClose}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
-              accessibilityLabel="Fechar modal"
+              accessibilityLabel="Fechar modal de lembretes"
+              {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
             >
               <X size={20} color="#8C9E9B" />
             </TouchableOpacity>
@@ -159,6 +166,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                   }
                   trackColor={{ false: '#DCE5E2', true: '#2F7F7C' }}
                   thumbColor="#FFFFFF"
+                  accessibilityLabel="Ativar lembrete diário"
                 />
               </View>
 
@@ -167,7 +175,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                   <Text style={[styles.fieldLabel, { color: isDark ? colors.text : '#173D3B' }]}>
                     Horário preferido:
                   </Text>
-                  <View style={styles.pillsRow}>
+                  <View style={styles.pillsRow} accessibilityRole="radiogroup" aria-label="Horário do lembrete diário">
                     {PRESET_TIMES.map((time) => {
                       const isSelected = config.reminderTime === time;
                       return (
@@ -176,6 +184,10 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                           onPress={() =>
                             setConfig((prev) => ({ ...prev, reminderTime: time }))
                           }
+                          accessibilityRole="radio"
+                          accessibilityState={{ checked: isSelected, selected: isSelected }}
+                          accessibilityLabel={`Horário: ${time}`}
+                          {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
                           style={[
                             styles.timePill,
                             isSelected && {
@@ -227,13 +239,21 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                   >
                     Dias da semana:
                   </Text>
-                  <View style={styles.daysRow}>
+                  <View
+                    style={styles.daysRow}
+                    aria-label="Dias da semana para notificação"
+                    {...(Platform.OS === 'web' ? ({ role: 'group' } as any) : {})}
+                  >
                     {WEEK_DAYS.map((day) => {
                       const isSelected = config.selectedDays.includes(day.id);
                       return (
                         <TouchableOpacity
                           key={day.id}
                           onPress={() => toggleDay(day.id)}
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: isSelected }}
+                          accessibilityLabel={`${day.fullName} (${isSelected ? 'selecionado' : 'não selecionado'})`}
+                          {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
                           style={[
                             styles.dayCircle,
                             isSelected && {
@@ -307,6 +327,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                   }
                   trackColor={{ false: '#DCE5E2', true: '#2F7F7C' }}
                   thumbColor="#FFFFFF"
+                  accessibilityLabel="Ativar micro-pausas na rotina"
                 />
               </View>
 
@@ -315,7 +336,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                   <Text style={[styles.fieldLabel, { color: isDark ? colors.text : '#173D3B' }]}>
                     Frequência das pausas:
                   </Text>
-                  <View style={styles.pillsRow}>
+                  <View style={styles.pillsRow} accessibilityRole="radiogroup" aria-label="Frequência das micro-pausas">
                     {[2, 3, 4].map((hours) => {
                       const isSelected = config.microPausesIntervalHours === hours;
                       return (
@@ -327,6 +348,10 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                               microPausesIntervalHours: hours,
                             }))
                           }
+                          accessibilityRole="radio"
+                          accessibilityState={{ checked: isSelected, selected: isSelected }}
+                          accessibilityLabel={`A cada ${hours} horas`}
+                          {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
                           style={[
                             styles.timePill,
                             isSelected && {
@@ -376,6 +401,10 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
             {/* 3. Prévia de Notificação de Exemplo */}
             <TouchableOpacity
               onPress={() => setIsPreviewOpen(!isPreviewOpen)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: isPreviewOpen }}
+              accessibilityLabel={isPreviewOpen ? 'Ocultar exemplo de notificação' : 'Ver exemplo de notificação'}
+              {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
               style={styles.previewToggleBtn}
             >
               <Sparkles size={14} color="#2F7F7C" style={{ marginRight: 6 }} />
@@ -449,9 +478,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    shadowColor: '#000000',
+    shadowColor: '#173D3B',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.12,
     shadowRadius: 18,
     elevation: 8,
   },
@@ -470,7 +499,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   sectionCard: {
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     padding: 14,
   },
@@ -480,12 +509,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   cardTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
   },
   cardSub: {
-    fontSize: 11,
-    marginTop: 1,
+    fontSize: 12,
+    marginTop: 2,
   },
   fieldLabel: {
     fontSize: 12,
@@ -500,23 +529,24 @@ const styles = StyleSheet.create({
   timePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1.5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
   },
   timePillText: {
-    fontSize: 11,
+    fontSize: 12,
   },
   daysRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 4,
   },
   dayCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    borderWidth: 1.5,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -528,6 +558,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
+    marginTop: 8,
   },
   previewToggleText: {
     fontSize: 12,
@@ -535,25 +566,27 @@ const styles = StyleSheet.create({
     color: '#2F7F7C',
   },
   previewBox: {
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     padding: 12,
-    marginBottom: 10,
+    marginTop: 4,
+    marginBottom: 6,
   },
   previewAppTitle: {
     fontSize: 10,
     fontWeight: '800',
     color: '#2F7F7C',
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   previewMessage: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
-    lineHeight: 17,
+    lineHeight: 18,
     marginBottom: 4,
   },
   previewNote: {
-    fontSize: 10,
+    fontSize: 11,
   },
   actionsRow: {
     flexDirection: 'row',

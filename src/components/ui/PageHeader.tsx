@@ -57,7 +57,13 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 
         <View style={styles.titleWrap}>
           {badge && <View style={{ marginBottom: 6 }}>{badge}</View>}
-          <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+          <Text
+            accessibilityRole="header"
+            aria-level={1}
+            style={[styles.title, { color: colors.text }]}
+          >
+            {title}
+          </Text>
           {subtitle && (
             <Text style={[styles.subtitle, { color: colors.textMuted }]}>{subtitle}</Text>
           )}
@@ -92,7 +98,13 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
     <View style={[styles.sectionContainer, style]}>
       <View style={styles.sectionTitleRow}>
         {icon && <View style={{ marginRight: 8 }}>{icon}</View>}
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
+        <Text
+          accessibilityRole="header"
+          aria-level={2}
+          style={[styles.sectionTitle, { color: colors.text }]}
+        >
+          {title}
+        </Text>
         {badge && (
           <View style={[styles.sectionBadge, { backgroundColor: colors.highlight }]}>
             <Text style={[styles.sectionBadgeText, { color: colors.primaryDark }]}>{badge}</Text>

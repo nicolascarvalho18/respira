@@ -21,7 +21,6 @@ import {
   ArrowLeft,
   ThumbsUp,
   ThumbsDown,
-  Type,
   BookOpen,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
@@ -29,6 +28,7 @@ import { LoadingState } from '../../src/components/ui/LoadingState';
 import { useToast } from '../../src/components/ui/Toast';
 import { useContentStore } from '../../src/store/contentStore';
 import { useTheme } from '../../src/hooks/useTheme';
+import { SafeMarkdown } from '../../src/components/ui/SafeMarkdown';
 import { Article } from '../../src/types';
 import { normalizeText } from '../../src/data/articles';
 import {
@@ -48,7 +48,7 @@ export default function ArticleDetailSlugScreen() {
   const [article, setArticle] = useState<Article | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [isRead, setIsRead] = useState(false);
-  const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1.0); // 0.9, 1.0, 1.15, 1.3
+  const [fontSizeMultiplier, setFontSizeMultiplier] = useState(1.0);
   const [feedback, setFeedback] = useState<'yes' | 'no' | null>(null);
   const [showResumeBanner, setShowResumeBanner] = useState(false);
 
@@ -60,6 +60,9 @@ export default function ArticleDetailSlugScreen() {
       const found = articles.find((a) => a.slug === slug || a.id === slug);
       if (found) {
         setArticle(found);
+        if (Platform.OS === 'web' && typeof document !== 'undefined') {
+          document.title = `${found.title} — Respira`;
+        }
         const existingProgress = found.readProgress || 0;
         setScrollProgress(existingProgress);
         setIsRead(existingProgress >= 90);
@@ -199,8 +202,8 @@ export default function ArticleDetailSlugScreen() {
           <TouchableOpacity
             onPress={() => router.push('/(tabs)/content' as any)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel="Voltar para conteúdos"
+            accessibilityRole="link"
+            accessibilityLabel="Voltar para a biblioteca de conteúdos"
             style={[
               styles.iconCircleBtn,
               {
@@ -259,7 +262,12 @@ export default function ArticleDetailSlugScreen() {
               onPress={() => toggleFavorite(article.id)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
-              accessibilityLabel="Favoritar artigo"
+              accessibilityState={{ selected: !!article.isFavorite }}
+              accessibilityLabel={
+                article.isFavorite
+                  ? `Remover artigo ${article.title} dos favoritos`
+                  : `Favoritar artigo: ${article.title}`
+              }
               style={[
                 styles.iconCircleBtn,
                 {
@@ -311,6 +319,8 @@ export default function ArticleDetailSlugScreen() {
             </Text>
             <TouchableOpacity
               onPress={() => setShowResumeBanner(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Fechar aviso de continuação de leitura"
               style={styles.resumeCloseBtn}
             >
               <Text style={styles.resumeCloseBtnText}>Entendi</Text>
@@ -318,7 +328,7 @@ export default function ArticleDetailSlugScreen() {
           </View>
         )}
 
-        {/* 2. Cabeçalho do Artigo com Categoria e Capa */}
+        {/* 2. Cabeçalho do Artigo com H1 Semântico */}
         <View style={styles.articleHeaderBlock}>
           <View style={styles.headerMetaRow}>
             <View style={styles.catBadge}>
@@ -334,7 +344,10 @@ export default function ArticleDetailSlugScreen() {
             </View>
           </View>
 
+          {/* Único H1 semântico da página */}
           <Text
+            accessibilityRole="header"
+            aria-level={1}
             style={[
               styles.mainTitle,
               { color: isDark ? colors.text : '#173D3B', fontSize: 24 * fontSizeMultiplier },
@@ -358,89 +371,12 @@ export default function ArticleDetailSlugScreen() {
           </View>
         </View>
 
-        {/* 3. Corpo Completo do Artigo */}
+        {/* 3. Corpo do Artigo Renderizado com SafeMarkdown */}
         <View style={styles.bodyWrapper}>
-          {article.content?.split('\n\n').map((paragraph, pIdx) => {
-            const trimmed = paragraph.trim();
-
-            if (trimmed.startsWith('### ')) {
-              return (
-                <Text
-                  key={pIdx}
-                  style={[
-                    styles.subheading,
-                    {
-                      color: isDark ? colors.text : '#173D3B',
-                      fontSize: 18 * fontSizeMultiplier,
-                    },
-                  ]}
-                >
-                  {trimmed.replace('### ', '')}
-                </Text>
-              );
-            }
-
-            if (trimmed.startsWith('## ')) {
-              return (
-                <Text
-                  key={pIdx}
-                  style={[
-                    styles.sectionHeading,
-                    {
-                      color: isDark ? colors.text : '#173D3B',
-                      fontSize: 20 * fontSizeMultiplier,
-                    },
-                  ]}
-                >
-                  {trimmed.replace('## ', '')}
-                </Text>
-              );
-            }
-
-            if (trimmed.startsWith('*Aviso:') || trimmed.startsWith('> ')) {
-              return (
-                <View
-                  key={pIdx}
-                  style={[
-                    styles.calloutBox,
-                    {
-                      backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
-                      borderColor: isDark ? colors.border : '#C7E5DC',
-                    },
-                  ]}
-                >
-                  <ShieldCheck size={16} color="#2F7F7C" style={{ marginRight: 8 }} />
-                  <Text
-                    style={[
-                      styles.calloutText,
-                      {
-                        color: isDark ? colors.text : '#567571',
-                        fontSize: 13 * fontSizeMultiplier,
-                      },
-                    ]}
-                  >
-                    {trimmed.replace('*Aviso:', 'Aviso:').replace('> ', '')}
-                  </Text>
-                </View>
-              );
-            }
-
-            return (
-              <Text
-                key={pIdx}
-                style={[
-                  styles.paragraph,
-                  {
-                    color: isDark ? colors.text : '#2C4A47',
-                    fontSize: 15 * fontSizeMultiplier,
-                    lineHeight: 24 * fontSizeMultiplier,
-                  },
-                ]}
-              >
-                {trimmed}
-              </Text>
-            );
-          })}
+          <SafeMarkdown
+            content={article.content || ''}
+            fontSizeMultiplier={fontSizeMultiplier}
+          />
         </View>
 
         {/* 4. Ações de Finalização: Marcar como Lido e Avaliação */}
@@ -456,6 +392,9 @@ export default function ArticleDetailSlugScreen() {
           <TouchableOpacity
             onPress={handleToggleRead}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isRead }}
+            accessibilityLabel={isRead ? 'Artigo concluído. Clique para desmarcar.' : 'Marcar artigo como lido'}
             style={[
               styles.markReadBtn,
               isRead && { backgroundColor: '#E7F3EF', borderColor: '#2F7F7C' },
@@ -484,6 +423,9 @@ export default function ArticleDetailSlugScreen() {
             <View style={styles.thumbsGroup}>
               <TouchableOpacity
                 onPress={() => handleFeedback('yes')}
+                accessibilityRole="button"
+                accessibilityState={{ selected: feedback === 'yes' }}
+                accessibilityLabel="Sim, este artigo foi útil"
                 style={[
                   styles.thumbBtn,
                   feedback === 'yes' && { backgroundColor: '#E7F3EF' },
@@ -496,6 +438,9 @@ export default function ArticleDetailSlugScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => handleFeedback('no')}
+                accessibilityRole="button"
+                accessibilityState={{ selected: feedback === 'no' }}
+                accessibilityLabel="Não, este artigo não foi útil"
                 style={[
                   styles.thumbBtn,
                   feedback === 'no' && { backgroundColor: '#FDECE5' },
@@ -513,7 +458,11 @@ export default function ArticleDetailSlugScreen() {
         {/* 5. Artigos Relacionados */}
         {relatedArticles.length > 0 && (
           <View style={styles.relatedSection}>
-            <Text style={[styles.relatedTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+            <Text
+              accessibilityRole="header"
+              aria-level={2}
+              style={[styles.relatedTitle, { color: isDark ? colors.text : '#173D3B' }]}
+            >
               Conteúdos Relacionados
             </Text>
             <View style={styles.relatedCardsList}>
@@ -522,6 +471,8 @@ export default function ArticleDetailSlugScreen() {
                   key={rel.id}
                   onPress={() => router.push(`/contents/${rel.slug || rel.id}` as any)}
                   activeOpacity={0.8}
+                  accessibilityRole="link"
+                  accessibilityLabel={`Ler artigo relacionado: ${rel.title}, ${rel.readingTimeMinutes || 5} minutos`}
                   style={[
                     styles.relatedCard,
                     {
@@ -555,6 +506,8 @@ export default function ArticleDetailSlugScreen() {
         {/* Botão Final: Voltar à Biblioteca */}
         <TouchableOpacity
           onPress={() => router.push('/(tabs)/content' as any)}
+          accessibilityRole="link"
+          accessibilityLabel="Voltar para todos os conteúdos da biblioteca"
           style={[
             styles.backToLibraryBtn,
             {
@@ -618,8 +571,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-
-  // Resume Banner
   resumeBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -644,8 +595,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-
-  // Header Block
   articleHeaderBlock: {
     marginBottom: 20,
   },
@@ -690,41 +639,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginVertical: 8,
   },
-
-  // Body
   bodyWrapper: {
     marginBottom: 24,
   },
-  sectionHeading: {
-    fontWeight: '800',
-    marginTop: 24,
-    marginBottom: 10,
-    letterSpacing: -0.3,
-  },
-  subheading: {
-    fontWeight: '700',
-    marginTop: 20,
-    marginBottom: 8,
-    letterSpacing: -0.2,
-  },
-  paragraph: {
-    marginBottom: 16,
-  },
-  calloutBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 14,
-    marginVertical: 16,
-  },
-  calloutText: {
-    flex: 1,
-    lineHeight: 18,
-    fontWeight: '500',
-  },
-
-  // Footer Actions
   footerActionCard: {
     borderRadius: 16,
     borderWidth: 1,
@@ -770,8 +687,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  // Related
   relatedSection: {
     marginBottom: 20,
   },
@@ -800,14 +715,12 @@ const styles = StyleSheet.create({
   relatedCardTitle: {
     fontSize: 13,
     fontWeight: '700',
-    lineHeight: 17,
+    lineHeight: 18,
   },
   relatedCardTime: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#8C9E9B',
   },
-
-  // Back to Library Button
   backToLibraryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -818,8 +731,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   backToLibraryBtnText: {
-    color: '#2F7F7C',
     fontSize: 13,
     fontWeight: '700',
+    color: '#2F7F7C',
   },
 });

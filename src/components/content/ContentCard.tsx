@@ -45,7 +45,12 @@ export const ContentCard: React.FC<ContentCardProps> = ({
     if (cat.includes('sono') || slug.includes('sono') || slug.includes('dormir')) {
       return <NightSkyMoonThumb size={62} borderRadius={12} />;
     }
-    if (cat.includes('regulacao') || cat.includes('atencao') || slug.includes('regulacao') || slug.includes('5-4-3-2-1')) {
+    if (
+      cat.includes('regulacao') ||
+      cat.includes('atencao') ||
+      slug.includes('regulacao') ||
+      slug.includes('5-4-3-2-1')
+    ) {
       return <SageLeavesThumb size={62} borderRadius={12} />;
     }
     if (cat.includes('ansiedade') || slug.includes('ansiedade')) {
@@ -64,84 +69,101 @@ export const ContentCard: React.FC<ContentCardProps> = ({
   };
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={handlePress}
-      accessibilityRole="button"
-      accessibilityLabel={`Artigo: ${article.title}, tempo de leitura ${article.readingTimeMinutes || article.readTimeMinutes || 5} minutos`}
+    <View
       style={[
         styles.cardRow,
         {
           backgroundColor: isDark ? colors.surface : '#FFFFFF',
           borderBottomColor: isDark ? colors.border : '#EBF1EF',
         },
-        Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined,
       ]}
     >
-      {/* 1. Miniatura Artística */}
-      <View style={styles.thumbWrapper}>
-        {renderThumbnail()}
-      </View>
+      {/* 1. Link Semântico Principal do Artigo (Miniatura + Conteúdo) */}
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={handlePress}
+        accessibilityRole="link"
+        accessibilityLabel={`Ler artigo: ${article.title}, tempo de leitura ${
+          article.readingTimeMinutes || article.readTimeMinutes || 5
+        } minutos`}
+        style={[
+          styles.mainArticleLink,
+          Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined,
+        ]}
+      >
+        {/* Miniatura Artística */}
+        <View style={styles.thumbWrapper}>{renderThumbnail()}</View>
 
-      {/* 2. Conteúdo Central Editorial */}
-      <View style={styles.centerContent}>
-        <Text style={styles.categoryLabel}>
-          {getCategoryDisplay()}
-        </Text>
+        {/* Conteúdo Central Editorial */}
+        <View style={styles.centerContent}>
+          <Text style={styles.categoryLabel}>{getCategoryDisplay()}</Text>
 
-        <Text style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]} numberOfLines={1}>
-          {article.title}
-        </Text>
+          <Text
+            style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}
+            numberOfLines={1}
+          >
+            {article.title}
+          </Text>
 
-        <Text style={[styles.summary, { color: isDark ? colors.textMuted : '#667775' }]} numberOfLines={2}>
-          {article.summary}
-        </Text>
+          <Text
+            style={[styles.summary, { color: isDark ? colors.textMuted : '#667775' }]}
+            numberOfLines={2}
+          >
+            {article.summary}
+          </Text>
 
-        {/* Rodapé: Tempo de leitura e barra de progresso */}
-        <View style={styles.footerRow}>
-          <View style={styles.readTimeRow}>
-            <Clock size={11} color="#8C9E9B" style={{ marginRight: 3 }} />
-            <Text style={styles.readTimeText}>
-              {article.readingTimeMinutes || article.readTimeMinutes || 5} min
-            </Text>
-          </View>
-
-          {/* Progresso Parcial (ex: 60% concluído) */}
-          {progress > 0 && !isCompleted && (
-            <View style={styles.progressPartialRow}>
-              <View style={styles.progressBarTrack}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    { width: `${Math.min(100, progress)}%` },
-                  ]}
-                />
-              </View>
-              <Text style={styles.progressPercentText}>
-                {progress}% concluído
+          {/* Rodapé: Tempo de leitura e barra de progresso */}
+          <View style={styles.footerRow}>
+            <View style={styles.readTimeRow}>
+              <Clock size={11} color="#8C9E9B" style={{ marginRight: 3 }} />
+              <Text style={styles.readTimeText}>
+                {article.readingTimeMinutes || article.readTimeMinutes || 5} min
               </Text>
             </View>
-          )}
-        </View>
-      </View>
 
-      {/* 3. Ação Direita: Checkmark concluído ou Marcador Favorito */}
+            {/* Progresso Parcial */}
+            {progress > 0 && !isCompleted && (
+              <View style={styles.progressPartialRow}>
+                <View style={styles.progressBarTrack}>
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      { width: `${Math.min(100, progress)}%` },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.progressPercentText}>{progress}% concluído</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+
+      {/* 2. Ação Direita Independente: Checkmark Concluído ou Botão de Favorito */}
       <View style={styles.rightActionWrap}>
         {isCompleted ? (
-          <View style={styles.completedBadge}>
+          <View
+            style={styles.completedBadge}
+            accessibilityLabel="Artigo já concluído por você"
+          >
             <CheckCircle2 size={20} color="#2F7F7C" />
           </View>
         ) : (
           onToggleFavorite && (
             <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                onToggleFavorite(article.id);
-              }}
+              onPress={() => onToggleFavorite(article.id)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               accessibilityRole="button"
-              accessibilityLabel={article.isFavorite ? 'Remover dos favoritos' : 'Favoritar artigo'}
-              style={styles.favButton}
+              accessibilityState={{ selected: !!article.isFavorite }}
+              accessibilityLabel={
+                article.isFavorite
+                  ? `Remover artigo ${article.title} dos favoritos`
+                  : `Favoritar artigo: ${article.title}`
+              }
+              style={[
+                styles.favButton,
+                Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined,
+              ]}
             >
               <Bookmark
                 size={18}
@@ -152,7 +174,7 @@ export const ContentCard: React.FC<ContentCardProps> = ({
           )
         )}
       </View>
-    </TouchableOpacity>
+    </View>
   );
 };
 
@@ -163,6 +185,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 14,
     borderBottomWidth: 1,
+    gap: 12,
+  },
+  mainArticleLink: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   thumbWrapper: {
@@ -235,9 +263,10 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
   },
   favButton: {
-    padding: 4,
+    padding: 6,
+    borderRadius: 8,
   },
   completedBadge: {
-    padding: 2,
+    padding: 4,
   },
 });

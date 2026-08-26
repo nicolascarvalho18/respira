@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -40,6 +40,12 @@ export default function HomeScreen() {
 
   const { records } = useMoodStore();
   const { practices, toggleFavorite: togglePracticeFavorite } = usePracticeStore();
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.title = 'Diário & Início — Respira';
+    }
+  }, []);
 
   const lastRecord = records.length > 0 ? records[0] : null;
   const recommendedPractice = practices.find((p) => p.id === 'practice-breathing-478') || practices[0] || null;
@@ -151,10 +157,14 @@ export default function HomeScreen() {
             <Text style={styles.avatarLetter}>{userInitial}</Text>
           </View>
           <View style={{ marginLeft: 12 }}>
-            <Text style={[styles.greetingTitle, { color: '#173D3B' }]}>
+            <Text
+              accessibilityRole="header"
+              aria-level={1}
+              style={[styles.greetingTitle, { color: isDark ? colors.text : '#173D3B' }]}
+            >
               {getGreeting(userName)}
             </Text>
-            <Text style={[styles.dateSubtitle, { color: '#607174' }]}>
+            <Text style={[styles.dateSubtitle, { color: isDark ? colors.textMuted : '#607174' }]}>
               {formatDate(new Date().toISOString())}
             </Text>
           </View>
@@ -201,7 +211,11 @@ export default function HomeScreen() {
           </View>
 
           {/* Pergunta Principal */}
-          <Text style={[styles.heroQuestion, { color: '#173D3B' }]}>
+          <Text
+            accessibilityRole="header"
+            aria-level={2}
+            style={[styles.heroQuestion, { color: isDark ? colors.text : '#173D3B' }]}
+          >
             Como você está agora?
           </Text>
 

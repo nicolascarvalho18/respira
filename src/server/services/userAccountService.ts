@@ -28,6 +28,47 @@ const USERS_STORAGE_KEY = 'respira_users_db';
 const SESSIONS_STORAGE_KEY = 'respira_active_sessions';
 const SECURITY_EVENTS_KEY = 'respira_security_events';
 
+export function detectDeviceAndBrowser(): {
+  deviceType: 'mobile' | 'desktop' | 'tablet' | 'web';
+  browser: string;
+  os: string;
+} {
+  if (typeof navigator === 'undefined') {
+    return {
+      deviceType: 'web',
+      browser: 'Navegador não identificado',
+      os: 'Sistema não identificado',
+    };
+  }
+
+  const ua = navigator.userAgent || '';
+
+  // 1. Conservative OS Detection
+  let os = 'Sistema não identificado';
+  if (/Windows/i.test(ua)) os = 'Windows';
+  else if (/Macintosh|Mac OS X/i.test(ua) && !/iPhone|iPad/i.test(ua)) os = 'macOS';
+  else if (/iPhone/i.test(ua)) os = 'iOS (iPhone)';
+  else if (/iPad/i.test(ua)) os = 'iPadOS';
+  else if (/Android/i.test(ua)) os = 'Android';
+  else if (/Linux/i.test(ua)) os = 'Linux';
+
+  // 2. Conservative Browser Detection
+  let browser = 'Navegador não identificado';
+  if (/Edg\//i.test(ua)) browser = 'Microsoft Edge';
+  else if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua) && !/OPR\//i.test(ua)) browser = 'Google Chrome';
+  else if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) browser = 'Safari';
+  else if (/Firefox\//i.test(ua)) browser = 'Mozilla Firefox';
+  else if (/OPR\//i.test(ua) || /Opera/i.test(ua)) browser = 'Opera';
+
+  // 3. Conservative Device Type
+  let deviceType: 'mobile' | 'desktop' | 'tablet' | 'web' = 'web';
+  if (/iPad|Tablet/i.test(ua)) deviceType = 'tablet';
+  else if (/Mobi|Android|iPhone/i.test(ua)) deviceType = 'mobile';
+  else if (/Windows|Macintosh|Linux/i.test(ua)) deviceType = 'desktop';
+
+  return { deviceType, browser, os };
+}
+
 export class UserAccountService {
   private async getUsers(): Promise<User[]> {
     const stored = await storage.getItem<User[]>(USERS_STORAGE_KEY);
@@ -176,26 +217,18 @@ export class UserAccountService {
   async getActiveSessions(userId: string): Promise<UserSession[]> {
     const stored = await storage.getItem<UserSession[]>(`${SESSIONS_STORAGE_KEY}_${userId}`);
     if (!stored || stored.length === 0) {
+      const currentDeviceInfo = detectDeviceAndBrowser();
+
       const defaultSessions: UserSession[] = [
         {
           id: 'session-current',
           userId,
-          deviceType: 'mobile',
-          browser: 'Navegador Web / Mobile',
-          os: 'Android / iOS',
+          deviceType: currentDeviceInfo.deviceType,
+          browser: currentDeviceInfo.browser,
+          os: currentDeviceInfo.os,
           lastActiveAt: new Date().toISOString(),
           ipAddressMasked: '189.120.***.***',
           isCurrent: true,
-        },
-        {
-          id: 'session-desktop-1',
-          userId,
-          deviceType: 'desktop',
-          browser: 'Chrome 122',
-          os: 'Windows 11',
-          lastActiveAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
-          ipAddressMasked: '177.18.***.***',
-          isCurrent: false,
         },
       ];
       await storage.setItem(`${SESSIONS_STORAGE_KEY}_${userId}`, defaultSessions);

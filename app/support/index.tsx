@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, ScrollView, Platform } from 'react-native';
 import { Phone, HeartHandshake, ShieldAlert, ExternalLink, PhoneCall, Globe } from 'lucide-react-native';
 import { ScreenContainer } from '../../src/components/ui/ScreenContainer';
 import { AppHeader } from '../../src/components/ui/AppHeader';
@@ -13,6 +13,12 @@ import { useToast } from '../../src/components/ui/Toast';
 export default function SupportScreen() {
   const { colors, isDark } = useTheme();
   const { showToast } = useToast();
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.title = 'Apoio Imediato — Respira';
+    }
+  }, []);
 
   const [selectedServiceToCall, setSelectedServiceToCall] = useState<{
     name: string;

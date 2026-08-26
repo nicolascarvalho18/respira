@@ -9,49 +9,68 @@ import {
 import { useRouter, usePathname } from 'expo-router';
 import {
   Home,
+  Compass,
   BookOpen,
-  Wind,
-  Library,
-  Bot,
-  HeartHandshake,
   User as UserIcon,
-  ShieldCheck,
-  Moon,
   Sun,
+  Moon,
+  Wind,
+  Bot,
+  LifeBuoy,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
-import { AnaAvatar } from '../illustrations/AnaAvatar';
 import { useAuth } from '../../hooks/useAuth';
-import { useThemeStore } from '../../store/themeStore';
+import { AnaAvatar } from '../illustrations/AnaAvatar';
 
 export const DesktopSidebar: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, toggleTheme } = useTheme();
   const { user } = useAuth();
-  const { toggleTheme } = useThemeStore();
 
   const navItems = [
-    { label: 'Início', route: '/(tabs)', icon: Home },
-    { label: 'Diário de Humor', route: '/(tabs)/diary', icon: BookOpen },
-    { label: 'Práticas', route: '/(tabs)/practices', icon: Wind },
-    { label: 'Conteúdos', route: '/(tabs)/content', icon: Library },
-    { label: 'Assistente IA', route: '/chat', icon: Bot },
-    { label: 'Apoio Imediato', route: '/support', icon: HeartHandshake },
-    { label: 'Perfil', route: '/(tabs)/profile', icon: UserIcon },
+    {
+      label: 'Diário & Início',
+      route: '/(tabs)',
+      icon: Home,
+      isActive: pathname === '/' || pathname === '/(tabs)' || pathname === '/diary' || pathname === '/(tabs)/index',
+    },
+    {
+      label: 'Práticas',
+      route: '/(tabs)/practices',
+      icon: Wind,
+      isActive: pathname.includes('/practices'),
+    },
+    {
+      label: 'Conteúdos',
+      route: '/(tabs)/content',
+      icon: BookOpen,
+      isActive: pathname.includes('/content') || pathname.includes('/contents'),
+    },
+    {
+      label: 'Assistente IA',
+      route: '/chat',
+      icon: Bot,
+      isActive: pathname.includes('/chat'),
+    },
+    {
+      label: 'Apoio Imediato',
+      route: '/support',
+      icon: LifeBuoy,
+      isActive: pathname.includes('/support'),
+    },
+    {
+      label: 'Perfil & Ajustes',
+      route: '/(tabs)/profile',
+      icon: UserIcon,
+      isActive: pathname.includes('/profile'),
+    },
   ];
-
-  if (user?.role === 'admin') {
-    navItems.push({ label: 'Administração', route: '/admin', icon: ShieldCheck });
-  }
-
-  const isActiveRoute = (route: string) => {
-    if (route === '/(tabs)' && (pathname === '/' || pathname === '/(tabs)' || pathname === '')) return true;
-    return pathname.includes(route.replace('/(tabs)', ''));
-  };
 
   return (
     <View
+      aria-label="Navegação principal"
+      {...(Platform.OS === 'web' ? ({ role: 'navigation' } as any) : {})}
       style={[
         styles.sidebar,
         {
@@ -60,46 +79,41 @@ export const DesktopSidebar: React.FC = () => {
         },
       ]}
     >
-      {/* Logo e Nome da Marca */}
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={() => router.push('/(tabs)')}
-        style={styles.brandRow}
-      >
-        <View style={[styles.logoCircle, { backgroundColor: colors.primary }]}>
-          <Wind size={20} color="#FFFFFF" />
-        </View>
-        <View>
-          <Text style={[styles.brandTitle, { color: colors.text }]}>Respira</Text>
-          <Text style={[styles.brandSubtitle, { color: colors.primary }]}>Saúde & Bem-estar</Text>
-        </View>
-      </TouchableOpacity>
+      {/* 1. Logotipo e Marca */}
+      <View>
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)')}
+          accessibilityRole="link"
+          accessibilityLabel="Respira - Página Inicial"
+          style={styles.brandRow}
+        >
+          <View style={[styles.logoIconCircle, { backgroundColor: '#2F7F7C' }]}>
+            <Wind size={22} color="#FFFFFF" />
+          </View>
+          <View>
+            <Text style={[styles.brandTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              Respira
+            </Text>
+            <Text style={[styles.brandSubtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
+              Acolhimento e calma
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </View>
 
-      {/* Atalho Rápido de Emergência / Respiração */}
-      <TouchableOpacity
-        onPress={() => router.push('/practices/breathing')}
-        activeOpacity={0.85}
-        style={[styles.quickPanicBtn, { backgroundColor: colors.highlight, borderColor: colors.primary }]}
-      >
-        <Wind size={18} color={colors.primary} style={{ marginRight: 8 }} />
-        <Text style={[styles.quickPanicText, { color: colors.primaryDark }]}>
-          Pausa para Respirar
-        </Text>
-      </TouchableOpacity>
-
-      {/* Lista de Navegação Principal */}
-      <View style={styles.navSection}>
+      {/* 2. Lista de Navegação */}
+      <View style={styles.navList}>
         {navItems.map((item) => {
           const Icon = item.icon;
-          const active = isActiveRoute(item.route);
+          const active = item.isActive;
 
           return (
             <TouchableOpacity
               key={item.route}
-              activeOpacity={0.7}
               onPress={() => router.push(item.route as any)}
               accessibilityRole="link"
               accessibilityLabel={item.label}
+              aria-current={active ? 'page' : undefined}
               style={[
                 styles.navItem,
                 {
@@ -133,7 +147,7 @@ export const DesktopSidebar: React.FC = () => {
         })}
       </View>
 
-      {/* Rodapé da Sidebar: Perfil do Usuário e Alternador de Tema */}
+      {/* 3. Rodapé da Sidebar: Perfil do Usuário e Alternador de Tema */}
       <View style={[styles.footer, { borderTopColor: colors.border }]}>
         <View style={styles.userRow}>
           <View style={{ marginRight: 10 }}>
@@ -154,7 +168,10 @@ export const DesktopSidebar: React.FC = () => {
 
           <TouchableOpacity
             onPress={toggleTheme}
-            accessibilityLabel="Alternar tema claro/escuro"
+            accessibilityRole="switch"
+            accessibilityState={{ checked: isDark }}
+            accessibilityLabel={isDark ? 'Ativar tema claro' : 'Ativar tema escuro'}
+            {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
             style={[styles.themeBtn, { backgroundColor: colors.surfaceSecondary }]}
           >
             {isDark ? <Sun size={18} color="#E2A740" /> : <Moon size={18} color={colors.primary} />}
@@ -178,55 +195,46 @@ const styles = StyleSheet.create({
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
     gap: 12,
+    marginBottom: 32,
+    paddingHorizontal: 6,
   },
-  logoCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  logoIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#2F7F7C',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
   },
   brandTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     letterSpacing: -0.3,
   },
   brandSubtitle: {
     fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    marginTop: 1,
   },
-  quickPanicBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    marginBottom: 20,
-  },
-  quickPanicText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  navSection: {
+  navList: {
     flex: 1,
-    gap: 4,
+    gap: 6,
   },
   navItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 11,
+    paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     gap: 12,
   },
   navLabel: {
     fontSize: 14,
+    letterSpacing: -0.1,
   },
   footer: {
     paddingTop: 16,
@@ -236,25 +244,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  avatarCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  avatarText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
   userName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
   },
   userEmail: {
-    fontSize: 12,
+    fontSize: 11,
+    marginTop: 1,
   },
   themeBtn: {
     width: 36,

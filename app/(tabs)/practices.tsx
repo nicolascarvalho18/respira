@@ -44,6 +44,12 @@ export default function PracticesScreen() {
   const { user } = useAuth();
   const userId = user?.id || 'demo-user-1';
 
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.title = 'Práticas Guiadas — Respira';
+    }
+  }, []);
+
   const {
     practices,
     userProgress,
@@ -157,7 +163,11 @@ export default function PracticesScreen() {
       {/* 1. Cabeçalho com Título e Subtítulo Acolhedor */}
       <View style={styles.headerRow}>
         <View style={{ flex: 1, paddingRight: 8 }}>
-          <Text style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}>
+          <Text
+            accessibilityRole="header"
+            aria-level={1}
+            style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}
+          >
             Biblioteca de Práticas
           </Text>
           <Text style={[styles.subtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
