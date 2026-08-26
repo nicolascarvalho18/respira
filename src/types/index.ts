@@ -37,29 +37,78 @@ export interface MoodStats {
 
 export type PracticeCategory =
   | 'breathing'
+  | 'guided_meditation'
   | 'body_movement'
-  | 'mindfulness'
   | 'relaxation'
-  | 'creative'
+  | 'sleep'
+  | 'mindfulness_focus'
   | 'quick_pauses'
+  | 'morning_routine'
+  | 'bedtime_prep'
+  // Compatibilidade legada
+  | 'mindfulness'
+  | 'creative'
   | 'soundscapes'
   | 'meditation'
   | 'quick_routine';
 
+export type PracticeObjective =
+  | 'relax' // Relaxar
+  | 'sleep_better' // Dormir melhor
+  | 'regain_focus' // Recuperar o foco
+  | 'relieve_tension' // Aliviar a tensão
+  | 'take_a_pause'; // Fazer uma pausa
+
+export type PracticeFormat = 'video' | 'audio' | 'interactive';
+
+export interface PracticeInstructor {
+  name: string;
+  role: string;
+  avatarUrl?: string;
+}
+
+export interface PracticeCaption {
+  start: number; // segundos
+  end: number; // segundos
+  text: string;
+}
+
+export interface PracticeStage {
+  step: number;
+  title: string;
+  instruction: string;
+  durationSeconds?: number;
+}
+
 export interface Practice {
   id: string;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   description: string;
   category: PracticeCategory;
+  objective?: PracticeObjective;
+  format?: PracticeFormat;
   durationMinutes: number;
   level: 'Iniciante' | 'Intermediário' | 'Avançado';
   effortLevel?: 'Suave' | 'Leve' | 'Moderado';
   activityType?: 'physical' | 'mental' | 'breathing' | 'sound';
-  icon: string;
+  icon?: string;
+  thumbnailUrl?: string;
+  videoUrl?: string;
   audioUrl?: string;
+  instructor?: PracticeInstructor;
+  captions?: PracticeCaption[];
+  transcript?: string;
+  guidelinesBeforeStarting?: string[];
+  stages?: PracticeStage[];
+  benefits?: string[];
+  careAndLimitations?: string[];
+  relatedPracticeIds?: string[];
   isFavorite?: boolean;
   completedCount?: number;
+  isFeatured?: boolean;
+  order?: number;
+  status?: 'published' | 'draft';
   instructions?: string[];
   breathingConfig?: {
     inhaleSeconds: number;
@@ -68,6 +117,23 @@ export interface Practice {
     holdAfterExhaleSeconds?: number;
     cycles: number;
   };
+}
+
+export interface UserPracticeProgress {
+  userId: string;
+  practiceId: string;
+  progressPercent: number; // 0 - 100
+  playbackPositionSeconds: number;
+  status: 'started' | 'completed';
+  completedCount: number;
+  lastPlayedAt: string;
+  lastCompletedAt?: string;
+  postFeelingsHistory?: {
+    date: string;
+    feeling: 'calmer' | 'same' | 'uncomfortable';
+    notes?: string;
+  }[];
+  isDownloadedOffline?: boolean;
 }
 
 export interface ArticleSection {

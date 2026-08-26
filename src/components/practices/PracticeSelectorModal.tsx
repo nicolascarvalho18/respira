@@ -53,8 +53,14 @@ export const PracticeSelectorModal: React.FC<PracticeSelectorModalProps> = ({
   const categories = [
     { id: 'all', label: 'Todas' },
     { id: 'breathing', label: 'Respiração' },
+    { id: 'guided_meditation', label: 'Meditação' },
+    { id: 'body_movement', label: 'Corpo & Movimento' },
     { id: 'relaxation', label: 'Relaxamento' },
-    { id: 'mindfulness', label: 'Atenção & Mente' },
+    { id: 'sleep', label: 'Sono' },
+    { id: 'mindfulness_focus', label: 'Atenção & Foco' },
+    { id: 'quick_pauses', label: 'Pausas Rápidas' },
+    { id: 'morning_routine', label: 'Rotina Manhã' },
+    { id: 'bedtime_prep', label: 'Prep. Dormir' },
   ];
 
   const filteredPractices = practices.filter((p) => {
@@ -62,17 +68,18 @@ export const PracticeSelectorModal: React.FC<PracticeSelectorModalProps> = ({
     const matchSearch =
       !q ||
       p.title.toLowerCase().includes(q) ||
-      p.subtitle.toLowerCase().includes(q) ||
+      (p.subtitle && p.subtitle.toLowerCase().includes(q)) ||
       p.description.toLowerCase().includes(q);
 
     if (!matchSearch) return false;
     if (selectedCategory === 'all') return true;
-    if (selectedCategory === 'breathing') return p.category === 'breathing';
-    if (selectedCategory === 'relaxation') return p.category === 'relaxation';
-    if (selectedCategory === 'mindfulness') {
-      return p.category === 'mindfulness' || p.category === 'meditation';
+    if (selectedCategory === 'guided_meditation') {
+      return p.category === 'guided_meditation' || p.category === 'meditation';
     }
-    return true;
+    if (selectedCategory === 'mindfulness_focus') {
+      return p.category === 'mindfulness_focus' || p.category === 'mindfulness';
+    }
+    return p.category === selectedCategory;
   });
 
   const handlePracticeClick = (p: Practice) => {
@@ -239,7 +246,7 @@ export const PracticeSelectorModal: React.FC<PracticeSelectorModalProps> = ({
                       { backgroundColor: isSelected ? '#2F7F7C' : '#E7F3EF' },
                     ]}
                   >
-                    {renderIcon(p.icon, isSelected)}
+                    {renderIcon(p.icon || 'wind', isSelected)}
                   </View>
 
                   <View style={{ flex: 1 }}>

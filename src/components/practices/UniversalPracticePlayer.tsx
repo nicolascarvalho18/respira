@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,29 +11,35 @@ import { useRouter } from 'expo-router';
 import {
   ArrowLeft,
   Play,
-  Pause,
-  RotateCcw,
-  Volume2,
-  VolumeX,
   Bookmark,
   Sparkles,
   CheckCircle2,
   ListFilter,
   ArrowRight,
-  ChevronRight,
   ShieldAlert,
   Smile,
+  Meh,
+  Frown,
+  Download,
+  Check,
+  RotateCcw,
+  Clock,
+  Heart,
+  HelpCircle,
+  Activity,
+  Layers,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { useToast } from '../ui/Toast';
 import { AppButton } from '../ui/AppButton';
 import { Card } from '../ui/Card';
-import { ProgressBar } from '../ui/ProgressBar';
-import { BreathingCircle, BreathingPhase } from './BreathingCircle';
+import { Badge } from '../ui/Badge';
+import { GuidedVideoAudioPlayer } from './GuidedVideoAudioPlayer';
+import { PracticeCard } from './PracticeCard';
 import { PracticeSelectorModal } from './PracticeSelectorModal';
-import { soundEngine } from '../../services/sound/soundEngine';
-import { hapticService } from '../../services/haptics/hapticService';
-import { Practice } from '../../types';
+import { usePracticeStore } from '../../store/practiceStore';
+import { useAuth } from '../../hooks/useAuth';
+import { Practice, UserPracticeProgress } from '../../types';
 
 export interface UniversalPracticePlayerProps {
   practice: Practice;
@@ -55,495 +61,419 @@ export const UniversalPracticePlayer: React.FC<UniversalPracticePlayerProps> = (
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const userId = user?.id || 'demo-user-1';
 
-  const isBreathing = practice.category === 'breathing' && !!practice.breathingConfig;
-  const config = practice.breathingConfig || {
-    inhaleSeconds: 4,
-    holdSeconds: 0,
-    exhaleSeconds: 4,
-    cycles: 4,
-  };
+  const {
+    userProgress,
+    saveProgress,
+    recordPostFeeling,
+    toggleOfflineDownload,
+    downloadedIds,
+  } = usePracticeStore();
 
-  // State
-  const [isActive, setIsActive] = useState(false);
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [isMuted, setIsMuted] = useState(soundEngine.getIsMuted());
+  const currentProgress = userProgress[practice.id];
+  const isDownloaded = downloadedIds.includes(practice.id);
+
+  const [isPlayerActive, setIsPlayerActive] = useState(false);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [selectedFeeling, setSelectedFeeling] = useState<'calmer' | 'same' | 'uncomfortable' | null>(null);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
-  // Breathing state
-  const [phase, setPhase] = useState<BreathingPhase>('idle');
-  const [secondsRemaining, setSecondsRemaining] = useState(config.inhaleSeconds);
-  const [completedCycles, setCompletedCycles] = useState(0);
+  // Related practices lookup
+  const relatedPractices = (practice.relatedPracticeIds || [])
+    .map((id) => allPractices.find((p) => p.id === id))
+    .filter((p): p is Practice => p !== undefined);
 
-  // Step-by-step guided state (Relaxation, Grounding, Mindfulness, Meditation)
-  const steps = practice.instructions || [];
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [stepTimer, setStepTimer] = useState(0);
+  const handleStartOrContinue = () => {
+    setIsPlayerActive(true);
+  };
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const recordedCompletionRef = useRef<boolean>(false);
+  const handleProgressUpdate = async (posSec: number, totalSec: number) => {
+    await saveProgress(userId, practice.id, posSec, totalSec, false);
+  };
 
-  // Reset player when practice changes
-  useEffect(() => {
-    soundEngine.stopAll();
-    if (timerRef.current) clearInterval(timerRef.current);
+  const handlePlayerComplete = async () => {
+    await saveProgress(userId, practice.id, practice.durationMinutes * 60, practice.durationMinutes * 60, true);
+    setShowCompletionModal(true);
+  };
 
-    setIsActive(false);
-    setIsCompleted(false);
-    setPhase('idle');
-    setSecondsRemaining(config.inhaleSeconds);
-    setCompletedCycles(0);
-    setCurrentStepIndex(0);
-    setStepTimer(0);
-    recordedCompletionRef.current = false;
-
-    return () => {
-      soundEngine.stopAll();
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [practice.id]);
-
-  // Index of current practice in ordered list
-  const currentIndex = allPractices.findIndex((p) => p.id === practice.id);
-  const hasNextPractice = currentIndex >= 0 && currentIndex < allPractices.length - 1;
-  const nextPractice = hasNextPractice ? allPractices[currentIndex + 1] : null;
-
-  // Toggle Mute
-  const handleToggleMute = () => {
-    const nextMute = soundEngine.toggleMute();
-    setIsMuted(nextMute);
+  const handleSelectFeeling = async (feeling: 'calmer' | 'same' | 'uncomfortable') => {
+    setSelectedFeeling(feeling);
+    await recordPostFeeling(userId, practice.id, feeling);
     showToast({
-      message: nextMute ? 'Som mutado.' : 'Som ativado.',
+      message: 'Sensação registrada no seu histórico com sucesso.',
       type: 'info',
     });
   };
 
-  // Finish practice
-  const handleFinish = useCallback(async () => {
-    setIsActive(false);
-    setIsCompleted(true);
-    soundEngine.playCue('complete');
-    hapticService.triggerCycleComplete();
-
-    if (!recordedCompletionRef.current) {
-      recordedCompletionRef.current = true;
-      try {
-        await onRecordCompletion(practice.id);
-      } catch (_e) {
-        // Completion record error handled gracefully
-      }
-    }
-  }, [onRecordCompletion, practice.id]);
-
-  // Advance to next practice (when user clicks "Continuar")
-  const handleAdvanceToNext = () => {
-    if (nextPractice) {
-      onSelectPractice(nextPractice);
-    } else {
-      onBack();
-    }
+  const handleDownloadToggle = async () => {
+    const isNowDownloaded = await toggleOfflineDownload(practice.id);
+    showToast({
+      message: isNowDownloaded
+        ? 'Prática disponibilizada para acesso offline.'
+        : 'Download offline removido.',
+      type: 'info',
+    });
   };
 
-  // Start
-  const handleStart = () => {
-    setIsActive(true);
-    setIsCompleted(false);
-
-    if (isBreathing) {
-      setPhase('inhale');
-      setSecondsRemaining(config.inhaleSeconds);
-      soundEngine.playCue('inhale');
-      soundEngine.speak('Inspire suavemente pelo nariz');
-      hapticService.triggerInhale();
-    } else {
-      soundEngine.playCue('chime');
-      soundEngine.speak(steps[currentStepIndex] || 'Vamos iniciar a prática.');
+  const getObjectiveLabel = () => {
+    switch (practice.objective) {
+      case 'relax':
+        return 'Relaxar';
+      case 'sleep_better':
+        return 'Dormir melhor';
+      case 'regain_focus':
+        return 'Recuperar o foco';
+      case 'relieve_tension':
+        return 'Aliviar a tensão';
+      case 'take_a_pause':
+        return 'Fazer uma pausa';
+      default:
+        return 'Bem-estar e calma';
     }
   };
 
-  // Pause
-  const handlePause = () => {
-    setIsActive(false);
-    soundEngine.stopAll();
-  };
-
-  // Reset
-  const handleReset = () => {
-    soundEngine.stopAll();
-    setIsActive(false);
-    setPhase('idle');
-    setSecondsRemaining(config.inhaleSeconds);
-    setCompletedCycles(0);
-    setCurrentStepIndex(0);
-    setStepTimer(0);
-    setIsCompleted(false);
-    recordedCompletionRef.current = false;
-  };
-
-  // Step-by-step next
-  const handleNextStep = () => {
-    if (currentStepIndex < steps.length - 1) {
-      const nextIdx = currentStepIndex + 1;
-      setCurrentStepIndex(nextIdx);
-      soundEngine.playCue('click');
-      soundEngine.speak(steps[nextIdx]);
-    } else {
-      handleFinish();
-    }
-  };
-
-  // Breathing Loop Timer
-  useEffect(() => {
-    if (!isBreathing || !isActive) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      return;
-    }
-
-    timerRef.current = setInterval(() => {
-      setSecondsRemaining((prevSecs) => {
-        if (prevSecs > 1) return prevSecs - 1;
-
-        if (phase === 'inhale') {
-          if (config.holdSeconds > 0) {
-            setPhase('hold');
-            soundEngine.playCue('chime');
-            soundEngine.speak('Segure o ar com calma');
-            hapticService.triggerHold();
-            return config.holdSeconds;
-          } else {
-            setPhase('exhale');
-            soundEngine.playCue('exhale');
-            soundEngine.speak('Solte o ar suavemente');
-            hapticService.triggerExhale();
-            return config.exhaleSeconds;
-          }
-        } else if (phase === 'hold') {
-          setPhase('exhale');
-          soundEngine.playCue('exhale');
-          soundEngine.speak('Solte o ar pela boca lentamente');
-          hapticService.triggerExhale();
-          return config.exhaleSeconds;
-        } else if (phase === 'exhale') {
-          if (config.holdAfterExhaleSeconds && config.holdAfterExhaleSeconds > 0) {
-            setPhase('hold_after');
-            soundEngine.playCue('chime');
-            soundEngine.speak('Mantenha os pulmões vazios');
-            hapticService.triggerHold();
-            return config.holdAfterExhaleSeconds;
-          } else {
-            const nextCycles = completedCycles + 1;
-            setCompletedCycles(nextCycles);
-            if (nextCycles >= config.cycles) {
-              handleFinish();
-              return 0;
-            }
-            setPhase('inhale');
-            soundEngine.playCue('inhale');
-            soundEngine.speak('Inspire suavemente');
-            hapticService.triggerInhale();
-            return config.inhaleSeconds;
-          }
-        } else if (phase === 'hold_after') {
-          const nextCycles = completedCycles + 1;
-          setCompletedCycles(nextCycles);
-          if (nextCycles >= config.cycles) {
-            handleFinish();
-            return 0;
-          }
-          setPhase('inhale');
-          soundEngine.playCue('inhale');
-          soundEngine.speak('Inspire pelo nariz');
-          hapticService.triggerInhale();
-          return config.inhaleSeconds;
-        }
-
-        return config.inhaleSeconds;
-      });
-    }, 1000);
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isActive, phase, isBreathing, config, completedCycles, handleFinish]);
-
-  const totalSteps = steps.length > 0 ? steps.length : 1;
-  const progressPercent = isBreathing
-    ? (completedCycles / config.cycles) * 100
-    : ((currentStepIndex + (isCompleted ? 1 : 0)) / totalSteps) * 100;
+  const initialPosition = currentProgress ? currentProgress.playbackPositionSeconds : 0;
+  const hasExistingProgress = currentProgress && currentProgress.progressPercent > 0 && currentProgress.progressPercent < 100;
 
   return (
-    <View style={styles.container}>
-      {/* 1. Header de Controle Superior */}
+    <ScrollView
+      style={styles.scrollView}
+      contentContainerStyle={styles.contentContainer}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* 1. Barra Superior com Voltar, Favoritar e Download Offline */}
       <View style={styles.topNavRow}>
         <TouchableOpacity
           onPress={onBack}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           accessibilityRole="button"
           accessibilityLabel="Voltar às práticas"
-          style={[styles.navIconBtn, { backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF' }]}
+          style={[styles.backBtn, { backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF' }]}
         >
-          <ArrowLeft size={18} color="#173D3B" />
+          <ArrowLeft size={18} color={isDark ? colors.text : '#173D3B'} />
+          <Text style={[styles.backBtnText, { color: isDark ? colors.text : '#173D3B' }]}>
+            Práticas
+          </Text>
         </TouchableOpacity>
 
-        {/* Botão "Alterar Exercício" */}
-        <TouchableOpacity
-          onPress={() => setIsSelectorOpen(true)}
-          style={[
-            styles.changePracticeBtn,
-            {
-              backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
-              borderColor: '#2F7F7C',
-            },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Alterar exercício"
-        >
-          <ListFilter size={15} color="#2F7F7C" />
-          <Text style={styles.changePracticeText}>Alterar exercício</Text>
-        </TouchableOpacity>
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {/* Botão Mute / Unmute */}
+        <View style={styles.topRightActions}>
           <TouchableOpacity
-            onPress={handleToggleMute}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={handleDownloadToggle}
             accessibilityRole="button"
-            accessibilityLabel={isMuted ? 'Desmutar som' : 'Mutar som'}
+            accessibilityLabel={isDownloaded ? 'Remover download offline' : 'Baixar para acesso offline'}
             style={[
-              styles.navIconBtn,
-              { backgroundColor: isMuted ? '#FDF0F0' : isDark ? colors.surfaceSecondary : '#FFFFFF' },
+              styles.iconActionBtn,
+              isDownloaded && { backgroundColor: '#E7F3EF', borderColor: '#2F7F7C' },
+              { backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
             ]}
           >
-            {isMuted ? (
-              <VolumeX size={18} color="#D9534F" />
+            {isDownloaded ? (
+              <Check size={16} color="#2F7F7C" />
             ) : (
-              <Volume2 size={18} color="#2F7F7C" />
+              <Download size={16} color={isDark ? colors.textMuted : '#667775'} />
             )}
           </TouchableOpacity>
 
-          {/* Favoritar */}
           <TouchableOpacity
             onPress={() => onToggleFavorite(practice.id)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
-            accessibilityLabel={practice.isFavorite ? 'Remover dos favoritos' : 'Favoritar'}
-            style={[styles.navIconBtn, { backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF' }]}
+            accessibilityLabel={practice.isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+            style={[
+              styles.iconActionBtn,
+              { backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+            ]}
           >
             <Bookmark
-              size={18}
+              size={16}
               color="#2F7F7C"
               fill={practice.isFavorite ? '#2F7F7C' : 'transparent'}
             />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setIsSelectorOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Alternar atividade"
+            style={[
+              styles.iconActionBtn,
+              { backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+            ]}
+          >
+            <ListFilter size={16} color={isDark ? colors.textMuted : '#667775'} />
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* 2. Barra de Progresso e Identificação da Atividade */}
-      <View style={styles.headerInfo}>
-        <View style={styles.badgeRow}>
-          <View style={styles.levelBadge}>
-            <Text style={styles.levelBadgeText}>{practice.level}</Text>
-          </View>
-          <Text style={[styles.durationText, { color: '#667775' }]}>
-            {practice.durationMinutes} min • {practice.category.toUpperCase()}
-          </Text>
-        </View>
-
-        <Text style={[styles.practiceTitle, { color: '#173D3B' }]}>{practice.title}</Text>
-        <Text style={[styles.practiceSub, { color: '#667775' }]}>
-          {practice.subtitle || practice.description}
-        </Text>
-      </View>
-
-      <View style={styles.progressBarWrap}>
-        <ProgressBar
-          progress={progressPercent}
-          label={
-            isBreathing
-              ? `Ciclo ${completedCycles} de ${config.cycles}`
-              : `Etapa ${Math.min(totalSteps, currentStepIndex + 1)} de ${totalSteps}`
-          }
-          showLabel
+      {/* 2. Reprodutor de Vídeo / Áudio / Interativo */}
+      <View style={styles.playerWrapper}>
+        <GuidedVideoAudioPlayer
+          practice={practice}
+          initialPositionSeconds={initialPosition}
+          onProgressUpdate={handleProgressUpdate}
+          onComplete={handlePlayerComplete}
         />
       </View>
 
-      {/* Aviso de Movimento Físico Suave quando aplicável */}
-      {practice.category === 'relaxation' && (
+      {/* 3. Título e Metadados da Prática */}
+      <View style={styles.headerInfo}>
+        <View style={styles.badgeRow}>
+          <Badge label={practice.level} variant="success" size="sm" />
+          <Badge label={getObjectiveLabel()} variant="info" size="sm" />
+          <Text style={[styles.durationMeta, { color: isDark ? colors.textMuted : '#667775' }]}>
+            {practice.durationMinutes} minutos
+          </Text>
+        </View>
+
+        <Text style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}>
+          {practice.title}
+        </Text>
+
+        <Text style={[styles.description, { color: isDark ? colors.textMuted : '#567571' }]}>
+          {practice.description}
+        </Text>
+      </View>
+
+      {/* 4. Confirmação Pós-Prática Discreta */}
+      {showCompletionModal && (
+        <Card
+          variant="bordered"
+          style={[
+            styles.completionCard,
+            { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: '#2F7F7C' },
+          ]}
+        >
+          <View style={styles.completionHeaderRow}>
+            <CheckCircle2 size={22} color="#2F7F7C" />
+            <Text style={[styles.completionTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              Prática concluída. Como você está se sentindo agora?
+            </Text>
+          </View>
+
+          <Text style={[styles.completionSub, { color: isDark ? colors.textMuted : '#667775' }]}>
+            Reconhecer seu estado auxilia no acompanhamento pessoal do seu bem-estar:
+          </Text>
+
+          <View style={styles.feelingsOptionRow}>
+            <TouchableOpacity
+              onPress={() => handleSelectFeeling('calmer')}
+              style={[
+                styles.feelingBtn,
+                selectedFeeling === 'calmer' && styles.feelingBtnSelected,
+                { backgroundColor: isDark ? colors.surfaceSecondary : '#F7F9F8' },
+              ]}
+            >
+              <Smile size={18} color="#2F7F7C" />
+              <Text style={[styles.feelingBtnText, { color: isDark ? colors.text : '#173D3B' }]}>
+                Mais tranquilo(a)
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => handleSelectFeeling('same')}
+              style={[
+                styles.feelingBtn,
+                selectedFeeling === 'same' && styles.feelingBtnSelected,
+                { backgroundColor: isDark ? colors.surfaceSecondary : '#F7F9F8' },
+              ]}
+            >
+              <Meh size={18} color="#D98968" />
+              <Text style={[styles.feelingBtnText, { color: isDark ? colors.text : '#173D3B' }]}>
+                Igual
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => handleSelectFeeling('uncomfortable')}
+              style={[
+                styles.feelingBtn,
+                selectedFeeling === 'uncomfortable' && styles.feelingBtnSelected,
+                { backgroundColor: isDark ? colors.surfaceSecondary : '#F7F9F8' },
+              ]}
+            >
+              <Frown size={18} color="#D9534F" />
+              <Text style={[styles.feelingBtnText, { color: isDark ? colors.text : '#173D3B' }]}>
+                Ainda desconfortável
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ marginTop: 12, width: '100%', gap: 8 }}>
+            <AppButton
+              title="Registrar no Diário de Humor"
+              leftIcon={<Smile size={16} color="#FFFFFF" />}
+              onPress={() => router.push('/mood/new')}
+              size="sm"
+            />
+          </View>
+        </Card>
+      )}
+
+      {/* 5. Orientações Antes de Começar */}
+      {practice.guidelinesBeforeStarting && practice.guidelinesBeforeStarting.length > 0 && (
+        <Card
+          variant="bordered"
+          style={[
+            styles.sectionCard,
+            { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <Clock size={16} color="#2F7F7C" />
+            <Text style={[styles.sectionHeading, { color: isDark ? colors.text : '#173D3B' }]}>
+              Orientações antes de começar
+            </Text>
+          </View>
+
+          <View style={{ gap: 8, marginTop: 8 }}>
+            {practice.guidelinesBeforeStarting.map((guide, idx) => (
+              <View key={idx} style={styles.bulletItem}>
+                <View style={styles.bulletDot} />
+                <Text style={[styles.bulletText, { color: isDark ? colors.text : '#3A504E' }]}>
+                  {guide}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </Card>
+      )}
+
+      {/* 6. Etapas da Atividade */}
+      {practice.stages && practice.stages.length > 0 && (
+        <Card
+          variant="bordered"
+          style={[
+            styles.sectionCard,
+            { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <Layers size={16} color="#2F7F7C" />
+            <Text style={[styles.sectionHeading, { color: isDark ? colors.text : '#173D3B' }]}>
+              Etapas da atividade
+            </Text>
+          </View>
+
+          <View style={{ gap: 10, marginTop: 10 }}>
+            {practice.stages.map((st) => (
+              <View
+                key={st.step}
+                style={[
+                  styles.stageCard,
+                  { backgroundColor: isDark ? colors.surfaceSecondary : '#F7F9F8' },
+                ]}
+              >
+                <View style={styles.stageNumberCircle}>
+                  <Text style={styles.stageNumberText}>{st.step}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.stageTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+                    {st.title}
+                  </Text>
+                  <Text style={[styles.stageInstruction, { color: isDark ? colors.textMuted : '#567571' }]}>
+                    {st.instruction}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </Card>
+      )}
+
+      {/* 7. Benefícios (sem promessas médicas) */}
+      {practice.benefits && practice.benefits.length > 0 && (
+        <Card
+          variant="bordered"
+          style={[
+            styles.sectionCard,
+            { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <Heart size={16} color="#2F7F7C" />
+            <Text style={[styles.sectionHeading, { color: isDark ? colors.text : '#173D3B' }]}>
+              Benefícios para o seu bem-estar
+            </Text>
+          </View>
+
+          <View style={{ gap: 6, marginTop: 8 }}>
+            {practice.benefits.map((b, idx) => (
+              <View key={idx} style={styles.benefitRow}>
+                <Check size={14} color="#2F7F7C" style={{ marginTop: 2 }} />
+                <Text style={[styles.benefitText, { color: isDark ? colors.text : '#3A504E' }]}>
+                  {b}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </Card>
+      )}
+
+      {/* 8. Cuidados e Limitações Físicas */}
+      {practice.careAndLimitations && practice.careAndLimitations.length > 0 && (
         <View
           style={[
-            styles.safetyBanner,
+            styles.careAlertCard,
             {
-              backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
-              borderColor: '#2F7F7C',
+              backgroundColor: isDark ? '#2D201A' : '#FFF5F0',
+              borderColor: isDark ? '#5C382A' : '#F7D0C0',
             },
           ]}
         >
-          <Text style={[styles.safetyText, { color: '#173D3B' }]}>
-            ⚠️ <Text style={{ fontWeight: '700' }}>Atenção:</Text> Faça os movimentos suavemente e
-            respeite seus limites. Interrompa se sentir dor ou desconforto.
-          </Text>
+          <ShieldAlert size={18} color="#D98968" style={{ marginTop: 1, marginRight: 8 }} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.careTitle, { color: '#D98968' }]}>
+              Cuidados e Limitações
+            </Text>
+            {practice.careAndLimitations.map((care, idx) => (
+              <Text key={idx} style={[styles.careText, { color: isDark ? '#E5D0C5' : '#733722' }]}>
+                • {care}
+              </Text>
+            ))}
+          </View>
         </View>
       )}
 
-      {/* 3. Área Central Interativa */}
-      {!isCompleted ? (
-        <View style={styles.interactiveArea}>
-          {isBreathing ? (
-            /* Exercício de Respiração Visual */
-            <View style={styles.breathingWrap}>
-              <BreathingCircle
-                phase={phase}
-                phaseDurationSeconds={
-                  phase === 'inhale'
-                    ? config.inhaleSeconds
-                    : phase === 'hold'
-                    ? config.holdSeconds
-                    : phase === 'exhale'
-                    ? config.exhaleSeconds
-                    : phase === 'hold_after'
-                    ? config.holdAfterExhaleSeconds || 4
-                    : config.inhaleSeconds
-                }
-                secondsRemaining={secondsRemaining}
-                isActive={isActive}
-                hapticsEnabled={true}
-              />
-            </View>
-          ) : (
-            /* Exercício Guiado Passo a Passo */
-            <Card variant="bordered" style={styles.stepCard}>
-              <View style={styles.stepCounterBadge}>
-                <Text style={styles.stepCounterText}>
-                  Etapa {currentStepIndex + 1} de {steps.length}
-                </Text>
-              </View>
-
-              <Text style={[styles.stepInstruction, { color: '#173D3B' }]}>
-                {steps[currentStepIndex]}
-              </Text>
-
-              {isActive && (
-                <View style={styles.stepActionsRow}>
-                  <AppButton
-                    title={
-                      currentStepIndex === steps.length - 1
-                        ? 'Finalizar Prática'
-                        : 'Próxima Etapa'
-                    }
-                    rightIcon={<ArrowRight size={18} color="#FFFFFF" />}
-                    onPress={handleNextStep}
-                    size="md"
-                    style={{ flex: 1 }}
-                  />
-                </View>
-              )}
-            </Card>
-          )}
-
-          {/* Controles de Reprodução */}
-          <View style={styles.controlsRow}>
-            {!isActive ? (
-              <AppButton
-                title={phase === 'idle' && currentStepIndex === 0 ? 'Começar Exercício' : 'Continuar'}
-                leftIcon={<Play size={18} color="#FFFFFF" fill="#FFFFFF" />}
-                onPress={handleStart}
-                size="lg"
-                style={{ flex: 1 }}
-              />
-            ) : (
-              <AppButton
-                title="Pausar"
-                variant="outline"
-                leftIcon={<Pause size={18} color="#2F7F7C" fill="#2F7F7C" />}
-                onPress={handlePause}
-                size="lg"
-                style={{ flex: 1 }}
-              />
-            )}
-
-            {(isActive || phase !== 'idle' || currentStepIndex > 0) && (
-              <TouchableOpacity
-                onPress={handleReset}
-                accessibilityRole="button"
-                accessibilityLabel="Reiniciar exercício"
-                style={[
-                  styles.resetBtn,
-                  {
-                    backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5',
-                    borderColor: '#DCE5E2',
-                  },
-                ]}
-              >
-                <RotateCcw size={18} color="#667775" />
-              </TouchableOpacity>
-            )}
+      {/* 9. Histórico Pessoal de Conclusões */}
+      <Card
+        variant="bordered"
+        style={[
+          styles.sectionCard,
+          { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+        ]}
+      >
+        <View style={styles.historyRow}>
+          <Activity size={16} color="#2F7F7C" />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.historyLabel, { color: isDark ? colors.text : '#173D3B' }]}>
+              Histórico pessoal nesta prática
+            </Text>
+            <Text style={[styles.historyMeta, { color: isDark ? colors.textMuted : '#667775' }]}>
+              Concluída {currentProgress?.completedCount || practice.completedCount || 0} vezes • Última vez: {currentProgress?.lastCompletedAt ? new Date(currentProgress.lastCompletedAt).toLocaleDateString('pt-BR') : 'Ainda não realizada'}
+            </Text>
           </View>
         </View>
-      ) : (
-        /* 4. Tela de Conclusão Acolhedora */
-        <Card variant="bordered" style={styles.conclusionCard}>
-          <View style={styles.conclusionIconCircle}>
-            <Sparkles size={36} color="#FFFFFF" />
-          </View>
+      </Card>
 
-          <Text style={[styles.conclusionTitle, { color: '#173D3B' }]}>
-            {practice.title} Concluída!
-          </Text>
-          <Text style={[styles.conclusionDesc, { color: '#667775' }]}>
-            Muito bem! Você completou este momento de autocuidado com presença e calma.
+      {/* 10. Práticas Relacionadas */}
+      {relatedPractices.length > 0 && (
+        <View style={styles.relatedSection}>
+          <Text style={[styles.relatedHeading, { color: isDark ? colors.text : '#173D3B' }]}>
+            Práticas relacionadas
           </Text>
 
-          {/* Ações pós-conclusão solicitadas */}
-          <View style={{ width: '100%', marginTop: 14, gap: 8 }}>
-            <AppButton
-              title="Registrar como estou me sentindo"
-              leftIcon={<Smile size={18} color="#FFFFFF" />}
-              onPress={() => router.push('/mood/new')}
-              size="md"
-              style={{ width: '100%', backgroundColor: '#2F7F7C' }}
-            />
-
-            {hasNextPractice && nextPractice ? (
-              <AppButton
-                title="Avançar para o próximo exercício"
-                rightIcon={<ArrowRight size={18} color="#FFFFFF" />}
-                onPress={handleAdvanceToNext}
-                size="md"
-                variant="outline"
-                style={{ width: '100%' }}
+          <View style={{ gap: 10 }}>
+            {relatedPractices.map((rel) => (
+              <PracticeCard
+                key={rel.id}
+                practice={rel}
+                progress={userProgress[rel.id]}
+                onPress={() => onSelectPractice(rel)}
+                onToggleFavorite={onToggleFavorite}
               />
-            ) : null}
-
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-              <View style={{ flex: 1 }}>
-                <AppButton
-                  title="Escolher outra atividade"
-                  variant="outline"
-                  size="sm"
-                  onPress={() => setIsSelectorOpen(true)}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <AppButton
-                  title="Voltar para Relaxar"
-                  variant="outline"
-                  size="sm"
-                  onPress={onBack}
-                />
-              </View>
-            </View>
-
-            <TouchableOpacity
-              onPress={handleReset}
-              style={[styles.repeatBtn, { alignSelf: 'center', marginTop: 6 }]}
-              accessibilityRole="button"
-              accessibilityLabel="Repetir exercício"
-            >
-              <RotateCcw size={14} color="#2F7F7C" style={{ marginRight: 4 }} />
-              <Text style={styles.repeatBtnText}>Repetir este exercício</Text>
-            </TouchableOpacity>
+            ))}
           </View>
-        </Card>
+        </View>
       )}
 
       {/* Modal de Seleção Dinâmica */}
@@ -551,217 +481,235 @@ export const UniversalPracticePlayer: React.FC<UniversalPracticePlayerProps> = (
         visible={isSelectorOpen}
         practices={allPractices}
         currentPracticeId={practice.id}
-        isActivityInProgress={isActive}
+        isActivityInProgress={isPlayerActive}
         onClose={() => setIsSelectorOpen(false)}
-        onSelectPractice={onSelectPractice}
+        onSelectPractice={(p) => {
+          setIsSelectorOpen(false);
+          onSelectPractice(p);
+        }}
       />
-    </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    paddingVertical: 10,
+  scrollView: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingBottom: 40,
   },
   topNavRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 14,
   },
-  navIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#DCE5E2',
-  },
-  changePracticeBtn: {
+  backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingVertical: 7,
+    borderRadius: 10,
   },
-  changePracticeText: {
-    fontSize: 12,
+  backBtnText: {
+    fontSize: 13,
     fontWeight: '700',
-    color: '#2F7F7C',
+  },
+  topRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playerWrapper: {
+    marginBottom: 16,
   },
   headerInfo: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  levelBadge: {
-    backgroundColor: '#2F7F7C',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  levelBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  durationText: {
+  durationMeta: {
     fontSize: 12,
     fontWeight: '600',
   },
-  practiceTitle: {
+  title: {
     fontSize: 22,
     fontWeight: '800',
     letterSpacing: -0.3,
+    marginBottom: 6,
   },
-  practiceSub: {
-    fontSize: 13,
-    marginTop: 2,
-    lineHeight: 18,
+  description: {
+    fontSize: 14,
+    lineHeight: 20,
   },
-  progressBarWrap: {
-    marginVertical: 12,
+  completionCard: {
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    marginBottom: 16,
   },
-  safetyBanner: {
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  safetyText: {
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  interactiveArea: {
-    marginVertical: 10,
-  },
-  breathingWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 18,
-  },
-  stepCard: {
-    padding: 24,
-    borderRadius: 18,
-    marginVertical: 16,
-    alignItems: 'center',
-    gap: 14,
-  },
-  stepCounterBadge: {
-    backgroundColor: '#E7F3EF',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  stepCounterText: {
-    color: '#2F7F7C',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  stepInstruction: {
-    fontSize: 16,
-    fontWeight: '700',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  stepActionsRow: {
-    width: '100%',
-    marginTop: 8,
-  },
-  controlsRow: {
+  completionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginTop: 14,
+    gap: 8,
+    marginBottom: 4,
   },
-  resetBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+  completionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    flex: 1,
+  },
+  completionSub: {
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: 12,
+  },
+  feelingsOptionRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  feelingBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  feelingBtnSelected: {
+    borderColor: '#2F7F7C',
+    backgroundColor: '#E7F3EF',
+  },
+  feelingBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  sectionCard: {
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginBottom: 14,
   },
-  conclusionCard: {
-    padding: 28,
-    borderRadius: 22,
+  sectionHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 16,
+    gap: 8,
+    marginBottom: 4,
   },
-  conclusionIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  sectionHeading: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  bulletItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  bulletDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#2F7F7C',
+    marginTop: 7,
+  },
+  bulletText: {
+    fontSize: 13,
+    lineHeight: 18,
+    flex: 1,
+  },
+  stageCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 10,
+    borderRadius: 10,
+  },
+  stageNumberCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: '#2F7F7C',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
-  },
-  conclusionTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  conclusionDesc: {
-    fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 16,
-  },
-  nextPracticeBox: {
-    width: '100%',
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: '#E7F3EF',
-    borderWidth: 1,
-    borderColor: '#C5E2D8',
-    marginBottom: 8,
-  },
-  nextPracticeLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#2F7F7C',
-    letterSpacing: 0.6,
-    marginBottom: 4,
-  },
-  nextPracticeName: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#173D3B',
-  },
-  nextPracticeMeta: {
-    fontSize: 12,
-    color: '#567571',
     marginTop: 2,
   },
-  lastPracticeBox: {
-    width: '100%',
-    alignItems: 'center',
+  stageNumberText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
-  lastPracticeText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#173D3B',
-    textAlign: 'center',
-  },
-  repeatBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    marginTop: 6,
-  },
-  repeatBtnText: {
-    color: '#2F7F7C',
+  stageTitle: {
     fontSize: 13,
     fontWeight: '700',
+    marginBottom: 2,
+  },
+  stageInstruction: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  benefitRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  benefitText: {
+    fontSize: 13,
+    lineHeight: 18,
+    flex: 1,
+  },
+  careAlertCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 14,
+  },
+  careTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  careText: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  historyLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  historyMeta: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  relatedSection: {
+    marginTop: 10,
+  },
+  relatedHeading: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 12,
   },
 });

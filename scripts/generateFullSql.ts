@@ -429,7 +429,7 @@ values (
   ${escapeSqlString(prac.category)},
   ${prac.durationMinutes},
   ${escapeSqlString(prac.level)},
-  ${escapeSqlString(prac.icon)},
+  ${escapeSqlString(prac.icon || 'wind')},
   ${escapeSqlArray(prac.instructions)},
   ${breathingJson}
 ) on conflict (id) do update set

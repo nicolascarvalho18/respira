@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,17 +12,26 @@ import { useRouter } from 'expo-router';
 import {
   Search,
   X,
-  TrendingUp,
+  Play,
   Star,
   Bookmark,
-  Play,
-  Filter,
-  CheckCircle2,
+  TrendingUp,
+  SlidersHorizontal,
+  Clock,
+  Video,
+  Headphones,
   Sparkles,
+  RotateCcw,
+  Compass,
+  Heart,
+  Activity,
+  Layers,
+  ChevronRight,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
 import { PracticeCard } from '../../src/components/practices/PracticeCard';
-import { usePracticeStore } from '../../src/store/practiceStore';
+import { usePracticeStore, DurationFilter, LevelFilter, FormatFilter, ObjectiveFilter } from '../../src/store/practiceStore';
+import { useAuth } from '../../src/hooks/useAuth';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
 import { HarmonicWaves } from '../../src/components/illustrations/HarmonicWaves';
@@ -32,304 +41,570 @@ export default function PracticesScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { isDesktop } = useBreakpoint();
+  const { user } = useAuth();
+  const userId = user?.id || 'demo-user-1';
 
-  const { practices, toggleFavorite } = usePracticeStore();
+  const {
+    practices,
+    userProgress,
+    selectedCategory,
+    selectedDuration,
+    selectedLevel,
+    selectedFormat,
+    selectedObjective,
+    searchQuery,
+    setSelectedCategory,
+    setSelectedDuration,
+    setSelectedLevel,
+    setSelectedFormat,
+    setSelectedObjective,
+    setSearchQuery,
+    resetFilters,
+    toggleFavorite,
+    fetchPractices,
+    fetchUserProgress,
+    getFilteredPractices,
+    getRecommendedPractices,
+    getInProgressPractices,
+    getQuickPractices,
+    getNewPractices,
+    getMostCompletedPractices,
+  } = usePracticeStore();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedFilterType, setSelectedFilterType] = useState<'all' | 'physical' | 'mental' | 'breathing' | 'sound'>('all');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
-  // Filter tabs with 7 requested categories + Todas + Favoritas
-  const filterTabs = [
+  useEffect(() => {
+    fetchPractices();
+    fetchUserProgress(userId);
+  }, [userId]);
+
+  // As 9 Categorias Solicitadas + Todas + Favoritas
+  const categoryTabs = [
     { id: 'all', label: 'Todas' },
     { id: 'breathing', label: 'Respiração' },
+    { id: 'guided_meditation', label: 'Meditação guiada' },
     { id: 'body_movement', label: 'Corpo e movimento' },
-    { id: 'mindfulness', label: 'Atenção e foco' },
     { id: 'relaxation', label: 'Relaxamento' },
-    { id: 'creative', label: 'Atividades criativas' },
+    { id: 'sleep', label: 'Sono' },
+    { id: 'mindfulness_focus', label: 'Atenção e foco' },
     { id: 'quick_pauses', label: 'Pausas rápidas' },
-    { id: 'soundscapes', label: 'Sons e ambientes' },
+    { id: 'morning_routine', label: 'Rotina da manhã' },
+    { id: 'bedtime_prep', label: 'Preparação para dormir' },
     { id: 'favorites', label: 'Favoritas' },
   ];
 
-  // Calculate weekly completed count from practice completions
-  const totalWeeklyCompleted = useMemo(() => {
-    const sum = practices.reduce((acc, p) => acc + (p.completedCount || 0), 0);
-    return Math.max(3, Math.min(sum, 24));
-  }, [practices]);
+  // Filtros de Duração
+  const durationOptions: { id: DurationFilter; label: string }[] = [
+    { id: 'all', label: 'Qualquer duração' },
+    { id: 'up_to_5', label: 'Até 5 min' },
+    { id: '5_to_10', label: '5 a 10 min' },
+    { id: '10_to_20', label: '10 a 20 min' },
+    { id: 'more_than_20', label: 'Mais de 20 min' },
+  ];
 
-  const recommendedPractice: Practice =
-    practices.find((p) => p.id === 'practice-breathing-478') || practices[0];
+  // Filtros de Nível
+  const levelOptions: { id: LevelFilter; label: string }[] = [
+    { id: 'all', label: 'Todos os níveis' },
+    { id: 'Iniciante', label: 'Iniciante' },
+    { id: 'Intermediário', label: 'Intermediário' },
+    { id: 'Avançado', label: 'Avançado' },
+  ];
 
-  const filteredPractices = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    return practices.filter((item) => {
-      // 1. Busca textual
-      const matchesSearch =
-        !q ||
-        item.title.toLowerCase().includes(q) ||
-        item.description.toLowerCase().includes(q) ||
-        (item.subtitle && item.subtitle.toLowerCase().includes(q)) ||
-        item.level.toLowerCase().includes(q) ||
-        item.category.toLowerCase().includes(q);
+  // Filtros de Formato
+  const formatOptions: { id: FormatFilter; label: string }[] = [
+    { id: 'all', label: 'Todos os formatos' },
+    { id: 'video', label: 'Vídeo' },
+    { id: 'audio', label: 'Áudio' },
+    { id: 'interactive', label: 'Interativo' },
+  ];
 
-      if (!matchesSearch) return false;
+  // Filtros de Objetivo
+  const objectiveOptions: { id: ObjectiveFilter; label: string }[] = [
+    { id: 'all', label: 'Todos os objetivos' },
+    { id: 'relax', label: 'Relaxar' },
+    { id: 'sleep_better', label: 'Dormir melhor' },
+    { id: 'regain_focus', label: 'Recuperar o foco' },
+    { id: 'relieve_tension', label: 'Aliviar a tensão' },
+    { id: 'take_a_pause', label: 'Fazer uma pausa' },
+  ];
 
-      // 2. Filtro por Categoria
-      if (selectedCategory === 'favorites') {
-        if (!item.isFavorite) return false;
-      } else if (selectedCategory !== 'all') {
-        if (selectedCategory === 'soundscapes' && item.category !== 'soundscapes') return false;
-        if (item.category !== selectedCategory) return false;
-      }
+  const filteredPractices = getFilteredPractices();
+  const recommendedPractices = getRecommendedPractices();
+  const inProgressPractices = getInProgressPractices();
+  const quickPractices = getQuickPractices();
+  const newPractices = getNewPractices();
+  const mostCompletedPractices = getMostCompletedPractices();
 
-      // 3. Filtro por Tipo de Atividade (Física / Mental / Som)
-      if (selectedFilterType !== 'all') {
-        if (item.activityType && item.activityType !== selectedFilterType) return false;
-      }
+  const heroPractice: Practice = recommendedPractices[0] || practices[0];
 
-      return true;
-    });
-  }, [practices, searchQuery, selectedCategory, selectedFilterType]);
+  const hasActiveAdvancedFilters =
+    selectedDuration !== 'all' ||
+    selectedLevel !== 'all' ||
+    selectedFormat !== 'all' ||
+    selectedObjective !== 'all';
 
-  const handlePracticeNavigation = (practice: Practice) => {
-    if (practice.category === 'soundscapes') {
-      router.push('/practices/soundscapes' as any);
-    } else {
-      router.push(`/practices/player/${practice.id}` as any);
-    }
-  };
+  const isDefaultView =
+    selectedCategory === 'all' &&
+    !hasActiveAdvancedFilters &&
+    !searchQuery.trim();
 
-  const getCategoryTitle = () => {
-    const match = filterTabs.find((t) => t.id === selectedCategory);
-    return match ? match.label : 'Todas as práticas';
+  const handleNavigatePractice = (practice: Practice) => {
+    router.push(`/practices/player/${practice.id}` as any);
   };
 
   return (
     <AppShell>
-      {/* 1. Cabeçalho com Título, Subtítulo e Indicador Semanal */}
+      {/* 1. Cabeçalho com Título e Subtítulo Acolhedor */}
       <View style={styles.headerRow}>
         <View style={{ flex: 1, paddingRight: 8 }}>
           <Text style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}>
-            Relaxar & Práticas
+            Biblioteca de Práticas
           </Text>
           <Text style={[styles.subtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
-            Exercícios físicos e mentais para desacelerar, respirar e recuperar o equilíbrio.
+            Atividades guiadas em vídeo e áudio para acolher, relaxar e recuperar o equilíbrio.
           </Text>
         </View>
+      </View>
 
-        {/* Indicador de Práticas da Semana */}
+      {/* 2. Campo de Busca com Botão de Filtros */}
+      <View style={styles.searchFilterRow}>
         <View
           style={[
-            styles.weeklyBadgeBox,
-            {
-              backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
-            },
-          ]}
-        >
-          <TrendingUp size={16} color="#2F7F7C" style={{ marginRight: 6 }} />
-          <View>
-            <Text style={[styles.weeklyBadgeCount, { color: isDark ? colors.text : '#173D3B' }]}>
-              {totalWeeklyCompleted > 0
-                ? `${totalWeeklyCompleted} práticas`
-                : 'Nenhuma prática'}
-            </Text>
-            <Text style={[styles.weeklyBadgeLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
-              esta semana
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* 2. Card "RECOMENDADO PARA HOJE" */}
-      {recommendedPractice && !searchQuery && selectedCategory === 'all' && (
-        <View
-          style={[
-            styles.heroRecCard,
-            {
-              backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
-              borderColor: isDark ? colors.border : '#D8EBE4',
-            },
-          ]}
-        >
-          {/* Ilustração Ondulada em SVG */}
-          <HarmonicWaves
-            width={160}
-            height={135}
-            style={styles.heroWavesBg}
-          />
-
-          <View style={styles.heroRecContent}>
-            {/* Topo: Estrela + RECOMENDADO PARA HOJE + Bookmark */}
-            <View style={styles.heroTopRow}>
-              <View style={styles.heroBadgeLabelRow}>
-                <Star size={13} color="#2F7F7C" fill="#2F7F7C" style={{ marginRight: 5 }} />
-                <Text style={styles.heroBadgeLabelText}>RECOMENDADO PARA HOJE</Text>
-              </View>
-
-              <TouchableOpacity
-                onPress={() => toggleFavorite(recommendedPractice.id)}
-                accessibilityRole="button"
-                accessibilityLabel="Favoritar recomendação"
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Bookmark
-                  size={18}
-                  color="#2F7F7C"
-                  fill={recommendedPractice.isFavorite ? '#2F7F7C' : 'transparent'}
-                />
-              </TouchableOpacity>
-            </View>
-
-            {/* Título da Prática */}
-            <Text style={[styles.heroRecTitle, { color: isDark ? colors.text : '#173D3B' }]}>
-              {recommendedPractice.title}
-            </Text>
-
-            {/* Metadados: Duração e Nível */}
-            <Text style={[styles.heroRecMeta, { color: isDark ? colors.textMuted : '#567571' }]}>
-              {recommendedPractice.durationMinutes} min • {recommendedPractice.level}
-            </Text>
-
-            {/* Descrição Curta */}
-            <Text
-              style={[styles.heroRecDesc, { color: isDark ? colors.textMuted : '#567571' }]}
-              numberOfLines={2}
-            >
-              {recommendedPractice.description}
-            </Text>
-
-            {/* Botão Começar */}
-            <TouchableOpacity
-              onPress={() => handlePracticeNavigation(recommendedPractice)}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel={`Começar ${recommendedPractice.title}`}
-              style={styles.startHeroBtn}
-            >
-              <Play size={13} color="#FFFFFF" fill="#FFFFFF" />
-              <Text style={styles.startHeroBtnText}>Começar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* 3. Campo de Busca ("Buscar práticas") */}
-      <View
-        style={[
-          styles.searchBox,
-          {
-            backgroundColor: isDark ? colors.surface : '#FFFFFF',
-            borderColor: isDark ? colors.border : '#DCE5E2',
-          },
-        ]}
-      >
-        <Search size={18} color="#8C9E9B" style={{ marginRight: 10 }} />
-        <TextInput
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="Buscar práticas ou atividades..."
-          placeholderTextColor="#8C9E9B"
-          style={[styles.searchInput, { color: isDark ? colors.text : '#173D3B' }]}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity
-            onPress={() => setSearchQuery('')}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel="Limpar busca"
-          >
-            <X size={16} color="#8C9E9B" />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* 4. Categorias com Scroll Horizontal */}
-      <View style={styles.filterTabsWrapper}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterTabsRow}
-        >
-          {filterTabs.map((tab) => {
-            const isSelected = selectedCategory === tab.id;
-            return (
-              <TouchableOpacity
-                key={tab.id}
-                onPress={() => setSelectedCategory(tab.id)}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: isSelected }}
-                accessibilityLabel={`Filtrar por ${tab.label}`}
-                style={[
-                  styles.tabItem,
-                  isSelected && styles.tabItemActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.tabItemText,
-                    {
-                      color: isSelected ? '#2F7F7C' : isDark ? colors.textMuted : '#667775',
-                      fontWeight: isSelected ? '800' : '500',
-                    },
-                  ]}
-                >
-                  {tab.label}
-                </Text>
-                {isSelected && <View style={styles.activeUnderline} />}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-
-      {/* 5. Título da Seção e Contagem de Exercícios */}
-      <View style={styles.sectionHeaderRow}>
-        <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>
-          {getCategoryTitle()}
-        </Text>
-        <Text style={[styles.sectionCountText, { color: isDark ? colors.textMuted : '#8C9E9B' }]}>
-          {filteredPractices.length} {filteredPractices.length === 1 ? 'atividade' : 'atividades'}
-        </Text>
-      </View>
-
-      {/* 6. Lista de Práticas */}
-      {filteredPractices.length === 0 ? (
-        <View
-          style={[
-            styles.emptyWrap,
+            styles.searchBox,
             {
               backgroundColor: isDark ? colors.surface : '#FFFFFF',
               borderColor: isDark ? colors.border : '#DCE5E2',
             },
           ]}
         >
-          <Text style={[styles.emptyTitle, { color: isDark ? colors.text : '#173D3B' }]}>
-            Nenhuma atividade encontrada
-          </Text>
-          <Text style={[styles.emptySubtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
-            Tente buscar por outro termo ou escolha outra categoria.
-          </Text>
-          <TouchableOpacity
-            onPress={() => {
-              setSearchQuery('');
-              setSelectedCategory('all');
-            }}
-            style={styles.emptyResetBtn}
-          >
-            <Text style={styles.emptyResetBtnText}>Ver todas as atividades</Text>
-          </TouchableOpacity>
+          <Search size={18} color="#8C9E9B" style={{ marginRight: 10 }} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Buscar por título, categoria, objetivo..."
+            placeholderTextColor="#8C9E9B"
+            style={[styles.searchInput, { color: isDark ? colors.text : '#173D3B' }]}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Limpar busca"
+            >
+              <X size={16} color="#8C9E9B" />
+            </TouchableOpacity>
+          )}
         </View>
-      ) : (
-        <View style={styles.practicesList}>
-          {filteredPractices.map((practice) => (
-            <PracticeCard
-              key={practice.id}
-              practice={practice}
-              onPress={() => handlePracticeNavigation(practice)}
-              onToggleFavorite={toggleFavorite}
-            />
-          ))}
+
+        <TouchableOpacity
+          onPress={() => setShowAdvancedFilters(!showAdvancedFilters)}
+          accessibilityRole="button"
+          accessibilityLabel="Filtros avançados"
+          style={[
+            styles.filterToggleBtn,
+            (hasActiveAdvancedFilters || showAdvancedFilters) && styles.filterToggleBtnActive,
+            {
+              backgroundColor: isDark ? colors.surface : '#FFFFFF',
+              borderColor: isDark ? colors.border : '#DCE5E2',
+            },
+          ]}
+        >
+          <SlidersHorizontal
+            size={18}
+            color={hasActiveAdvancedFilters || showAdvancedFilters ? '#2F7F7C' : isDark ? colors.text : '#173D3B'}
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* 3. Abas de Categorias com Scroll Horizontal */}
+      <View style={styles.categoriesWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoriesRow}
+        >
+          {categoryTabs.map((tab) => {
+            const isSelected = selectedCategory === tab.id;
+            return (
+              <TouchableOpacity
+                key={tab.id}
+                onPress={() => setSelectedCategory(tab.id as any)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={`Categoria ${tab.label}`}
+                style={[
+                  styles.categoryTabItem,
+                  isSelected && styles.categoryTabItemActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.categoryTabText,
+                    {
+                      color: isSelected ? '#2F7F7C' : isDark ? colors.textMuted : '#667775',
+                      fontWeight: isSelected ? '800' : '600',
+                    },
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+                {isSelected && <View style={styles.activeTabIndicator} />}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* 4. Painel de Filtros Avançados Expansível */}
+      {showAdvancedFilters && (
+        <View
+          style={[
+            styles.filtersDrawer,
+            {
+              backgroundColor: isDark ? colors.surface : '#FFFFFF',
+              borderColor: isDark ? colors.border : '#DCE5E2',
+            },
+          ]}
+        >
+          <View style={styles.filterDrawerHeader}>
+            <Text style={[styles.filterDrawerTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              Filtros da Biblioteca
+            </Text>
+            {hasActiveAdvancedFilters && (
+              <TouchableOpacity onPress={resetFilters}>
+                <Text style={styles.resetFiltersText}>Limpar filtros</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Duração */}
+          <Text style={[styles.filterSectionLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
+            Duração
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+            {durationOptions.map((opt) => (
+              <TouchableOpacity
+                key={opt.id}
+                onPress={() => setSelectedDuration(opt.id)}
+                style={[
+                  styles.filterChip,
+                  selectedDuration === opt.id && styles.filterChipActive,
+                  { backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    selectedDuration === opt.id && styles.filterChipTextActive,
+                    { color: isDark ? colors.text : '#173D3B' },
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Nível */}
+          <Text style={[styles.filterSectionLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
+            Nível
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+            {levelOptions.map((opt) => (
+              <TouchableOpacity
+                key={opt.id}
+                onPress={() => setSelectedLevel(opt.id)}
+                style={[
+                  styles.filterChip,
+                  selectedLevel === opt.id && styles.filterChipActive,
+                  { backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    selectedLevel === opt.id && styles.filterChipTextActive,
+                    { color: isDark ? colors.text : '#173D3B' },
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Formato */}
+          <Text style={[styles.filterSectionLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
+            Formato
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+            {formatOptions.map((opt) => (
+              <TouchableOpacity
+                key={opt.id}
+                onPress={() => setSelectedFormat(opt.id)}
+                style={[
+                  styles.filterChip,
+                  selectedFormat === opt.id && styles.filterChipActive,
+                  { backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    selectedFormat === opt.id && styles.filterChipTextActive,
+                    { color: isDark ? colors.text : '#173D3B' },
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Objetivo */}
+          <Text style={[styles.filterSectionLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
+            Objetivo
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+            {objectiveOptions.map((opt) => (
+              <TouchableOpacity
+                key={opt.id}
+                onPress={() => setSelectedObjective(opt.id)}
+                style={[
+                  styles.filterChip,
+                  selectedObjective === opt.id && styles.filterChipActive,
+                  { backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    selectedObjective === opt.id && styles.filterChipTextActive,
+                    { color: isDark ? colors.text : '#173D3B' },
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* 5. VISÃO PADRÃO COM DESTAQUES E CARROSSÉIS */}
+      {isDefaultView && (
+        <View style={styles.discoverySections}>
+          {/* A. Recomendado para o seu momento (Hero Card) */}
+          {heroPractice && (
+            <View
+              style={[
+                styles.heroCard,
+                {
+                  backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
+                  borderColor: isDark ? colors.border : '#D8EBE4',
+                },
+              ]}
+            >
+              <HarmonicWaves width={160} height={135} style={styles.heroWavesBg} />
+
+              <View style={styles.heroContent}>
+                <View style={styles.heroTopRow}>
+                  <View style={styles.heroBadgeRow}>
+                    <Star size={13} color="#2F7F7C" fill="#2F7F7C" style={{ marginRight: 5 }} />
+                    <Text style={styles.heroBadgeText}>RECOMENDADO PARA O SEU MOMENTO</Text>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => toggleFavorite(heroPractice.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Favoritar recomendação"
+                  >
+                    <Bookmark
+                      size={18}
+                      color="#2F7F7C"
+                      fill={heroPractice.isFavorite ? '#2F7F7C' : 'transparent'}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={[styles.heroTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+                  {heroPractice.title}
+                </Text>
+
+                <Text style={[styles.heroMeta, { color: isDark ? colors.textMuted : '#567571' }]}>
+                  {heroPractice.durationMinutes} min • {heroPractice.level} • {heroPractice.format === 'video' ? 'Vídeo Guiado' : 'Áudio Guiado'}
+                </Text>
+
+                <Text style={[styles.heroDesc, { color: isDark ? colors.textMuted : '#567571' }]} numberOfLines={2}>
+                  {heroPractice.description}
+                </Text>
+
+                <TouchableOpacity
+                  onPress={() => handleNavigatePractice(heroPractice)}
+                  style={styles.heroStartBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Iniciar ${heroPractice.title}`}
+                >
+                  <Play size={14} color="#FFFFFF" fill="#FFFFFF" />
+                  <Text style={styles.heroStartBtnText}>Iniciar prática</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* B. Continue de onde parou */}
+          {inProgressPractices.length > 0 && (
+            <View style={styles.sectionBlock}>
+              <View style={styles.sectionTitleRow}>
+                <RotateCcw size={16} color="#2F7F7C" />
+                <Text style={[styles.sectionHeading, { color: isDark ? colors.text : '#173D3B' }]}>
+                  Continue de onde parou
+                </Text>
+              </View>
+
+              <View style={{ gap: 10 }}>
+                {inProgressPractices.map((prac) => (
+                  <PracticeCard
+                    key={prac.id}
+                    practice={prac}
+                    progress={userProgress[prac.id]}
+                    onPress={() => handleNavigatePractice(prac)}
+                    onToggleFavorite={toggleFavorite}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* C. Práticas Rápidas (até 5 minutos) */}
+          {quickPractices.length > 0 && (
+            <View style={styles.sectionBlock}>
+              <View style={styles.sectionTitleRow}>
+                <Clock size={16} color="#2F7F7C" />
+                <Text style={[styles.sectionHeading, { color: isDark ? colors.text : '#173D3B' }]}>
+                  Práticas rápidas (até 5 min)
+                </Text>
+              </View>
+
+              <View style={{ gap: 10 }}>
+                {quickPractices.slice(0, 3).map((prac) => (
+                  <PracticeCard
+                    key={prac.id}
+                    practice={prac}
+                    progress={userProgress[prac.id]}
+                    onPress={() => handleNavigatePractice(prac)}
+                    onToggleFavorite={toggleFavorite}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* D. Novidades na Biblioteca */}
+          {newPractices.length > 0 && (
+            <View style={styles.sectionBlock}>
+              <View style={styles.sectionTitleRow}>
+                <Sparkles size={16} color="#2F7F7C" />
+                <Text style={[styles.sectionHeading, { color: isDark ? colors.text : '#173D3B' }]}>
+                  Novidades
+                </Text>
+              </View>
+
+              <View style={{ gap: 10 }}>
+                {newPractices.slice(0, 3).map((prac) => (
+                  <PracticeCard
+                    key={prac.id}
+                    practice={prac}
+                    progress={userProgress[prac.id]}
+                    onPress={() => handleNavigatePractice(prac)}
+                    onToggleFavorite={toggleFavorite}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* E. Mais Realizadas por Você */}
+          {mostCompletedPractices.length > 0 && (
+            <View style={styles.sectionBlock}>
+              <View style={styles.sectionTitleRow}>
+                <TrendingUp size={16} color="#2F7F7C" />
+                <Text style={[styles.sectionHeading, { color: isDark ? colors.text : '#173D3B' }]}>
+                  Mais realizadas por você
+                </Text>
+              </View>
+
+              <View style={{ gap: 10 }}>
+                {mostCompletedPractices.slice(0, 3).map((prac) => (
+                  <PracticeCard
+                    key={prac.id}
+                    practice={prac}
+                    progress={userProgress[prac.id]}
+                    onPress={() => handleNavigatePractice(prac)}
+                    onToggleFavorite={toggleFavorite}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* 6. LISTAGEM FILTRADA QUANDO HOUVER BUSCA OU FILTROS ATIVOS */}
+      {!isDefaultView && (
+        <View style={styles.filteredListSection}>
+          <View style={styles.resultsHeaderRow}>
+            <Text style={[styles.resultsTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              {filteredPractices.length} {filteredPractices.length === 1 ? 'prática encontrada' : 'práticas encontradas'}
+            </Text>
+
+            {(hasActiveAdvancedFilters || selectedCategory !== 'all' || searchQuery) && (
+              <TouchableOpacity onPress={resetFilters}>
+                <Text style={styles.clearAllFiltersText}>Ver todas</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {filteredPractices.length === 0 ? (
+            <View
+              style={[
+                styles.emptyStateContainer,
+                {
+                  backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                  borderColor: isDark ? colors.border : '#DCE5E2',
+                },
+              ]}
+            >
+              <Compass size={36} color="#2F7F7C" style={{ marginBottom: 10 }} />
+              <Text style={[styles.emptyStateTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+                Nenhuma prática encontrada
+              </Text>
+              <Text style={[styles.emptyStateMessage, { color: isDark ? colors.textMuted : '#667775' }]}>
+                Não encontramos uma prática com esses filtros. Experimente ajustar a duração ou escolher outra categoria.
+              </Text>
+              <TouchableOpacity
+                onPress={resetFilters}
+                style={styles.emptyStateBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Redefinir filtros"
+              >
+                <Text style={styles.emptyStateBtnText}>Ver todas as práticas</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={{ gap: 10, paddingBottom: 30 }}>
+              {filteredPractices.map((prac) => (
+                <PracticeCard
+                  key={prac.id}
+                  practice={prac}
+                  progress={userProgress[prac.id]}
+                  onPress={() => handleNavigatePractice(prac)}
+                  onToggleFavorite={toggleFavorite}
+                />
+              ))}
+            </View>
+          )}
         </View>
       )}
     </AppShell>
@@ -337,125 +612,34 @@ export default function PracticesScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Cabeçalho
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 14,
     paddingTop: 4,
   },
   title: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
     letterSpacing: -0.3,
   },
   subtitle: {
     fontSize: 13,
-    marginTop: 2,
+    marginTop: 3,
     lineHeight: 18,
   },
-  weeklyBadgeBox: {
+  searchFilterRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    gap: 8,
+    marginBottom: 12,
   },
-  weeklyBadgeCount: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  weeklyBadgeLabel: {
-    fontSize: 10,
-  },
-
-  // Card Recomendado
-  heroRecCard: {
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 18,
-    borderWidth: 1,
-    overflow: 'hidden',
-    position: 'relative',
-    shadowColor: '#173D3B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  heroWavesBg: {
-    position: 'absolute',
-    right: -10,
-    top: 5,
-    zIndex: 0,
-  },
-  heroRecContent: {
-    zIndex: 1,
-  },
-  heroTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  heroBadgeLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  heroBadgeLabelText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#2F7F7C',
-    letterSpacing: 0.6,
-  },
-  heroRecTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    marginTop: 8,
-    letterSpacing: -0.2,
-  },
-  heroRecMeta: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 2,
-    marginBottom: 6,
-  },
-  heroRecDesc: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 14,
-    maxWidth: '80%',
-  },
-  startHeroBtn: {
-    backgroundColor: '#2F7F7C',
-    height: 36,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    shadowColor: '#2F7F7C',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  startHeroBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-
-  // Campo de Busca
   searchBox: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     height: 46,
     borderRadius: 14,
     borderWidth: 1,
     paddingHorizontal: 14,
-    marginBottom: 14,
   },
   searchInput: {
     flex: 1,
@@ -463,29 +647,38 @@ const styles = StyleSheet.create({
     height: '100%',
     padding: 0,
   },
-
-  // Abas de Filtros com Linha Inferior
-  filterTabsWrapper: {
-    marginBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EBF1EF',
-  },
-  filterTabsRow: {
-    flexDirection: 'row',
-    gap: 18,
-    paddingHorizontal: 4,
-  },
-  tabItem: {
-    paddingVertical: 10,
-    position: 'relative',
+  filterToggleBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tabItemActive: {},
-  tabItemText: {
+  filterToggleBtnActive: {
+    borderColor: '#2F7F7C',
+    backgroundColor: '#E7F3EF',
+  },
+  categoriesWrapper: {
+    marginBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EBF1EF',
+  },
+  categoriesRow: {
+    flexDirection: 'row',
+    gap: 16,
+    paddingHorizontal: 2,
+  },
+  categoryTabItem: {
+    paddingVertical: 10,
+    position: 'relative',
+    alignItems: 'center',
+  },
+  categoryTabItemActive: {},
+  categoryTabText: {
     fontSize: 13,
   },
-  activeUnderline: {
+  activeTabIndicator: {
     position: 'absolute',
     bottom: -1,
     left: 0,
@@ -494,56 +687,180 @@ const styles = StyleSheet.create({
     backgroundColor: '#2F7F7C',
     borderRadius: 2,
   },
-
-  // Cabeçalho da Lista
-  sectionHeaderRow: {
+  filtersDrawer: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 16,
+    gap: 10,
+  },
+  filterDrawerHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    alignItems: 'center',
+    marginBottom: 4,
   },
-  sectionTitle: {
-    fontSize: 16,
+  filterDrawerTitle: {
+    fontSize: 14,
     fontWeight: '800',
-    letterSpacing: -0.2,
   },
-  sectionCountText: {
+  resetFiltersText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2F7F7C',
+  },
+  filterSectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 2,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  filterChipActive: {
+    backgroundColor: '#2F7F7C',
+  },
+  filterChipText: {
     fontSize: 12,
     fontWeight: '600',
   },
-
-  // Lista
-  practicesList: {
-    paddingBottom: 24,
+  filterChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
-
-  // Estado Vazio
-  emptyWrap: {
-    borderRadius: 16,
+  discoverySections: {
+    paddingBottom: 30,
+    gap: 20,
+  },
+  heroCard: {
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  heroWavesBg: {
+    position: 'absolute',
+    right: -10,
+    top: 5,
+    zIndex: 0,
+  },
+  heroContent: {
+    zIndex: 1,
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  heroBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  heroBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#2F7F7C',
+    letterSpacing: 0.6,
+  },
+  heroTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  heroMeta: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  heroDesc: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 14,
+    maxWidth: '85%',
+  },
+  heroStartBtn: {
+    backgroundColor: '#2F7F7C',
+    height: 36,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+  },
+  heroStartBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  sectionBlock: {
+    gap: 10,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionHeading: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  filteredListSection: {
+    paddingBottom: 30,
+  },
+  resultsHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  resultsTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  clearAllFiltersText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2F7F7C',
+  },
+  emptyStateContainer: {
+    borderRadius: 18,
     borderWidth: 1,
     padding: 24,
     alignItems: 'center',
-    marginVertical: 10,
+    marginVertical: 12,
   },
-  emptyTitle: {
+  emptyStateTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
+    fontWeight: '800',
+    marginBottom: 6,
   },
-  emptySubtitle: {
+  emptyStateMessage: {
     fontSize: 13,
+    lineHeight: 19,
     textAlign: 'center',
-    marginBottom: 14,
+    marginBottom: 16,
+    maxWidth: '90%',
   },
-  emptyResetBtn: {
+  emptyStateBtn: {
     backgroundColor: '#2F7F7C',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 10,
   },
-  emptyResetBtnText: {
+  emptyStateBtnText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
 });
