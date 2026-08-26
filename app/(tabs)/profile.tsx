@@ -301,12 +301,19 @@ export default function ProfileScreen() {
                 borderColor: isDark ? colors.border : '#DCE5E2',
               },
             ]}
+            aria-label="Controle de tema visual"
+            {...(Platform.OS === 'web' ? ({ role: 'group' } as any) : {})}
           >
             <TouchableOpacity
               onPress={() => {
                 setThemeMode('light');
                 showToast({ message: 'Tema claro ativado.', type: 'info' });
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Ativar tema claro"
+              aria-pressed={mode === 'light'}
+              accessibilityState={{ selected: mode === 'light' }}
+              {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
               style={[
                 styles.themeBtn,
                 mode === 'light' && [
@@ -314,18 +321,17 @@ export default function ProfileScreen() {
                   { backgroundColor: isDark ? colors.surface : '#2F7F7C' },
                 ],
               ]}
-              accessibilityRole="button"
-              accessibilityLabel="Tema claro"
             >
               <Sun
                 size={13}
                 color={mode === 'light' ? '#FFFFFF' : '#667775'}
                 style={{ marginRight: 4 }}
+                aria-hidden={true}
               />
               <Text
                 style={[
                   styles.themeBtnText,
-                  { color: mode === 'light' ? '#FFFFFF' : '#667775' },
+                  { color: mode === 'light' ? '#FFFFFF' : '#667775', fontWeight: mode === 'light' ? '700' : '500' },
                 ]}
               >
                 Claro
@@ -337,6 +343,11 @@ export default function ProfileScreen() {
                 setThemeMode('dark');
                 showToast({ message: 'Tema escuro ativado.', type: 'info' });
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Ativar tema escuro"
+              aria-pressed={mode === 'dark'}
+              accessibilityState={{ selected: mode === 'dark' }}
+              {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
               style={[
                 styles.themeBtn,
                 mode === 'dark' && [
@@ -344,18 +355,17 @@ export default function ProfileScreen() {
                   { backgroundColor: isDark ? '#2F7F7C' : '#173D3B' },
                 ],
               ]}
-              accessibilityRole="button"
-              accessibilityLabel="Tema escuro"
             >
               <Moon
                 size={13}
                 color={mode === 'dark' ? '#FFFFFF' : '#667775'}
                 style={{ marginRight: 4 }}
+                aria-hidden={true}
               />
               <Text
                 style={[
                   styles.themeBtnText,
-                  { color: mode === 'dark' ? '#FFFFFF' : '#667775' },
+                  { color: mode === 'dark' ? '#FFFFFF' : '#667775', fontWeight: mode === 'dark' ? '700' : '500' },
                 ]}
               >
                 Escuro

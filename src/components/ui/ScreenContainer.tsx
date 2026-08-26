@@ -7,6 +7,9 @@ import {
   SafeAreaView,
   ViewStyle,
   StatusBar,
+  TouchableOpacity,
+  Text,
+  StyleSheet,
 } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
 
@@ -36,9 +39,12 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
       style={{
         flex: 1,
         width: '100%',
-        maxWidth: 640, // Centralização ideal para tablets e Expo Web
+        maxWidth: 640,
         alignSelf: 'center',
       }}
+      {...(Platform.OS === 'web'
+        ? ({ id: 'conteudo-principal', role: 'main', tabIndex: -1 } as any)
+        : {})}
     >
       {children}
     </View>
@@ -58,6 +64,27 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
         barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor={colors.background}
       />
+
+      {/* Skip Link para web */}
+      {Platform.OS === 'web' && (
+        <TouchableOpacity
+          onPress={() => {
+            if (typeof document !== 'undefined') {
+              const mainEl = document.getElementById('conteudo-principal');
+              if (mainEl) {
+                mainEl.focus();
+                mainEl.scrollIntoView({ behavior: 'smooth' });
+              }
+            }
+          }}
+          accessibilityRole="link"
+          accessibilityLabel="Pular para o conteúdo principal"
+          style={styles.skipLink}
+        >
+          <Text style={styles.skipLinkText}>Pular para o conteúdo</Text>
+        </TouchableOpacity>
+      )}
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={keyboardVerticalOffset}
@@ -87,3 +114,21 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
     </ContainerComponent>
   );
 };
+
+const styles = StyleSheet.create({
+  skipLink: {
+    position: 'absolute',
+    top: -100,
+    left: 16,
+    zIndex: 9999,
+    backgroundColor: '#2F7F7C',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  skipLinkText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+});

@@ -27,6 +27,10 @@ export default function RootLayout() {
   const fetchMessages = useChatStore((s) => s.fetchMessages);
 
   useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = 'pt-BR';
+    }
+
     async function bootstrap() {
       await initializeTheme();
       await initializeAuth();

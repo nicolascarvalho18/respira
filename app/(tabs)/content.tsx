@@ -245,7 +245,10 @@ export default function ContentScreen() {
       )}
 
       {/* 3. Categorias com Contagens Dinâmicas Reais */}
-      <View style={styles.categoriesWrapper}>
+      <View
+        style={styles.categoriesWrapper}
+        {...(Platform.OS === 'web' ? ({ role: 'tablist', 'aria-label': 'Categorias de conteúdo educativo' } as any) : {})}
+      >
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -259,6 +262,10 @@ export default function ContentScreen() {
                 onPress={() => setSelectedCategory(cat.id)}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: isSelected }}
+                aria-selected={isSelected}
+                aria-controls="content-tabpanel"
+                accessibilityLabel={`Categoria ${cat.label}`}
+                {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
                 style={[styles.categoryTab, isSelected && styles.categoryTabActive]}
               >
                 <Text
@@ -266,7 +273,7 @@ export default function ContentScreen() {
                     styles.categoryTabText,
                     {
                       color: isSelected ? '#2F7F7C' : isDark ? colors.textMuted : '#667775',
-                      fontWeight: isSelected ? '800' : '500',
+                      fontWeight: isSelected ? '800' : '600',
                     },
                   ]}
                 >
@@ -278,6 +285,11 @@ export default function ContentScreen() {
           })}
         </ScrollView>
       </View>
+
+      <View
+        style={{ width: '100%' }}
+        {...(Platform.OS === 'web' ? ({ id: 'content-tabpanel', role: 'tabpanel', 'aria-label': 'Lista de artigos' } as any) : {})}
+      >
 
       {/* 4. Card "LEITURA RECOMENDADA" (Apenas quando não houver busca ativa e na aba Todos) */}
       {!searchQuery && selectedCategory === 'all' && selectedFilter === 'all' && recommendedHeroArticle && (
@@ -457,6 +469,7 @@ export default function ContentScreen() {
             </Text>
           </TouchableOpacity>
         )}
+      </View>
       </View>
 
       {/* Modal de Filtros Avançados */}

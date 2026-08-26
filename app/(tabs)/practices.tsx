@@ -143,6 +143,24 @@ export default function PracticesScreen() {
 
   const heroPractice: Practice = recommendedPractices[0] || practices[0];
 
+  // Garantir curadoria sem repetição de práticas entre seções (QA-015)
+  const uniqueQuick = quickPractices
+    .filter((p) => p.id !== heroPractice?.id)
+    .slice(0, 3);
+
+  const uniqueNew = newPractices
+    .filter((p) => p.id !== heroPractice?.id && !uniqueQuick.some((q) => q.id === p.id))
+    .slice(0, 3);
+
+  const uniqueMostCompleted = mostCompletedPractices
+    .filter(
+      (p) =>
+        p.id !== heroPractice?.id &&
+        !uniqueQuick.some((q) => q.id === p.id) &&
+        !uniqueNew.some((n) => n.id === p.id)
+    )
+    .slice(0, 3);
+
   const hasActiveAdvancedFilters =
     selectedDuration !== 'all' ||
     selectedLevel !== 'all' ||
@@ -228,7 +246,10 @@ export default function PracticesScreen() {
       </View>
 
       {/* 3. Abas de Categorias com Scroll Horizontal */}
-      <View style={styles.categoriesWrapper}>
+      <View
+        style={styles.categoriesWrapper}
+        {...(Platform.OS === 'web' ? ({ role: 'tablist', 'aria-label': 'Categorias de práticas' } as any) : {})}
+      >
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -242,7 +263,10 @@ export default function PracticesScreen() {
                 onPress={() => setSelectedCategory(tab.id as any)}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: isSelected }}
+                aria-selected={isSelected}
+                aria-controls="practices-tabpanel"
                 accessibilityLabel={`Categoria ${tab.label}`}
+                {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
                 style={[
                   styles.categoryTabItem,
                   isSelected && styles.categoryTabItemActive,
@@ -265,6 +289,11 @@ export default function PracticesScreen() {
           })}
         </ScrollView>
       </View>
+
+      <View
+        style={{ width: '100%' }}
+        {...(Platform.OS === 'web' ? ({ id: 'practices-tabpanel', role: 'tabpanel', 'aria-label': 'Lista de práticas' } as any) : {})}
+      >
 
       {/* 4. Painel de Filtros Avançados Expansível */}
       {showAdvancedFilters && (
@@ -488,7 +517,7 @@ export default function PracticesScreen() {
           )}
 
           {/* C. Práticas Rápidas (até 5 minutos) */}
-          {quickPractices.length > 0 && (
+          {uniqueQuick.length > 0 && (
             <View style={styles.sectionBlock}>
               <View style={styles.sectionTitleRow}>
                 <Clock size={16} color="#2F7F7C" />
@@ -498,7 +527,7 @@ export default function PracticesScreen() {
               </View>
 
               <View style={{ gap: 10 }}>
-                {quickPractices.slice(0, 3).map((prac) => (
+                {uniqueQuick.map((prac) => (
                   <PracticeCard
                     key={prac.id}
                     practice={prac}
@@ -512,7 +541,7 @@ export default function PracticesScreen() {
           )}
 
           {/* D. Novidades na Biblioteca */}
-          {newPractices.length > 0 && (
+          {uniqueNew.length > 0 && (
             <View style={styles.sectionBlock}>
               <View style={styles.sectionTitleRow}>
                 <Sparkles size={16} color="#2F7F7C" />
@@ -522,7 +551,7 @@ export default function PracticesScreen() {
               </View>
 
               <View style={{ gap: 10 }}>
-                {newPractices.slice(0, 3).map((prac) => (
+                {uniqueNew.map((prac) => (
                   <PracticeCard
                     key={prac.id}
                     practice={prac}
@@ -536,7 +565,7 @@ export default function PracticesScreen() {
           )}
 
           {/* E. Mais Realizadas por Você */}
-          {mostCompletedPractices.length > 0 && (
+          {uniqueMostCompleted.length > 0 && (
             <View style={styles.sectionBlock}>
               <View style={styles.sectionTitleRow}>
                 <TrendingUp size={16} color="#2F7F7C" />
@@ -546,7 +575,7 @@ export default function PracticesScreen() {
               </View>
 
               <View style={{ gap: 10 }}>
-                {mostCompletedPractices.slice(0, 3).map((prac) => (
+                {uniqueMostCompleted.map((prac) => (
                   <PracticeCard
                     key={prac.id}
                     practice={prac}
@@ -558,6 +587,30 @@ export default function PracticesScreen() {
               </View>
             </View>
           )}
+
+          {/* Botão Ver Todas as Práticas */}
+          <View style={{ paddingVertical: 14, alignItems: 'center' }}>
+            <TouchableOpacity
+              onPress={() => setSelectedCategory('breathing')}
+              accessibilityRole="button"
+              accessibilityLabel="Ver catálogo completo de práticas"
+              {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
+              style={{
+                backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
+                borderColor: isDark ? colors.border : '#D8EBE4',
+                borderWidth: 1,
+                paddingHorizontal: 20,
+                paddingVertical: 12,
+                borderRadius: 14,
+                width: '100%',
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: '#2F7F7C', fontWeight: '700', fontSize: 13 }}>
+                Explorar catálogo completo ({practices.length} práticas disponíveis)
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
@@ -617,6 +670,7 @@ export default function PracticesScreen() {
           )}
         </View>
       )}
+      </View>
     </AppShell>
   );
 }

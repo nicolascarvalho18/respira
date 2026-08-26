@@ -1,10 +1,10 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
 import { getAnxietyDescription } from '../../utils/format';
 import { useTheme } from '../../hooks/useTheme';
 
 export interface AnxietySliderProps {
-  value: number; // 0 to 10
+  value: number | null; // 0 to 10 or null when unset
   onChange: (value: number) => void;
   disabled?: boolean;
 }
@@ -23,15 +23,29 @@ export const AnxietySlider: React.FC<AnxietySliderProps> = ({
     return colors.error;
   };
 
-  const currentColor = getTrackColor(value);
+  const currentColor = value !== null ? getTrackColor(value) : colors.border;
 
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={[styles.label, { color: colors.text }]}>Nível de Ansiedade</Text>
-        <View style={[styles.badge, { backgroundColor: isDark ? '#2D2A28' : '#FFF5F0', borderColor: currentColor }]}>
-          <Text style={[styles.valueText, { color: currentColor }]}>
-            {value} / 10 • {getAnxietyDescription(value)}
+        <Text
+          accessibilityRole="header"
+          aria-level={3}
+          style={[styles.label, { color: colors.text }]}
+        >
+          Nível de Ansiedade (0 a 10)
+        </Text>
+        <View
+          style={[
+            styles.badge,
+            {
+              backgroundColor: isDark ? '#2D2A28' : '#FFF5F0',
+              borderColor: value !== null ? currentColor : colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.valueText, { color: value !== null ? currentColor : colors.textMuted }]}>
+            {value !== null ? `${value} / 10 • ${getAnxietyDescription(value)}` : 'Selecione uma opção'}
           </Text>
         </View>
       </View>
@@ -40,6 +54,8 @@ export const AnxietySlider: React.FC<AnxietySliderProps> = ({
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.numbersRow}
+        accessibilityRole="radiogroup"
+        aria-label="Escala de nível de ansiedade de 0 a 10"
       >
         {Array.from({ length: 11 }, (_, i) => i).map((num) => {
           const isSelected = value === num;
@@ -52,15 +68,16 @@ export const AnxietySlider: React.FC<AnxietySliderProps> = ({
               onPress={() => onChange(num)}
               accessibilityRole="radio"
               accessibilityLabel={`Nível de ansiedade ${num} de 10: ${getAnxietyDescription(num)}`}
-              accessibilityState={{ selected: isSelected }}
+              accessibilityState={{ checked: isSelected, selected: isSelected }}
+              {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
               style={[
                 styles.stepButton,
                 {
                   backgroundColor: isSelected
                     ? numColor
                     : isDark
-                      ? colors.surfaceSubtle
-                      : '#FFFFFF',
+                    ? colors.surfaceSubtle
+                    : '#FFFFFF',
                   borderColor: isSelected ? numColor : colors.border,
                 },
               ]}

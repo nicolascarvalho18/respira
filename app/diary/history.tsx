@@ -179,32 +179,46 @@ export default function DiaryHistoryScreen() {
             </Text>
           </View>
 
-          <View style={styles.filterPills}>
-            {([7, 30, 90] as const).map((days) => (
-              <TouchableOpacity
-                key={days}
-                onPress={() => setSelectedFilterDays(days)}
-                style={[
-                  styles.filterPill,
-                  {
-                    backgroundColor: selectedFilterDays === days ? '#2F7F7C' : 'transparent',
-                    borderColor: selectedFilterDays === days ? '#2F7F7C' : isDark ? colors.border : '#DCE5E2',
-                  },
-                ]}
-              >
-                <Text
+          <View
+            style={styles.filterPills}
+            accessibilityRole="radiogroup"
+            aria-label="Filtrar período do gráfico"
+          >
+            {([7, 30, 90] as const).map((days) => {
+              const isSelected = selectedFilterDays === days;
+              const periodLabel = days === 7 ? 'Últimos 7 dias' : days === 30 ? 'Últimos 30 dias' : 'Últimos 90 dias';
+
+              return (
+                <TouchableOpacity
+                  key={days}
+                  onPress={() => setSelectedFilterDays(days)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: isSelected, selected: isSelected }}
+                  aria-pressed={isSelected}
+                  accessibilityLabel={periodLabel}
+                  {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
                   style={[
-                    styles.filterPillText,
+                    styles.filterPill,
                     {
-                      color: selectedFilterDays === days ? '#FFFFFF' : isDark ? colors.text : '#173D3B',
-                      fontWeight: selectedFilterDays === days ? '700' : '500',
+                      backgroundColor: isSelected ? '#2F7F7C' : isDark ? colors.surfaceSecondary : '#F2F6F5',
+                      borderColor: isSelected ? '#2F7F7C' : isDark ? colors.border : '#DCE5E2',
                     },
                   ]}
                 >
-                  {days}d
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.filterPillText,
+                      {
+                        color: isSelected ? '#FFFFFF' : isDark ? colors.text : '#173D3B',
+                        fontWeight: isSelected ? '700' : '600',
+                      },
+                    ]}
+                  >
+                    {days}d
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 

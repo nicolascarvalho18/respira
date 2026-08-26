@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -132,40 +133,45 @@ export default function NewMoodScreen() {
   const { addRecord } = useMoodStore();
   const { showToast } = useToast();
 
-  const [mood, setMood] = useState<MoodValue>(4);
-  const [anxietyLevel, setAnxietyLevel] = useState<number>(3);
-  const [selectedEmotions, setSelectedEmotions] = useState<string[]>(['Calmo']);
-  const [selectedActivities, setSelectedActivities] = useState<string[]>(['Descanso']);
+  // Iniciar sem seleção predefinida (QA-012)
+  const [mood, setMood] = useState<MoodValue | null>(null);
+  const [anxietyLevel, setAnxietyLevel] = useState<number | null>(null);
+  const [selectedEmotions, setSelectedEmotions] = useState<string[]>([]);
+  const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
   const [selectedPlannedExIds, setSelectedPlannedExIds] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.title = 'Momento Atual — Respira';
+    }
+
     async function loadDraft() {
       const draft = await storage.getItem<{
-        mood: MoodValue;
-        anxietyLevel: number;
-        emotions: string[];
-        activities: string[];
+        mood?: MoodValue;
+        anxietyLevel?: number;
+        emotions?: string[];
+        activities?: string[];
         plannedExIds?: string[];
-        notes: string;
+        notes?: string;
       }>(DRAFT_STORAGE_KEY);
 
       if (draft) {
-        setMood(draft.mood || 4);
-        setAnxietyLevel(draft.anxietyLevel ?? 3);
-        setSelectedEmotions(draft.emotions || ['Calmo']);
-        setSelectedActivities(draft.activities || ['Descanso']);
-        setSelectedPlannedExIds(draft.plannedExIds || []);
-        setNotes(draft.notes || '');
+        if (draft.mood) setMood(draft.mood);
+        if (draft.anxietyLevel !== undefined) setAnxietyLevel(draft.anxietyLevel);
+        if (draft.emotions) setSelectedEmotions(draft.emotions);
+        if (draft.activities) setSelectedActivities(draft.activities);
+        if (draft.plannedExIds) setSelectedPlannedExIds(draft.plannedExIds);
+        if (draft.notes) setNotes(draft.notes);
       }
     }
     loadDraft();
   }, []);
 
   useEffect(() => {
-    if (!isSaved) {
+    if (!isSaved && (mood !== null || anxietyLevel !== null || selectedEmotions.length > 0)) {
       storage.setItem(DRAFT_STORAGE_KEY, {
         mood,
         anxietyLevel,
@@ -201,8 +207,10 @@ export default function NewMoodScreen() {
     }
   };
 
+  const isFormValid = mood !== null && anxietyLevel !== null;
+
   const handleSave = async () => {
-    if (isSaving) return;
+    if (!isFormValid || !mood || anxietyLevel === null || isSaving) return;
     try {
       setIsSaving(true);
 
@@ -264,10 +272,18 @@ export default function NewMoodScreen() {
               { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
             ]}
           >
-            <Text style={[styles.blockTitle, { color: isDark ? colors.text : '#173D3B' }]}>
-              1. Como você descreve seu estado geral agora?
+            <Text
+              accessibilityRole="header"
+              aria-level={3}
+              style={[styles.blockTitle, { color: isDark ? colors.text : '#173D3B' }]}
+            >
+              1. Como você descreve seu estado geral agora? <Text style={{ color: '#D98968' }}>*</Text>
             </Text>
-            <View style={styles.moodSelectorRow}>
+            <View
+              style={styles.moodSelectorRow}
+              accessibilityRole="radiogroup"
+              aria-label="Escala de estado emocional geral de 1 a 5"
+            >
               {moodOptions.map((opt) => {
                 const isSelected = mood === opt.value;
                 const Icon = opt.icon;
@@ -278,7 +294,8 @@ export default function NewMoodScreen() {
                     onPress={() => setMood(opt.value)}
                     accessibilityRole="radio"
                     accessibilityLabel={`Humor ${opt.value} de 5: ${opt.label}`}
-                    accessibilityState={{ selected: isSelected }}
+                    accessibilityState={{ checked: isSelected, selected: isSelected }}
+                    {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
                     style={[
                       styles.moodOptionItem,
                       isSelected && { backgroundColor: '#2F7F7C', borderColor: '#2F7F7C' },
@@ -292,7 +309,7 @@ export default function NewMoodScreen() {
                       },
                     ]}
                   >
-                    <Icon size={26} color={isSelected ? '#FFFFFF' : opt.color} />
+                    <Icon size={26} color={isSelected ? '#FFFFFF' : opt.color} aria-hidden={true} />
                     <Text
                       style={[
                         styles.moodLabel,
@@ -318,8 +335,12 @@ export default function NewMoodScreen() {
               { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
             ]}
           >
-            <Text style={[styles.blockTitle, { color: isDark ? colors.text : '#173D3B' }]}>
-              2. Qual o nível de ansiedade que você sente neste momento?
+            <Text
+              accessibilityRole="header"
+              aria-level={3}
+              style={[styles.blockTitle, { color: isDark ? colors.text : '#173D3B' }]}
+            >
+              2. Qual o nível de ansiedade que você sente neste momento? <Text style={{ color: '#D98968' }}>*</Text>
             </Text>
             <AnxietySlider value={anxietyLevel} onChange={setAnxietyLevel} />
           </Card>
@@ -332,8 +353,12 @@ export default function NewMoodScreen() {
               { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
             ]}
           >
-            <Text style={[styles.blockTitle, { color: isDark ? colors.text : '#173D3B' }]}>
-              3. O que melhor descreve seus sentimentos agora?
+            <Text
+              accessibilityRole="header"
+              aria-level={3}
+              style={[styles.blockTitle, { color: isDark ? colors.text : '#173D3B' }]}
+            >
+              3. O que melhor descreve seus sentimentos agora? (opcional)
             </Text>
             <View style={styles.chipsWrap}>
               {AVAILABLE_EMOTIONS.map((emo) => (
@@ -355,8 +380,12 @@ export default function NewMoodScreen() {
               { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
             ]}
           >
-            <Text style={[styles.blockTitle, { color: isDark ? colors.text : '#173D3B' }]}>
-              4. O que você esteve fazendo antes deste momento?
+            <Text
+              accessibilityRole="header"
+              aria-level={3}
+              style={[styles.blockTitle, { color: isDark ? colors.text : '#173D3B' }]}
+            >
+              4. O que você esteve fazendo antes deste momento? (opcional)
             </Text>
             <View style={styles.chipsWrap}>
               {AVAILABLE_ACTIVITIES.map((act) => (
@@ -379,9 +408,13 @@ export default function NewMoodScreen() {
             ]}
           >
             <View style={styles.exSectionHeader}>
-              <Sparkles size={18} color="#2F7F7C" style={{ marginRight: 6 }} />
+              <Sparkles size={18} color="#2F7F7C" style={{ marginRight: 6 }} aria-hidden={true} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.blockTitle, { color: isDark ? colors.text : '#173D3B', marginBottom: 2 }]}>
+                <Text
+                  accessibilityRole="header"
+                  aria-level={3}
+                  style={[styles.blockTitle, { color: isDark ? colors.text : '#173D3B', marginBottom: 2 }]}
+                >
                   5. Exercícios e atividades para o seu dia
                 </Text>
                 <Text style={[styles.blockSub, { color: isDark ? colors.textMuted : '#667775' }]}>
@@ -400,6 +433,10 @@ export default function NewMoodScreen() {
                     key={ex.id}
                     onPress={() => togglePlannedExercise(ex.id)}
                     activeOpacity={0.8}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: isSelected }}
+                    accessibilityLabel={`${ex.title}, ${ex.durationMinutes} minutos, ${ex.description}`}
+                    {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
                     style={[
                       styles.exerciseCardItem,
                       isSelected && {
@@ -418,7 +455,7 @@ export default function NewMoodScreen() {
                         { backgroundColor: isSelected ? '#2F7F7C' : '#D4EAE3' },
                       ]}
                     >
-                      <Icon size={16} color={isSelected ? '#FFFFFF' : '#2F7F7C'} />
+                      <Icon size={16} color={isSelected ? '#FFFFFF' : '#2F7F7C'} aria-hidden={true} />
                     </View>
 
                     <View style={{ flex: 1 }}>
@@ -444,7 +481,7 @@ export default function NewMoodScreen() {
                         isSelected && { backgroundColor: '#2F7F7C', borderColor: '#2F7F7C' },
                       ]}
                     >
-                      {isSelected && <Check size={12} color="#FFFFFF" strokeWidth={3} />}
+                      {isSelected && <Check size={12} color="#FFFFFF" strokeWidth={3} aria-hidden={true} />}
                     </View>
                   </TouchableOpacity>
                 );
@@ -460,7 +497,11 @@ export default function NewMoodScreen() {
               { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
             ]}
           >
-            <Text style={[styles.blockTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+            <Text
+              accessibilityRole="header"
+              aria-level={3}
+              style={[styles.blockTitle, { color: isDark ? colors.text : '#173D3B' }]}
+            >
               6. Quer anotar algum pensamento ou acontecimento? (opcional)
             </Text>
             <AppTextarea
@@ -471,11 +512,12 @@ export default function NewMoodScreen() {
             />
           </Card>
 
-          {/* Botão Salvar Registro */}
+          {/* Botão Salvar Registro (Habilitado apenas com campos obrigatórios preenchidos) */}
           <AppButton
-            title="Salvar Registro"
-            leftIcon={<Check size={18} color="#FFFFFF" />}
+            title={isFormValid ? 'Salvar Registro' : 'Selecione o humor e a ansiedade para salvar'}
+            leftIcon={<Check size={18} color="#FFFFFF" aria-hidden={true} />}
             onPress={handleSave}
+            disabled={!isFormValid || isSaving}
             isLoading={isSaving}
             size="lg"
             style={{ marginVertical: 10 }}
@@ -492,10 +534,14 @@ export default function NewMoodScreen() {
             ]}
           >
             <View style={styles.successIconCircle}>
-              <Sparkles size={36} color="#FFFFFF" />
+              <Sparkles size={36} color="#FFFFFF" aria-hidden={true} />
             </View>
 
-            <Text style={[styles.successTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+            <Text
+              accessibilityRole="header"
+              aria-level={2}
+              style={[styles.successTitle, { color: isDark ? colors.text : '#173D3B' }]}
+            >
               Check-in registrado com carinho!
             </Text>
             <Text style={[styles.successDesc, { color: isDark ? colors.textMuted : '#667775' }]}>
@@ -521,7 +567,7 @@ export default function NewMoodScreen() {
             <View style={{ width: '100%', gap: 10, marginTop: 16 }}>
               <AppButton
                 title="Ver meu histórico de evolução"
-                leftIcon={<Calendar size={18} color="#FFFFFF" />}
+                leftIcon={<Calendar size={18} color="#FFFFFF" aria-hidden={true} />}
                 onPress={() => router.push('/diary/history' as any)}
                 size="md"
               />
@@ -551,13 +597,12 @@ const styles = StyleSheet.create({
   },
   blockTitle: {
     fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: -0.2,
+    fontWeight: '700',
     marginBottom: 12,
   },
   blockSub: {
     fontSize: 12,
-    lineHeight: 16,
+    marginTop: 1,
   },
   moodSelectorRow: {
     flexDirection: 'row',
@@ -572,10 +617,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
   },
   moodLabel: {
     fontSize: 11,
+    marginTop: 6,
     textAlign: 'center',
   },
   chipsWrap: {
@@ -586,13 +631,14 @@ const styles = StyleSheet.create({
   exSectionHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    marginBottom: 8,
   },
   exerciseCardItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    borderRadius: 12,
-    borderWidth: 1.5,
+    borderRadius: 14,
+    borderWidth: 1,
     gap: 10,
   },
   exerciseIconCircle: {
@@ -613,62 +659,62 @@ const styles = StyleSheet.create({
   exerciseItemDesc: {
     fontSize: 11,
     marginTop: 2,
-    lineHeight: 15,
   },
   exerciseCheckCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 1.5,
-    borderColor: '#8C9E9B',
+    borderColor: '#DCE5E2',
     alignItems: 'center',
     justifyContent: 'center',
   },
   successContainer: {
-    paddingVertical: 16,
+    paddingVertical: 20,
   },
   successCard: {
-    alignItems: 'center',
     padding: 24,
     borderRadius: 20,
     borderWidth: 1,
+    alignItems: 'center',
   },
   successIconCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: '#2F7F7C',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
   successTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
-    marginBottom: 6,
     textAlign: 'center',
+    marginBottom: 6,
   },
   successDesc: {
     fontSize: 13,
     textAlign: 'center',
-    lineHeight: 19,
+    lineHeight: 18,
     marginBottom: 16,
   },
   plannedSummaryBox: {
     width: '100%',
     backgroundColor: '#E7F3EF',
+    padding: 14,
     borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   plannedSummaryTitle: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#2F7F7C',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   plannedSummaryItem: {
     fontSize: 12,
-    marginTop: 2,
+    fontWeight: '500',
+    marginBottom: 2,
   },
 });

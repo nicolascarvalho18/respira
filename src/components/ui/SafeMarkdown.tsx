@@ -4,10 +4,9 @@ import {
   Text,
   StyleSheet,
   Linking,
-  TouchableOpacity,
   Platform,
 } from 'react-native';
-import { ShieldCheck, Info } from 'lucide-react-native';
+import { ShieldCheck } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 
 export interface SafeMarkdownProps {
@@ -15,7 +14,7 @@ export interface SafeMarkdownProps {
   fontSizeMultiplier?: number;
 }
 
-interface InlineToken {
+export interface InlineToken {
   type: 'text' | 'bold' | 'italic' | 'boldItalic' | 'code' | 'link';
   text: string;
   url?: string;
@@ -44,7 +43,6 @@ export function parseInlineMarkdown(text: string): InlineToken[] {
   const sanitized = text.replace(/\s+\*+$/, '').replace(/^\*+\s+/, '');
 
   const tokens: InlineToken[] = [];
-  // Regex to match ***boldItalic***, **bold**, *italic*, `code`, [label](url)
   const regex = /(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
 
   let lastIndex = 0;
@@ -95,7 +93,6 @@ export function parseInlineMarkdown(text: string): InlineToken[] {
   }
 
   if (lastIndex < sanitized.length) {
-    // Clean any trailing isolated asterisk
     const remaining = sanitized.slice(lastIndex).replace(/\*+$/, '');
     if (remaining) {
       tokens.push({
@@ -217,7 +214,10 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      {...(Platform.OS === 'web' ? ({ role: 'region', 'aria-label': 'Conteúdo do artigo' } as any) : {})}
+    >
       {blocks.map((block, bIdx) => {
         const trimmed = block.trim();
         if (!trimmed) return null;
@@ -226,20 +226,26 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({
         if (trimmed.startsWith('## ')) {
           const headingText = trimmed.replace(/^##\s+/, '');
           return (
-            <Text
+            <View
               key={bIdx}
-              accessibilityRole="header"
-              aria-level={2}
-              style={[
-                styles.h2,
-                {
-                  color: isDark ? colors.text : '#173D3B',
-                  fontSize: 20 * fontSizeMultiplier,
-                },
-              ]}
+              style={styles.sectionWrap}
+              {...(Platform.OS === 'web' ? ({ role: 'region' } as any) : {})}
             >
-              {headingText}
-            </Text>
+              <Text
+                accessibilityRole="header"
+                aria-level={2}
+                style={[
+                  styles.h2,
+                  {
+                    color: isDark ? colors.text : '#173D3B',
+                    fontSize: 20 * fontSizeMultiplier,
+                    lineHeight: 28 * fontSizeMultiplier,
+                  },
+                ]}
+              >
+                {headingText}
+              </Text>
+            </View>
           );
         }
 
@@ -247,20 +253,26 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({
         if (trimmed.startsWith('### ')) {
           const headingText = trimmed.replace(/^###\s+/, '');
           return (
-            <Text
+            <View
               key={bIdx}
-              accessibilityRole="header"
-              aria-level={3}
-              style={[
-                styles.h3,
-                {
-                  color: isDark ? colors.text : '#173D3B',
-                  fontSize: 17 * fontSizeMultiplier,
-                },
-              ]}
+              style={styles.sectionWrap}
+              {...(Platform.OS === 'web' ? ({ role: 'region' } as any) : {})}
             >
-              {headingText}
-            </Text>
+              <Text
+                accessibilityRole="header"
+                aria-level={3}
+                style={[
+                  styles.h3,
+                  {
+                    color: isDark ? colors.text : '#173D3B',
+                    fontSize: 17 * fontSizeMultiplier,
+                    lineHeight: 24 * fontSizeMultiplier,
+                  },
+                ]}
+              >
+                {headingText}
+              </Text>
+            </View>
           );
         }
 
@@ -268,20 +280,22 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({
         if (trimmed.startsWith('#### ')) {
           const headingText = trimmed.replace(/^####\s+/, '');
           return (
-            <Text
-              key={bIdx}
-              accessibilityRole="header"
-              aria-level={4}
-              style={[
-                styles.h4,
-                {
-                  color: isDark ? colors.text : '#173D3B',
-                  fontSize: 15 * fontSizeMultiplier,
-                },
-              ]}
-            >
-              {headingText}
-            </Text>
+            <View key={bIdx} style={styles.sectionWrap}>
+              <Text
+                accessibilityRole="header"
+                aria-level={4}
+                style={[
+                  styles.h4,
+                  {
+                    color: isDark ? colors.text : '#173D3B',
+                    fontSize: 15 * fontSizeMultiplier,
+                    lineHeight: 22 * fontSizeMultiplier,
+                  },
+                ]}
+              >
+                {headingText}
+              </Text>
+            </View>
           );
         }
 
@@ -310,8 +324,14 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({
                   borderColor: isDark ? colors.border : '#C7E5DC',
                 },
               ]}
+              {...(Platform.OS === 'web' ? ({ role: 'note', 'aria-label': 'Aviso importante' } as any) : {})}
             >
-              <ShieldCheck size={18} color="#2F7F7C" style={{ marginTop: 2, marginRight: 10 }} />
+              <ShieldCheck
+                size={18}
+                color="#2F7F7C"
+                style={{ marginTop: 2, marginRight: 10 }}
+                aria-hidden={true}
+              />
               <View style={{ flex: 1 }}>
                 <Text
                   style={[
@@ -319,7 +339,7 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({
                     { color: '#2F7F7C', fontSize: 13 * fontSizeMultiplier },
                   ]}
                 >
-                  Aviso Importante
+                  Aviso Educativo
                 </Text>
                 <Text
                   style={[
@@ -353,17 +373,23 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({
         );
 
         if (isList) {
+          const isOrdered = lines.some((l) => /^\s*\d+\.\s+/.test(l));
+
           return (
-            <View key={bIdx} style={styles.listContainer}>
+            <View
+              key={bIdx}
+              style={styles.listContainer}
+              {...(Platform.OS === 'web' ? ({ role: isOrdered ? 'list' : 'list' } as any) : {})}
+            >
               {lines.map((line, lIdx) => {
                 const lineTrim = line.trim();
                 if (!lineTrim) return null;
 
-                const isOrdered = /^\d+\.\s+/.test(lineTrim);
+                const lineIsOrdered = /^\d+\.\s+/.test(lineTrim);
                 let bullet = '•';
                 let itemText = lineTrim;
 
-                if (isOrdered) {
+                if (lineIsOrdered) {
                   const matchNum = lineTrim.match(/^(\d+\.)\s+/);
                   if (matchNum) {
                     bullet = matchNum[1];
@@ -376,16 +402,21 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({
                 const tokens = parseInlineMarkdown(itemText);
 
                 return (
-                  <View key={lIdx} style={styles.listItemRow}>
+                  <View
+                    key={lIdx}
+                    style={styles.listItemRow}
+                    {...(Platform.OS === 'web' ? ({ role: 'listitem' } as any) : {})}
+                  >
                     <Text
                       style={[
                         styles.listBullet,
                         {
                           color: '#2F7F7C',
-                          fontSize: (isOrdered ? 13 : 15) * fontSizeMultiplier,
-                          minWidth: isOrdered ? 22 : 14,
+                          fontSize: (lineIsOrdered ? 13 : 15) * fontSizeMultiplier,
+                          minWidth: lineIsOrdered ? 22 : 14,
                         },
                       ]}
+                      aria-hidden={true}
                     >
                       {bullet}
                     </Text>
@@ -424,7 +455,7 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({
               {
                 color: isDark ? colors.text : '#2C4A47',
                 fontSize: 15 * fontSizeMultiplier,
-                lineHeight: 25 * fontSizeMultiplier,
+                lineHeight: 26 * fontSizeMultiplier,
               },
             ]}
           >
@@ -444,26 +475,22 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
+    maxWidth: 680,
+  },
+  sectionWrap: {
+    marginTop: 18,
+    marginBottom: 8,
   },
   h2: {
     fontWeight: '800',
-    marginTop: 22,
-    marginBottom: 10,
     letterSpacing: -0.3,
-    lineHeight: 28,
   },
   h3: {
     fontWeight: '700',
-    marginTop: 18,
-    marginBottom: 8,
     letterSpacing: -0.2,
-    lineHeight: 24,
   },
   h4: {
     fontWeight: '700',
-    marginTop: 14,
-    marginBottom: 6,
-    lineHeight: 22,
   },
   paragraph: {
     marginBottom: 16,

@@ -7,6 +7,8 @@ import {
   StatusBar,
   ViewStyle,
   Platform,
+  TouchableOpacity,
+  Text,
 } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
@@ -48,12 +50,37 @@ export const AppShell: React.FC<AppShellProps> = ({
         backgroundColor={colors.background}
       />
 
+      {/* Skip Link para acessibilidade no Web */}
+      {Platform.OS === 'web' && (
+        <TouchableOpacity
+          onPress={() => {
+            if (typeof document !== 'undefined') {
+              const mainEl = document.getElementById('conteudo-principal');
+              if (mainEl) {
+                mainEl.focus();
+                mainEl.scrollIntoView({ behavior: 'smooth' });
+              }
+            }
+          }}
+          accessibilityRole="link"
+          accessibilityLabel="Pular para o conteúdo principal"
+          style={styles.skipLink}
+        >
+          <Text style={styles.skipLinkText}>Pular para o conteúdo</Text>
+        </TouchableOpacity>
+      )}
+
       <View style={styles.layoutRow}>
         {/* Sidebar fixa à esquerda (apenas no Desktop >= 1200px) */}
         {isDesktop && <DesktopSidebar />}
 
-        {/* Área Central de Conteúdo */}
-        <View style={styles.mainArea}>
+        {/* Área Central de Conteúdo com Main Semântico */}
+        <View
+          style={styles.mainArea}
+          {...(Platform.OS === 'web'
+            ? ({ id: 'conteudo-principal', role: 'main', tabIndex: -1 } as any)
+            : {})}
+        >
           {scrollable ? (
             <ScrollView
               showsVerticalScrollIndicator={false}
@@ -116,6 +143,22 @@ const styles = StyleSheet.create({
     height: '100%',
     width: '100%',
   },
+  skipLink: {
+    position: 'absolute',
+    top: -100,
+    left: 16,
+    zIndex: 9999,
+    backgroundColor: '#2F7F7C',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    // Focus visible via standard css
+  },
+  skipLinkText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
   layoutRow: {
     flex: 1,
     flexDirection: 'row',
@@ -126,7 +169,8 @@ const styles = StyleSheet.create({
     flex: 1,
     height: '100%',
     alignItems: 'center',
-  },
+    outlineStyle: 'none',
+  } as any,
   scrollView: {
     width: '100%',
     height: '100%',
@@ -135,7 +179,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 96, // Garante que a bottom bar nunca sobreponha o final da tela no mobile
+    paddingBottom: 96,
     width: '100%',
     alignItems: 'center',
   },

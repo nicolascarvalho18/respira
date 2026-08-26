@@ -17,6 +17,7 @@ import {
   HeartHandshake,
   Trash2,
   Bot,
+  MessageCircle,
   ShieldAlert,
   ArrowLeft,
   Bookmark,
@@ -164,7 +165,7 @@ export default function ChatScreen() {
               </TouchableOpacity>
 
               <View style={[styles.avatarBot, { backgroundColor: '#2F7F7C' }]}>
-                <Bot size={18} color="#FFFFFF" />
+                <MessageCircle size={18} color="#FFFFFF" aria-hidden={true} />
               </View>
 
               <View>
@@ -386,20 +387,29 @@ export default function ChatScreen() {
 
                     {/* Sugestões Rápidas de Resposta */}
                     {!isUser && msg.suggestions && msg.suggestions.length > 0 && (
-                      <View style={styles.suggestionsList}>
+                      <View
+                        style={styles.suggestionsList}
+                        aria-label="Sugestões de perguntas e ações"
+                        {...(Platform.OS === 'web' ? ({ role: 'group' } as any) : {})}
+                      >
                         {msg.suggestions.map((sug, sIdx) => (
                           <TouchableOpacity
                             key={sIdx}
-                            onPress={() => handleSend(sug)}
+                            onPress={() => !isTyping && handleSend(sug)}
+                            disabled={isTyping}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Enviar sugestão: ${sug}`}
+                            {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
                             style={[
                               styles.suggestionChip,
                               {
                                 backgroundColor: isDark ? colors.surface : '#FFFFFF',
                                 borderColor: isDark ? colors.border : '#DCE5E2',
+                                opacity: isTyping ? 0.6 : 1,
                               },
                             ]}
                           >
-                            <Sparkles size={11} color="#2F7F7C" style={{ marginRight: 4 }} />
+                            <MessageCircle size={12} color="#2F7F7C" style={{ marginRight: 5 }} aria-hidden={true} />
                             <Text style={styles.suggestionText}>{sug}</Text>
                           </TouchableOpacity>
                         ))}
@@ -414,7 +424,7 @@ export default function ChatScreen() {
             {isTyping && (
               <View style={[styles.messageRow, styles.botMessageRow]}>
                 <View style={[styles.msgAvatar, { backgroundColor: '#2F7F7C' }]}>
-                  <Bot size={13} color="#FFFFFF" />
+                  <MessageCircle size={14} color="#FFFFFF" aria-hidden={true} />
                 </View>
                 <View
                   style={[
@@ -450,11 +460,12 @@ export default function ChatScreen() {
             <TextInput
               value={inputText}
               onChangeText={setInputText}
-              placeholder="Escreva como você está se sentindo..."
+              placeholder="Escreva uma dúvida ou conte como você está se sentindo..."
               placeholderTextColor="#8C9E9B"
               onKeyPress={handleKeyDown}
               multiline
               maxLength={1000}
+              accessibilityLabel="Campo de mensagem para o assistente"
               style={[
                 styles.inputField,
                 {
@@ -470,6 +481,7 @@ export default function ChatScreen() {
               disabled={!inputText.trim() || isTyping}
               accessibilityRole="button"
               accessibilityLabel="Enviar mensagem"
+              {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
               style={[
                 styles.sendBtn,
                 {
@@ -481,6 +493,7 @@ export default function ChatScreen() {
               <Send
                 size={17}
                 color={inputText.trim() && !isTyping ? '#FFFFFF' : '#8C9E9B'}
+                aria-hidden={true}
               />
             </TouchableOpacity>
           </View>

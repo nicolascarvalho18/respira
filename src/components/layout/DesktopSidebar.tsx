@@ -15,7 +15,7 @@ import {
   Sun,
   Moon,
   Wind,
-  Bot,
+  MessageCircle,
   LifeBuoy,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
@@ -48,9 +48,9 @@ export const DesktopSidebar: React.FC = () => {
       isActive: pathname.includes('/content') || pathname.includes('/contents'),
     },
     {
-      label: 'Assistente IA',
+      label: 'Assistente',
       route: '/chat',
-      icon: Bot,
+      icon: MessageCircle,
       isActive: pathname.includes('/chat'),
     },
     {
@@ -130,6 +130,7 @@ export const DesktopSidebar: React.FC = () => {
                 size={20}
                 color={active ? colors.primary : colors.textMuted}
                 strokeWidth={active ? 2.4 : 1.8}
+                aria-hidden={true}
               />
               <Text
                 style={[
