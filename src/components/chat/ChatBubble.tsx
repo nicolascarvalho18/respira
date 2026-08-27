@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Bot, User as UserIcon, AlertTriangle, ArrowRight } from 'lucide-react-native';
+import { MessageCircle, User as UserIcon, AlertTriangle, ArrowRight } from 'lucide-react-native';
 import { ChatMessage } from '../../types';
 import { formatTime } from '../../utils/date';
 import { useTheme } from '../../hooks/useTheme';
@@ -41,7 +41,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onSelectSuggest
         },
       ]}
       accessibilityRole="text"
-      accessibilityLabel={`${isUser ? 'Você' : 'Assistente Educativo'}: ${message.text}`}
+      accessibilityLabel={`${isUser ? 'Você' : 'Assistente'}: ${message.text}`}
     >
       <View style={[styles.messageRow, { flexDirection: isUser ? 'row-reverse' : 'row' }]}>
         {/* Avatar */}
@@ -58,11 +58,11 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onSelectSuggest
           ]}
         >
           {isUser ? (
-            <UserIcon size={14} color="#FFFFFF" />
+            <UserIcon size={14} color="#FFFFFF" aria-hidden={true} />
           ) : isEmergency ? (
-            <AlertTriangle size={14} color="#FFFFFF" />
+            <AlertTriangle size={14} color="#FFFFFF" aria-hidden={true} />
           ) : (
-            <Bot size={14} color={colors.primary} />
+            <MessageCircle size={14} color={colors.primary} aria-hidden={true} />
           )}
         </View>
 

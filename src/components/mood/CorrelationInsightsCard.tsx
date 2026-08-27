@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Sparkles, Info, AlertCircle, CheckCircle2 } from 'lucide-react-native';
+import { Leaf, Info, AlertCircle, CheckCircle2 } from 'lucide-react-native';
 import { CorrelationInsight } from '../../services/analytics/correlationInsightsService';
 import { useTheme } from '../../hooks/useTheme';
 
@@ -28,10 +28,10 @@ export const CorrelationInsightsCard: React.FC<CorrelationInsightsCardProps> = (
         };
       case 'preliminary_observation':
         return {
-          label: 'OBSERVAÇÃO PRELIMINAR',
+          label: 'OBSERVAÇÃO DO SEU DIÁRIO',
           color: '#2F7F7C',
           bg: '#E7F3EF',
-          icon: Sparkles,
+          icon: Leaf,
         };
       case 'insufficient_data':
       default:

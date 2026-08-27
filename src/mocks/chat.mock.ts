@@ -4,7 +4,7 @@ export const INITIAL_CHAT_MESSAGES: ChatMessage[] = [
   {
     id: 'msg-welcome-1',
     sender: 'assistant',
-    text: 'Olá! Eu sou o assistente educativo do Respira. Estou aqui para compartilhar informações sobre bem-estar, sugerir exercícios do aplicativo e refletir com você.\n\nLembre-se: sou uma inteligência artificial com finalidade puramente educativa. Não sou psicólogo ou médico, não faço diagnósticos e não substituo cuidados profissionais.',
+    text: 'Olá! Eu sou o assistente do Respira. Estou aqui para compartilhar informações de bem-estar, indicar práticas do aplicativo e apoiar seus momentos de reflexão.\n\nLembre-se: este é um recurso com finalidade puramente educativa e preventiva. Não realizo diagnósticos clínicos e não substituo o acompanhamento de profissionais de saúde mental.',
     timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
     suggestions: [
       'Como acalmar o coração acelerado?',

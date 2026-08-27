@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { HeartHandshake, Wind, Sparkles, ArrowRight } from 'lucide-react-native';
+import { HeartHandshake, Wind, Leaf, ArrowRight } from 'lucide-react-native';
 import { ScreenContainer } from '../../src/components/ui/ScreenContainer';
 import { AppButton } from '../../src/components/ui/AppButton';
 import { useAuth } from '../../src/hooks/useAuth';
@@ -21,7 +21,7 @@ const SLIDES = [
     title: 'Encontre práticas que combinam com você',
     subtitle: 'Ferramentas de relaxamento',
     description:
-      'Exercícios de respiração interativos, relaxamento muscular e meditações breves para momentos de tensão ou desaceleração.',
+      'Exercícios de respiração guiados, relaxamento muscular e meditações breves para momentos de tensão ou desaceleração.',
     icon: Wind,
   },
   {
@@ -30,7 +30,7 @@ const SLIDES = [
     subtitle: 'Pequenos passos consistentes',
     description:
       'Conteúdos educativos embasados e lembretes gentis para apoiar seu bem-estar emocional todos os dias.',
-    icon: Sparkles,
+    icon: Leaf,
   },
 ];
 

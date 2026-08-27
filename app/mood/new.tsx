@@ -10,7 +10,6 @@ import {
 import { useRouter } from 'expo-router';
 import {
   Check,
-  Sparkles,
   Wind,
   Heart,
   Smile,
@@ -26,6 +25,8 @@ import {
   ChevronRight,
   Clock,
   Calendar,
+  Leaf,
+  CheckCircle2,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
 import { PageHeader } from '../../src/components/ui/PageHeader';
@@ -46,36 +47,28 @@ const DRAFT_STORAGE_KEY = 'respira_mood_draft';
 
 const DAILY_EXERCISE_OPTIONS = [
   {
-    id: 'ex-walk',
-    title: 'Caminhada leve',
-    category: 'Corpo e movimento',
-    durationMinutes: 5,
-    description: 'Passos lentos e conscientes com atenção ao contato dos pés com o chão.',
-    icon: Footprints,
+    id: 'ex-breathing',
+    title: 'Respiração profunda 4-7-8',
+    category: 'Respiração',
+    durationMinutes: 4,
+    description: 'Ciclo respiratório suave para acalmar o sistema nervoso.',
+    icon: Activity,
   },
   {
     id: 'ex-stretch',
-    title: 'Alongamento suave',
+    title: 'Alongamento suave no pescoço',
     category: 'Corpo e movimento',
     durationMinutes: 5,
-    description: 'Soltar os ombros, pescoço e coluna para aliviar a tensão muscular.',
+    description: 'Movimentos leves para soltar a tensão acumulada nos ombros.',
     icon: Activity,
   },
   {
-    id: 'ex-guided-breath',
-    title: 'Respiração guiada 4-7-8',
-    category: 'Respiração',
-    durationMinutes: 4,
-    description: 'Técnica clássica para desacelerar o ritmo cardíaco e relaxar.',
-    icon: Wind,
-  },
-  {
-    id: 'ex-muscle',
-    title: 'Relaxamento muscular',
-    category: 'Relaxamento',
-    durationMinutes: 6,
-    description: 'Contrair e soltar grupos musculares aliviando a rigidez corporal.',
-    icon: Activity,
+    id: 'ex-walk',
+    title: 'Caminhada leve ao ar livre',
+    category: 'Corpo e movimento',
+    durationMinutes: 15,
+    description: 'Passos tranquilos para arejar a mente e mudar de ambiente.',
+    icon: Footprints,
   },
   {
     id: 'ex-grounding',
@@ -96,10 +89,10 @@ const DAILY_EXERCISE_OPTIONS = [
   {
     id: 'ex-task',
     title: 'Organizar pequena tarefa',
-    category: 'Atividades criativas',
+    category: 'Atividades práticas',
     durationMinutes: 8,
     description: 'Arrumar um cantinho ou mesa com atenção focada para clareza.',
-    icon: Sparkles,
+    icon: CheckCircle2,
   },
   {
     id: 'ex-creative',
@@ -107,7 +100,7 @@ const DAILY_EXERCISE_OPTIONS = [
     category: 'Atividades criativas',
     durationMinutes: 5,
     description: 'Desenhar ou escrever pensamentos livremente sem cobrança estética.',
-    icon: Sparkles,
+    icon: Leaf,
   },
   {
     id: 'ex-focus',
@@ -115,7 +108,7 @@ const DAILY_EXERCISE_OPTIONS = [
     category: 'Atenção e foco',
     durationMinutes: 3,
     description: 'Contagem regressiva sincronizada com a respiração calma.',
-    icon: Sparkles,
+    icon: Compass,
   },
   {
     id: 'ex-sounds',
@@ -408,7 +401,7 @@ export default function NewMoodScreen() {
             ]}
           >
             <View style={styles.exSectionHeader}>
-              <Sparkles size={18} color="#2F7F7C" style={{ marginRight: 6 }} aria-hidden={true} />
+              <Activity size={18} color="#2F7F7C" style={{ marginRight: 6 }} aria-hidden={true} />
               <View style={{ flex: 1 }}>
                 <Text
                   accessibilityRole="header"
@@ -534,7 +527,7 @@ export default function NewMoodScreen() {
             ]}
           >
             <View style={styles.successIconCircle}>
-              <Sparkles size={36} color="#FFFFFF" aria-hidden={true} />
+              <CheckCircle2 size={36} color="#FFFFFF" aria-hidden={true} />
             </View>
 
             <Text

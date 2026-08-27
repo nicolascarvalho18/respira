@@ -19,7 +19,7 @@ import {
   CheckCircle2,
   Bookmark,
   TrendingUp,
-  Sparkles,
+  BookOpen,
   ChevronDown,
   RotateCcw,
 } from 'lucide-react-native';
@@ -352,9 +352,9 @@ export default function ContentScreen() {
         <View style={styles.forYouSection}>
           <View style={styles.sectionHeaderRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Sparkles size={16} color="#2F7F7C" style={{ marginRight: 6 }} />
+              <BookOpen size={16} color="#2F7F7C" style={{ marginRight: 6 }} aria-hidden={true} />
               <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>
-                Para você
+                Recomendado para você
               </Text>
             </View>
             <Text style={[styles.sectionSubtitle, { color: isDark ? colors.textMuted : '#8C9E9B' }]}>

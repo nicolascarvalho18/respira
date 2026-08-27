@@ -20,7 +20,6 @@ import {
   Trash2,
   Edit2,
   Calendar,
-  Sparkles,
   CheckCircle2,
   Circle,
   Plus,

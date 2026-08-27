@@ -23,8 +23,6 @@ import {
   X,
   Video,
   Headphones,
-  Sparkles,
-  Star,
   Eye,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';

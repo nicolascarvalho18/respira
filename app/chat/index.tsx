@@ -16,7 +16,6 @@ import {
   Send,
   HeartHandshake,
   Trash2,
-  Bot,
   MessageCircle,
   ShieldAlert,
   ArrowLeft,
@@ -30,7 +29,6 @@ import {
   Square,
   ShieldCheck,
   EyeOff,
-  Sparkles,
 } from 'lucide-react-native';
 import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
 import { useToast } from '../../src/components/ui/Toast';
@@ -260,7 +258,7 @@ export default function ChatScreen() {
                 >
                   {!isUser && (
                     <View style={[styles.msgAvatar, { backgroundColor: '#2F7F7C' }]}>
-                      <Bot size={13} color="#FFFFFF" />
+                      <MessageCircle size={13} color="#FFFFFF" aria-hidden={true} />
                     </View>
                   )}
 

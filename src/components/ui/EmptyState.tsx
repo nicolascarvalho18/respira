@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, ViewStyle } from 'react-native';
-import { Sparkles } from 'lucide-react-native';
+import { Compass } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { AppButton } from './AppButton';
 
@@ -49,7 +49,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           marginBottom: 16,
         }}
       >
-        {icon || <Sparkles size={28} color={colors.primary} />}
+        {icon || <Compass size={28} color={colors.primary} aria-hidden={true} />}
       </View>
 
       <Text

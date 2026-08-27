@@ -14,7 +14,7 @@ import {
   Bell,
   Clock,
   Calendar,
-  Sparkles,
+  Leaf,
   CheckCircle2,
   Check,
   Coffee,
@@ -407,7 +407,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
               {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
               style={styles.previewToggleBtn}
             >
-              <Sparkles size={14} color="#2F7F7C" style={{ marginRight: 6 }} />
+              <Leaf size={14} color="#2F7F7C" style={{ marginRight: 6 }} aria-hidden={true} />
               <Text style={styles.previewToggleText}>
                 {isPreviewOpen ? 'Ocultar exemplo' : 'Ver exemplo de notificação'}
               </Text>
