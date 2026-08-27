@@ -12,9 +12,9 @@ import {
   ArrowLeft,
   Play,
   Bookmark,
-  Sparkles,
+  Leaf,
   CheckCircle2,
-  ListFilter,
+  SlidersHorizontal,
   ArrowRight,
   ShieldAlert,
   Smile,
@@ -194,13 +194,13 @@ export const UniversalPracticePlayer: React.FC<UniversalPracticePlayerProps> = (
           <TouchableOpacity
             onPress={() => setIsSelectorOpen(true)}
             accessibilityRole="button"
-            accessibilityLabel="Alternar atividade"
+            accessibilityLabel="Filtrar ou alternar atividade"
             style={[
               styles.iconActionBtn,
               { backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
             ]}
           >
-            <ListFilter size={16} color={isDark ? colors.textMuted : '#667775'} />
+            <SlidersHorizontal size={16} color={isDark ? colors.textMuted : '#667775'} aria-hidden={true} />
           </TouchableOpacity>
         </View>
       </View>

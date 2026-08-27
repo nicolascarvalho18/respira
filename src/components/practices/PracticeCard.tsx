@@ -11,19 +11,20 @@ import {
   Bookmark,
   Play,
   CheckCircle2,
-  Video,
-  Headphones,
-  Sparkles,
-  Wind,
+  PlayCircle,
+  Volume2,
   Activity,
+  Wind,
+  Leaf,
+  Smile,
   Compass,
-  Square,
-  Heart,
   Clock,
+  Heart,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { Practice, UserPracticeProgress } from '../../types';
 import { formatTimesRealized } from '../../utils/grammar';
+import { PracticeThumbnail } from './PracticeThumbnail';
 
 export interface PracticeCardProps {
   practice: Practice;
@@ -47,38 +48,17 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({
   const getFormatBadge = () => {
     switch (practice.format) {
       case 'video':
-        return { label: 'Vídeo', icon: Video, bg: '#E7F3EF', color: '#2F7F7C' };
+        return { label: 'Com vídeo', icon: PlayCircle, bg: '#E7F3EF', color: '#2F7F7C' };
       case 'audio':
-        return { label: 'Áudio', icon: Headphones, bg: '#F2EBF9', color: '#6A4C93' };
+        return { label: 'Com áudio', icon: Volume2, bg: '#F2EBF9', color: '#6A4C93' };
       case 'interactive':
       default:
-        return { label: 'Interativo', icon: Sparkles, bg: '#FFF4EE', color: '#D98968' };
+        return { label: 'Guiado', icon: Activity, bg: '#FFF4EE', color: '#D98968' };
     }
   };
 
   const formatBadge = getFormatBadge();
   const FormatIcon = formatBadge.icon;
-
-  const getFallbackIcon = () => {
-    switch (practice.category) {
-      case 'breathing':
-        return Wind;
-      case 'body_movement':
-        return Activity;
-      case 'mindfulness_focus':
-      case 'mindfulness':
-        return Compass;
-      case 'sleep':
-      case 'bedtime_prep':
-        return Heart;
-      case 'quick_pauses':
-        return Clock;
-      default:
-        return Sparkles;
-    }
-  };
-
-  const FallbackIcon = getFallbackIcon();
 
   return (
     <TouchableOpacity
@@ -95,23 +75,18 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({
         Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined,
       ]}
     >
-      {/* 1. Miniatura Visual com Selo de Formato */}
+      {/* 1. Miniatura Visual com Ilustração Específica e Selo de Formato */}
       <View style={styles.thumbnailWrapper}>
-        {practice.thumbnailUrl ? (
-          <Image
-            source={{ uri: practice.thumbnailUrl }}
-            style={styles.thumbnailImage}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={[styles.fallbackThumbnail, { backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF' }]}>
-            <FallbackIcon size={26} color="#2F7F7C" />
-          </View>
-        )}
+        <PracticeThumbnail
+          practiceId={practice.id}
+          category={practice.category}
+          title={practice.title}
+          isDark={isDark}
+        />
 
-        {/* Selo de Formato (Vídeo / Áudio / Interativo) */}
+        {/* Selo de Formato (Com vídeo / Com áudio / Guiado) */}
         <View style={[styles.formatBadge, { backgroundColor: formatBadge.bg }]}>
-          <FormatIcon size={11} color={formatBadge.color} style={{ marginRight: 3 }} />
+          <FormatIcon size={10} color={formatBadge.color} style={{ marginRight: 3 }} aria-hidden={true} />
           <Text style={[styles.formatBadgeText, { color: formatBadge.color }]}>
             {formatBadge.label}
           </Text>
@@ -120,7 +95,7 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({
         {/* Selo de Concluída */}
         {isCompleted && (
           <View style={styles.completedBadge}>
-            <CheckCircle2 size={12} color="#FFFFFF" />
+            <CheckCircle2 size={11} color="#FFFFFF" aria-hidden={true} />
             <Text style={styles.completedBadgeText}>Concluída</Text>
           </View>
         )}
@@ -188,11 +163,12 @@ export const PracticeCard: React.FC<PracticeCardProps> = ({
             size={18}
             color="#2F7F7C"
             fill={practice.isFavorite ? '#2F7F7C' : 'transparent'}
+            aria-hidden={true}
           />
         </TouchableOpacity>
 
         <View style={styles.circlePlayBtn}>
-          <Play size={13} color="#FFFFFF" fill="#FFFFFF" style={{ marginLeft: 2 }} />
+          <Play size={13} color="#FFFFFF" fill="#FFFFFF" style={{ marginLeft: 2 }} aria-hidden={true} />
         </View>
       </View>
     </TouchableOpacity>
@@ -215,43 +191,33 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   thumbnailWrapper: {
-    width: 90,
-    height: 90,
+    width: 86,
+    height: 86,
     borderRadius: 14,
     overflow: 'hidden',
     position: 'relative',
     backgroundColor: '#E7F3EF',
   },
-  thumbnailImage: {
-    width: '100%',
-    height: '100%',
-  },
-  fallbackThumbnail: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   formatBadge: {
     position: 'absolute',
-    top: 6,
-    left: 6,
+    top: 5,
+    left: 5,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: 5,
     paddingVertical: 2,
     borderRadius: 6,
   },
   formatBadgeText: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: '800',
   },
   completedBadge: {
     position: 'absolute',
-    bottom: 6,
-    left: 6,
-    right: 6,
-    backgroundColor: 'rgba(47, 127, 124, 0.9)',
+    bottom: 5,
+    left: 5,
+    right: 5,
+    backgroundColor: 'rgba(47, 127, 124, 0.92)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -261,7 +227,7 @@ const styles = StyleSheet.create({
   },
   completedBadgeText: {
     color: '#FFFFFF',
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: '700',
   },
   centerCol: {
@@ -269,18 +235,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   titleRow: {
-    marginBottom: 3,
+    marginBottom: 2,
   },
   title: {
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: '800',
     letterSpacing: -0.2,
-    lineHeight: 20,
+    lineHeight: 19,
   },
   description: {
     fontSize: 12,
     lineHeight: 16,
-    marginBottom: 6,
+    marginBottom: 5,
   },
   metaRow: {
     flexDirection: 'row',
@@ -321,7 +287,7 @@ const styles = StyleSheet.create({
   actionsCol: {
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 76,
+    height: 74,
     paddingLeft: 2,
   },
   favBtn: {

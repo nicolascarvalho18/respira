@@ -15,7 +15,7 @@ import {
   Wind,
   Activity,
   Compass,
-  Sparkles,
+  Leaf,
   Heart,
   Square,
   ChevronRight,
@@ -113,8 +113,9 @@ export const PracticeSelectorModal: React.FC<PracticeSelectorModalProps> = ({
         return <Activity size={20} color={color} />;
       case 'compass':
         return <Compass size={20} color={color} />;
+      case 'leaf':
       case 'sparkles':
-        return <Sparkles size={20} color={color} />;
+        return <Leaf size={20} color={color} aria-hidden={true} />;
       case 'square':
         return <Square size={20} color={color} />;
       case 'heart':

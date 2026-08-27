@@ -13,14 +13,14 @@ import {
   Search,
   X,
   Play,
-  Star,
+  Leaf,
   Bookmark,
   TrendingUp,
   SlidersHorizontal,
   Clock,
   Video,
   Headphones,
-  Sparkles,
+  Volume2,
   RotateCcw,
   Compass,
   Heart,
@@ -144,21 +144,24 @@ export default function PracticesScreen() {
   const heroPractice: Practice = recommendedPractices[0] || practices[0];
 
   // Garantir curadoria sem repetição de práticas entre seções (QA-015)
+  const alreadyShownIds = new Set<string>();
+  if (heroPractice?.id) {
+    alreadyShownIds.add(heroPractice.id);
+  }
+  inProgressPractices.forEach((p) => alreadyShownIds.add(p.id));
+
   const uniqueQuick = quickPractices
-    .filter((p) => p.id !== heroPractice?.id)
+    .filter((p) => !alreadyShownIds.has(p.id))
     .slice(0, 3);
+  uniqueQuick.forEach((p) => alreadyShownIds.add(p.id));
 
   const uniqueNew = newPractices
-    .filter((p) => p.id !== heroPractice?.id && !uniqueQuick.some((q) => q.id === p.id))
+    .filter((p) => !alreadyShownIds.has(p.id))
     .slice(0, 3);
+  uniqueNew.forEach((p) => alreadyShownIds.add(p.id));
 
   const uniqueMostCompleted = mostCompletedPractices
-    .filter(
-      (p) =>
-        p.id !== heroPractice?.id &&
-        !uniqueQuick.some((q) => q.id === p.id) &&
-        !uniqueNew.some((n) => n.id === p.id)
-    )
+    .filter((p) => !alreadyShownIds.has(p.id))
     .slice(0, 3);
 
   const hasActiveAdvancedFilters =
@@ -450,7 +453,7 @@ export default function PracticesScreen() {
               <View style={styles.heroContent}>
                 <View style={styles.heroTopRow}>
                   <View style={styles.heroBadgeRow}>
-                    <Star size={13} color="#2F7F7C" fill="#2F7F7C" style={{ marginRight: 5 }} />
+                    <Activity size={13} color="#2F7F7C" style={{ marginRight: 5 }} aria-hidden={true} />
                     <Text style={styles.heroBadgeText}>RECOMENDADO PARA O SEU MOMENTO</Text>
                   </View>
 
@@ -544,7 +547,7 @@ export default function PracticesScreen() {
           {uniqueNew.length > 0 && (
             <View style={styles.sectionBlock}>
               <View style={styles.sectionTitleRow}>
-                <Sparkles size={16} color="#2F7F7C" />
+                <Leaf size={16} color="#2F7F7C" aria-hidden={true} />
                 <Text style={[styles.sectionHeading, { color: isDark ? colors.text : '#173D3B' }]}>
                   Novidades
                 </Text>

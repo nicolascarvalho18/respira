@@ -99,8 +99,9 @@ export const MOCK_PRACTICES: Practice[] = [
     order: 2,
     status: 'published',
     guidelinesBeforeStarting: [
-      'Acompanhe visualmente a expansão e contração do círculo na tela.',
-      'Respire com suavidade sem pressa para acompanhar os tempos.',
+      'Acompanhe visualmente a personagem e o quadrado animado na tela.',
+      'Respire com suavidade acompanhando os quatro tempos de cada lado (4 segundos cada).',
+      'Mantenha a postura confortável e relaxe os ombros.',
     ],
     stages: [
       { step: 1, title: 'Inspirar (4s)', instruction: 'Puxe o ar suavemente enchendo o abdômen.', durationSeconds: 4 },
