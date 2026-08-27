@@ -15,25 +15,22 @@ export default function TabLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: '#1B645D',
-          tabBarInactiveTintColor: '#65736F',
+          tabBarActiveTintColor: '#247B74',
+          tabBarInactiveTintColor: '#68736F',
           tabBarStyle: {
             display: isDesktop ? 'none' : 'flex',
             backgroundColor: isDark ? colors.surface : '#FFFFFF',
-            borderTopColor: isDark ? colors.border : '#E8EDEA',
+            borderTopColor: isDark ? colors.border : '#DCE2DF',
             borderTopWidth: 1,
-            height: Platform.OS === 'ios' ? 84 : 64,
-            paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+            height: Platform.OS === 'ios' ? 84 : 60,
+            paddingBottom: Platform.OS === 'ios' ? 22 : 8,
             paddingTop: 8,
-            elevation: 3,
-            shadowColor: '#123F3A',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.04,
-            shadowRadius: 6,
+            elevation: 0,
+            shadowOpacity: 0,
           },
           tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: '600',
+            fontSize: 11.5,
+            fontWeight: '500',
             marginTop: 2,
           },
         }}
@@ -43,7 +40,7 @@ export default function TabLayout() {
           options={{
             title: 'Início',
             tabBarLabel: 'Início',
-            tabBarIcon: ({ color }) => <Home size={22} color={color} />,
+            tabBarIcon: ({ color }) => <Home size={22} color={color} strokeWidth={1.75} />,
           }}
         />
         <Tabs.Screen
@@ -51,7 +48,7 @@ export default function TabLayout() {
           options={{
             title: 'Diário',
             tabBarLabel: 'Diário',
-            tabBarIcon: ({ color }) => <BookOpen size={22} color={color} />,
+            tabBarIcon: ({ color }) => <BookOpen size={22} color={color} strokeWidth={1.75} />,
           }}
         />
         <Tabs.Screen
@@ -59,7 +56,7 @@ export default function TabLayout() {
           options={{
             title: 'Práticas',
             tabBarLabel: 'Práticas',
-            tabBarIcon: ({ color }) => <Wind size={22} color={color} />,
+            tabBarIcon: ({ color }) => <Wind size={22} color={color} strokeWidth={1.75} />,
           }}
         />
         <Tabs.Screen
@@ -67,7 +64,7 @@ export default function TabLayout() {
           options={{
             title: 'Conteúdos',
             tabBarLabel: 'Conteúdos',
-            tabBarIcon: ({ color }) => <Library size={22} color={color} />,
+            tabBarIcon: ({ color }) => <Library size={22} color={color} strokeWidth={1.75} />,
           }}
         />
         <Tabs.Screen
@@ -75,7 +72,7 @@ export default function TabLayout() {
           options={{
             title: 'Perfil',
             tabBarLabel: 'Perfil',
-            tabBarIcon: ({ color }) => <User size={22} color={color} />,
+            tabBarIcon: ({ color }) => <User size={22} color={color} strokeWidth={1.75} />,
           }}
         />
       </Tabs>
@@ -92,3 +89,4 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
 });
+

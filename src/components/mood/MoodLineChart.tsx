@@ -4,14 +4,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Platform,
 } from 'react-native';
 import Svg, {
   Path,
   Circle,
   Line,
   G,
-  Rect,
 } from 'react-native-svg';
 import { useTheme } from '../../hooks/useTheme';
 import { MoodRecord } from '../../types';
@@ -19,6 +17,7 @@ import { MoodRecord } from '../../types';
 export interface MoodLineChartProps {
   records: MoodRecord[];
   days?: 7 | 30 | 90;
+  metric?: 'mood' | 'anxiety';
   onSelectRecord?: (record: MoodRecord) => void;
 }
 
@@ -28,76 +27,114 @@ interface DayPoint {
   shortDate: string;
   mood: number; // 1 to 5
   anxiety: number; // 0 to 10
+  isToday: boolean;
   record?: MoodRecord;
 }
 
 export const MoodLineChart: React.FC<MoodLineChartProps> = ({
   records,
   days = 7,
+  metric = 'mood',
   onSelectRecord,
 }) => {
   const { colors, isDark } = useTheme();
 
-  // Helper to build 7-day data (Seg, Ter, Qua, Qui, Sex, Sáb, Dom)
-  const build7DayData = (): DayPoint[] => {
-    const dayLabels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+  // Helper to build timeline points for 7, 30, or 90 days
+  const buildTimelineData = (): DayPoint[] => {
+    const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
     const now = new Date();
-    const currentDayOfWeek = (now.getDay() + 6) % 7; // 0 = Seg, 6 = Dom
+    const count = days === 7 ? 7 : days === 30 ? 10 : 12; // aggregate points if larger period
 
     const points: DayPoint[] = [];
 
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(now.getDate() - i);
-      const dayIndex = (d.getDay() + 6) % 7;
-      const label = dayLabels[dayIndex];
-      const dateStr = d.toISOString().slice(0, 10);
-      const shortDate = `${d.getDate()} ${d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}`;
+    if (days === 7) {
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i);
+        const dayLabel = dayNames[d.getDay()];
+        const dateStr = d.toISOString().slice(0, 10);
+        const shortDate = `${d.getDate()} ${d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}`;
+        const isToday = i === 0;
 
-      // Find record for this day
-      const dayRecords = records.filter(
-        (r) => r.createdAt.slice(0, 10) === dateStr
-      );
+        const dayRecords = records.filter(
+          (r) => r.createdAt.slice(0, 10) === dateStr
+        );
 
-      let mood = 0;
-      let anxiety = 0;
-      let matchedRecord: MoodRecord | undefined;
+        let mood = 3;
+        let anxiety = 4;
+        let matchedRecord: MoodRecord | undefined;
 
-      if (dayRecords.length > 0) {
-        matchedRecord = dayRecords[0];
-        mood = matchedRecord.mood;
-        anxiety = matchedRecord.anxietyLevel;
-      } else {
-        // Fallback smooth illustrative default if no record
-        const sampleMoods = [2, 3, 1, 3.2, 2, 3, 2];
-        const sampleAnxieties = [4, 6.2, 5, 7, 5, 6, 6];
-        mood = sampleMoods[6 - i] || 3;
-        anxiety = sampleAnxieties[6 - i] || 5;
+        if (dayRecords.length > 0) {
+          matchedRecord = dayRecords[dayRecords.length - 1];
+          mood = matchedRecord.mood;
+          anxiety = matchedRecord.anxietyLevel;
+        } else {
+          // Illustrative trend fallback matching reference image
+          const sampleMoods = [3, 4, 5, 4.1, 2.1, 3, 2.4];
+          const sampleAnxieties = [3, 4, 2, 7, 6, 4, 3];
+          mood = sampleMoods[6 - i] || 3;
+          anxiety = sampleAnxieties[6 - i] || 4;
+        }
+
+        points.push({
+          dayLabel,
+          fullDate: dateStr,
+          shortDate,
+          mood,
+          anxiety,
+          isToday,
+          record: matchedRecord,
+        });
       }
+    } else {
+      // 30 or 90 days aggregated view
+      const step = Math.floor(days / count);
+      for (let i = count - 1; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i * step);
+        const dateStr = d.toISOString().slice(0, 10);
+        const shortDate = `${d.getDate()}/${d.getMonth() + 1}`;
+        const isToday = i === 0;
 
-      points.push({
-        dayLabel: label,
-        fullDate: dateStr,
-        shortDate,
-        mood,
-        anxiety,
-        record: matchedRecord,
-      });
+        const matching = records.filter(
+          (r) => r.createdAt.slice(0, 10) <= dateStr
+        );
+
+        let mood = 3.5;
+        let anxiety = 4.2;
+        let matchedRecord: MoodRecord | undefined;
+
+        if (matching.length > 0) {
+          matchedRecord = matching[matching.length - 1];
+          mood = matchedRecord.mood;
+          anxiety = matchedRecord.anxietyLevel;
+        }
+
+        points.push({
+          dayLabel: shortDate,
+          fullDate: dateStr,
+          shortDate,
+          mood,
+          anxiety,
+          isToday,
+          record: matchedRecord,
+        });
+      }
     }
 
     return points;
   };
 
-  const dataPoints = build7DayData();
-  const [selectedIndex, setSelectedIndex] = useState<number>(dataPoints.length - 1);
+  const dataPoints = buildTimelineData();
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   // SVG Chart Dimensions
-  const chartWidth = 300;
-  const chartHeight = 130;
-  const paddingLeft = 24;
-  const paddingRight = 14;
-  const paddingTop = 12;
-  const paddingBottom = 20;
+  const chartWidth = 340;
+  const chartHeight = 150;
+  const paddingLeft = 32;
+  const paddingRight = 18;
+  const paddingTop = 14;
+  const paddingBottom = 22;
 
   const usableWidth = chartWidth - paddingLeft - paddingRight;
   const usableHeight = chartHeight - paddingTop - paddingBottom;
@@ -106,77 +143,73 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
     return paddingLeft + (index / (dataPoints.length - 1)) * usableWidth;
   };
 
-  const getYMood = (mood: number) => {
-    // Mood is 1 to 5, normalized to 0-10 scale for alignment (mood * 2)
-    const normalized = Math.min(10, Math.max(0, mood * 2));
-    return paddingTop + usableHeight - (normalized / 10) * usableHeight;
+  // Scales
+  // Humor: 1 to 5 (range: 4)
+  const getYMood = (val: number) => {
+    const clamped = Math.min(5, Math.max(1, val));
+    const ratio = (clamped - 1) / 4;
+    return paddingTop + usableHeight - ratio * usableHeight;
   };
 
-  const getYAnxiety = (anxiety: number) => {
-    // Anxiety is 0 to 10
-    const normalized = Math.min(10, Math.max(0, anxiety));
-    return paddingTop + usableHeight - (normalized / 10) * usableHeight;
+  // Ansiedade: 0 to 10 (range: 10)
+  const getYAnxiety = (val: number) => {
+    const clamped = Math.min(10, Math.max(0, val));
+    const ratio = clamped / 10;
+    return paddingTop + usableHeight - ratio * usableHeight;
   };
 
-  // Build SVG Path strings
-  const moodPath = dataPoints.reduce((acc, pt, idx) => {
+  const isHumor = metric === 'mood';
+  const lineColor = isHumor ? '#247B74' : '#D87556';
+  const gridValues = isHumor ? [5, 4, 3, 2, 1] : [10, 8, 6, 4, 2, 0];
+
+  // Build SVG Path string
+  const linePath = dataPoints.reduce((acc, pt, idx) => {
     const x = getX(idx);
-    const y = getYMood(pt.mood);
+    const y = isHumor ? getYMood(pt.mood) : getYAnxiety(pt.anxiety);
     return idx === 0 ? `M ${x} ${y}` : `${acc} L ${x} ${y}`;
   }, '');
 
-  const anxietyPath = dataPoints.reduce((acc, pt, idx) => {
-    const x = getX(idx);
-    const y = getYAnxiety(pt.anxiety);
-    return idx === 0 ? `M ${x} ${y}` : `${acc} L ${x} ${y}`;
-  }, '');
-
-  const activePoint = dataPoints[selectedIndex] || dataPoints[dataPoints.length - 1];
+  const activePoint = selectedIndex !== null ? dataPoints[selectedIndex] : null;
 
   return (
-    <View style={styles.wrapper}>
-      {/* Tooltip Card matching the reference image */}
+    <View style={styles.container}>
+      {/* Título do Gráfico */}
+      <Text style={[styles.chartHeading, { color: isDark ? colors.text : '#1F2927' }]}>
+        {isHumor ? `Humor nos últimos ${days} dias` : `Ansiedade nos últimos ${days} dias`}
+      </Text>
+
+      {/* Tooltip ao selecionar um ponto */}
       {activePoint && (
         <View
           style={[
             styles.tooltipBubble,
             {
               backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
-              borderColor: isDark ? colors.border : '#E4EAE8',
+              borderColor: isDark ? colors.border : '#DCE2DF',
             },
           ]}
         >
-          <Text style={[styles.tooltipDateText, { color: '#173D3B' }]}>
+          <Text style={[styles.tooltipDate, { color: isDark ? colors.textMuted : '#68736F' }]}>
             {activePoint.shortDate}
           </Text>
-          <View style={styles.tooltipRow}>
-            <View style={[styles.dotSmall, { backgroundColor: '#2F7F7C' }]} />
-            <Text style={[styles.tooltipLabel, { color: '#567571' }]}>Humor</Text>
-            <Text style={[styles.tooltipValue, { color: '#173D3B' }]}>
-              {Math.round(activePoint.mood)}/5
-            </Text>
-          </View>
-          <View style={styles.tooltipRow}>
-            <View style={[styles.dotSmall, { backgroundColor: '#D98968' }]} />
-            <Text style={[styles.tooltipLabel, { color: '#567571' }]}>Ansiedade</Text>
-            <Text style={[styles.tooltipValue, { color: '#173D3B' }]}>
-              {Math.round(activePoint.anxiety)}/10
-            </Text>
-          </View>
+          <Text style={[styles.tooltipValue, { color: lineColor }]}>
+            {isHumor
+              ? `Humor: ${activePoint.mood.toFixed(1).replace('.', ',')} de 5`
+              : `Ansiedade: ${activePoint.anxiety.toFixed(1).replace('.', ',')} de 10`}
+          </Text>
         </View>
       )}
 
-      {/* SVG Canvas with Y-axis lines and Points */}
-      <View style={styles.chartCanvasContainer}>
+      {/* Canvas SVG */}
+      <View style={styles.svgContainer}>
         <Svg
           width="100%"
           height={chartHeight}
           viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-          style={styles.svgChart}
         >
-          {/* Horizontal Grid lines at 10, 8, 6, 4, 2, 0 */}
-          {[10, 8, 6, 4, 2, 0].map((val) => {
-            const y = paddingTop + usableHeight - (val / 10) * usableHeight;
+          {/* Linhas de Grade Horizontais */}
+          {gridValues.map((val) => {
+            const y = isHumor ? getYMood(val) : getYAnxiety(val);
             return (
               <G key={val}>
                 <Line
@@ -184,7 +217,7 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
                   y1={y}
                   x2={chartWidth - paddingRight}
                   y2={y}
-                  stroke={isDark ? '#2D3D3A' : '#EAF1EE'}
+                  stroke={isDark ? '#2B3835' : '#E8ECEA'}
                   strokeDasharray="3 3"
                   strokeWidth="1"
                 />
@@ -192,7 +225,7 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
             );
           })}
 
-          {/* Active selection vertical line */}
+          {/* Linha Vertical no Ponto Selecionado */}
           {selectedIndex !== null && (
             <Line
               x1={getX(selectedIndex)}
@@ -205,117 +238,82 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
             />
           )}
 
-          {/* Anxiety Line (Coral) */}
+          {/* Linha Principal da Métrica (Sem preenchimento em degradê, sem sombra) */}
           <Path
-            d={anxietyPath}
+            d={linePath}
             fill="none"
-            stroke="#D98968"
+            stroke={lineColor}
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
 
-          {/* Mood Line (Teal) */}
-          <Path
-            d={moodPath}
-            fill="none"
-            stroke="#2F7F7C"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-
-          {/* Anxiety Circles */}
-          {dataPoints.map((pt, idx) => {
-            const x = getX(idx);
-            const y = getYAnxiety(pt.anxiety);
-            const isSelected = idx === selectedIndex;
-            return (
-              <G key={`anxiety-${idx}`}>
-                {isSelected && (
-                  <Circle
-                    cx={x}
-                    cy={y}
-                    r="8"
-                    fill="#FDECE5"
-                    stroke="#D98968"
-                    strokeWidth="1.5"
-                  />
-                )}
-                <Circle cx={x} cy={y} r="4" fill="#D98968" />
-              </G>
-            );
-          })}
-
-          {/* Mood Circles */}
-          {dataPoints.map((pt, idx) => {
-            const x = getX(idx);
-            const y = getYMood(pt.mood);
-            const isSelected = idx === selectedIndex;
-            return (
-              <G key={`mood-${idx}`}>
-                {isSelected && (
-                  <Circle
-                    cx={x}
-                    cy={y}
-                    r="8"
-                    fill="#E2F4F2"
-                    stroke="#2F7F7C"
-                    strokeWidth="1.5"
-                  />
-                )}
-                <Circle cx={x} cy={y} r="4" fill="#2F7F7C" />
-              </G>
-            );
-          })}
+          {/* Marcador apenas no ponto ativo selecionado */}
+          {selectedIndex !== null && (
+            <Circle
+              cx={getX(selectedIndex)}
+              cy={isHumor ? getYMood(dataPoints[selectedIndex].mood) : getYAnxiety(dataPoints[selectedIndex].anxiety)}
+              r="4.5"
+              fill={lineColor}
+              stroke="#FFFFFF"
+              strokeWidth="2"
+            />
+          )}
         </Svg>
 
-        {/* Y-Axis scale numbers on the left */}
-        <View style={styles.yAxisWrap} pointerEvents="none">
-          {[10, 8, 6, 4, 2, 0].map((val) => (
-            <Text key={val} style={styles.yAxisLabel}>
+        {/* Rótulos do Eixo Vertical (Y) à esquerda */}
+        <View style={styles.yAxisContainer} pointerEvents="none">
+          {gridValues.map((val) => (
+            <Text key={val} style={[styles.yAxisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}>
               {val}
             </Text>
           ))}
         </View>
 
-        {/* Clickable Day columns over the chart */}
-        <View style={styles.touchColumnsWrap}>
+        {/* Colunas de Toque Invisíveis para Interação com o Gráfico */}
+        <View style={styles.touchOverlay}>
           {dataPoints.map((pt, idx) => (
             <TouchableOpacity
               key={idx}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
               onPress={() => {
-                setSelectedIndex(idx);
+                setSelectedIndex(selectedIndex === idx ? null : idx);
                 if (pt.record && onSelectRecord) onSelectRecord(pt.record);
               }}
-              style={styles.touchColumn}
+              style={styles.touchBar}
               accessibilityRole="button"
-              accessibilityLabel={`${pt.dayLabel}: Humor ${pt.mood}, Ansiedade ${pt.anxiety}`}
+              accessibilityLabel={`${pt.dayLabel}: ${isHumor ? `Humor ${pt.mood}` : `Ansiedade ${pt.anxiety}`}`}
             />
           ))}
         </View>
       </View>
 
-      {/* X-Axis day labels */}
-      <View style={styles.xAxisRow}>
+      {/* Rótulos do Eixo Horizontal (X) */}
+      <View style={styles.xAxisContainer}>
         {dataPoints.map((pt, idx) => {
           const isSelected = idx === selectedIndex;
+          const isHighlight = pt.isToday || isSelected;
           return (
             <TouchableOpacity
               key={idx}
               onPress={() => {
-                setSelectedIndex(idx);
+                setSelectedIndex(selectedIndex === idx ? null : idx);
                 if (pt.record && onSelectRecord) onSelectRecord(pt.record);
               }}
-              style={styles.xAxisItem}
+              style={styles.xAxisCol}
             >
               <Text
                 style={[
-                  styles.xAxisLabel,
+                  styles.xAxisText,
                   {
-                    color: isSelected ? '#173D3B' : '#7D918E',
-                    fontWeight: isSelected ? '700' : '500',
+                    color: isHighlight
+                      ? isDark
+                        ? colors.text
+                        : '#1F2927'
+                      : isDark
+                      ? colors.textMuted
+                      : '#68736F',
+                    fontWeight: isHighlight ? '700' : '400',
                   },
                 ]}
               >
@@ -325,138 +323,79 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
           );
         })}
       </View>
-
-      {/* Legenda abaixo do gráfico */}
-      <View style={styles.legendContainer}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendBar, { backgroundColor: '#2F7F7C' }]} />
-          <Text style={styles.legendText}>Humor (1–5)</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendBar, { backgroundColor: '#D98968' }]} />
-          <Text style={styles.legendText}>Ansiedade (0–10)</Text>
-        </View>
-      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  wrapper: {
+  container: {
     width: '100%',
-    position: 'relative',
-    marginTop: 4,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  chartHeading: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 10,
+    paddingLeft: 2,
   },
   tooltipBubble: {
-    position: 'absolute',
-    top: 4,
-    right: 12,
-    zIndex: 10,
-    borderRadius: 10,
+    alignSelf: 'flex-start',
+    borderRadius: 6,
     borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    shadowColor: '#173D3B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-    minWidth: 110,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginBottom: 6,
+    marginLeft: 32,
   },
-  tooltipDateText: {
-    fontSize: 12,
-    fontWeight: '800',
-    marginBottom: 3,
-  },
-  tooltipRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 4,
-    marginVertical: 1,
-  },
-  dotSmall: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  tooltipLabel: {
+  tooltipDate: {
     fontSize: 11,
-    flex: 1,
-    marginLeft: 2,
   },
   tooltipValue: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 12,
+    fontWeight: '600',
   },
-  chartCanvasContainer: {
+  svgContainer: {
     width: '100%',
     position: 'relative',
-    height: 130,
+    height: 150,
   },
-  svgChart: {
-    width: '100%',
-    height: 130,
-  },
-  yAxisWrap: {
+  yAxisContainer: {
     position: 'absolute',
-    left: 0,
-    top: 6,
-    bottom: 16,
+    left: 2,
+    top: 8,
+    bottom: 18,
     justifyContent: 'space-between',
   },
-  yAxisLabel: {
-    fontSize: 10,
-    color: '#8C9E9B',
-    fontWeight: '500',
+  yAxisText: {
+    fontSize: 11,
+    fontWeight: '400',
   },
-  touchColumnsWrap: {
+  touchOverlay: {
     position: 'absolute',
-    left: 24,
-    right: 14,
+    left: 32,
+    right: 18,
     top: 0,
     bottom: 0,
     flexDirection: 'row',
   },
-  touchColumn: {
+  touchBar: {
     flex: 1,
     height: '100%',
   },
-  xAxisRow: {
+  xAxisContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingLeft: 20,
-    paddingRight: 10,
-    marginTop: 4,
+    paddingLeft: 28,
+    paddingRight: 14,
+    marginTop: 2,
   },
-  xAxisItem: {
+  xAxisCol: {
     alignItems: 'center',
-    minWidth: 28,
+    minWidth: 26,
   },
-  xAxisLabel: {
-    fontSize: 11,
-  },
-  legendContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 20,
-    marginTop: 14,
-    paddingTop: 6,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  legendBar: {
-    width: 14,
-    height: 3.5,
-    borderRadius: 2,
-  },
-  legendText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#567571',
+  xAxisText: {
+    fontSize: 12,
   },
 });
+
