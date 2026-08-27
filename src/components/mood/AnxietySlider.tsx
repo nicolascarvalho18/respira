@@ -1,107 +1,177 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
-import { getAnxietyDescription } from '../../utils/format';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+  LayoutChangeEvent,
+} from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
 
 export interface AnxietySliderProps {
   value: number | null; // 0 to 10 or null when unset
   onChange: (value: number) => void;
   disabled?: boolean;
+  hideHeader?: boolean;
 }
 
 export const AnxietySlider: React.FC<AnxietySliderProps> = ({
   value,
   onChange,
   disabled = false,
+  hideHeader = false,
 }) => {
   const { colors, isDark } = useTheme();
+  const [trackWidth, setTrackWidth] = useState(280);
 
-  const getTrackColor = (val: number) => {
-    if (val <= 2) return colors.primary;
-    if (val <= 5) return colors.secondary;
-    if (val <= 7) return colors.warning;
-    return colors.error;
+  const currentValue = value ?? 0;
+  const clampedValue = Math.min(10, Math.max(0, currentValue));
+  const progressRatio = clampedValue / 10;
+
+  const handleLayout = (e: LayoutChangeEvent) => {
+    const width = e.nativeEvent.layout.width;
+    if (width > 0) {
+      setTrackWidth(width);
+    }
   };
 
-  const currentColor = value !== null ? getTrackColor(value) : colors.border;
+  const handleTrackPress = (locationX: number) => {
+    if (disabled || trackWidth <= 0) return;
+    const ratio = Math.min(1, Math.max(0, locationX / trackWidth));
+    const stepVal = Math.round(ratio * 10);
+    onChange(stepVal);
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <Text
-          accessibilityRole="header"
-          aria-level={3}
-          style={[styles.label, { color: colors.text }]}
-        >
-          Nível de Ansiedade (0 a 10)
-        </Text>
-        <View
-          style={[
-            styles.badge,
-            {
-              backgroundColor: isDark ? '#2D2A28' : '#FFF5F0',
-              borderColor: value !== null ? currentColor : colors.border,
-            },
-          ]}
-        >
-          <Text style={[styles.valueText, { color: value !== null ? currentColor : colors.textMuted }]}>
-            {value !== null ? `${value} / 10 • ${getAnxietyDescription(value)}` : 'Selecione uma opção'}
+      {/* Valor Atual */}
+      {!hideHeader && (
+        <View style={styles.valueRow}>
+          <Text
+            style={[
+              styles.currentValueText,
+              { color: '#247B74' },
+            ]}
+          >
+            {value !== null ? `${value} de 10` : '0 de 10'}
           </Text>
         </View>
+      )}
+
+      {/* Rótulos dos extremos (0 e 10) */}
+      <View style={styles.topLabelsRow}>
+        <Text style={[styles.endpointNumber, { color: isDark ? colors.text : '#1F2927' }]}>
+          0
+        </Text>
+        <Text style={[styles.endpointNumber, { color: isDark ? colors.text : '#1F2927' }]}>
+          10
+        </Text>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.numbersRow}
-        accessibilityRole="radiogroup"
-        aria-label="Escala de nível de ansiedade de 0 a 10"
+      {/* Slider Interativo */}
+      <View
+        style={styles.sliderContainer}
+        onLayout={handleLayout}
+        accessibilityRole="adjustable"
+        accessibilityLabel={`Nível de ansiedade ${clampedValue} de 10`}
+        accessibilityValue={{ min: 0, max: 10, now: clampedValue }}
+        {...(Platform.OS === 'web'
+          ? ({
+              tabIndex: 0,
+              onKeyDown: (e: React.KeyboardEvent) => {
+                if (disabled) return;
+                if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  onChange(Math.min(10, clampedValue + 1));
+                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  onChange(Math.max(0, clampedValue - 1));
+                } else if (e.key === 'Home') {
+                  e.preventDefault();
+                  onChange(0);
+                } else if (e.key === 'End') {
+                  e.preventDefault();
+                  onChange(10);
+                }
+              },
+            } as any)
+          : {})}
       >
-        {Array.from({ length: 11 }, (_, i) => i).map((num) => {
-          const isSelected = value === num;
-          const numColor = getTrackColor(num);
+        {/* Trilho base */}
+        <View
+          style={[
+            styles.trackBg,
+            { backgroundColor: isDark ? '#2D3835' : '#D8DEDB' },
+          ]}
+        />
 
+        {/* Trilho preenchido */}
+        <View
+          style={[
+            styles.trackFill,
+            {
+              width: `${progressRatio * 100}%`,
+              backgroundColor: '#247B74',
+            },
+          ]}
+        />
+
+        {/* Marcações discretas (Ticks) */}
+        {Array.from({ length: 11 }, (_, i) => {
+          const tickRatio = i / 10;
+          const isPassed = i <= clampedValue;
           return (
+            <View
+              key={i}
+              style={[
+                styles.tickDot,
+                {
+                  left: `${tickRatio * 100}%`,
+                  backgroundColor: isPassed ? '#247B74' : isDark ? '#3D4D49' : '#C4CDCA',
+                },
+              ]}
+            />
+          );
+        })}
+
+        {/* Knob (Thumb) */}
+        <View
+          style={[
+            styles.thumbKnob,
+            {
+              left: `${progressRatio * 100}%`,
+              backgroundColor: '#247B74',
+              borderColor: '#FFFFFF',
+            },
+          ]}
+        />
+
+        {/* Zonas de Toque Acessíveis para cada passo de 0 a 10 */}
+        <View style={styles.touchAreaRow}>
+          {Array.from({ length: 11 }, (_, num) => (
             <TouchableOpacity
               key={num}
               disabled={disabled}
               onPress={() => onChange(num)}
               accessibilityRole="radio"
-              accessibilityLabel={`Nível de ansiedade ${num} de 10: ${getAnxietyDescription(num)}`}
-              accessibilityState={{ checked: isSelected, selected: isSelected }}
-              {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
-              style={[
-                styles.stepButton,
-                {
-                  backgroundColor: isSelected
-                    ? numColor
-                    : isDark
-                    ? colors.surfaceSubtle
-                    : '#FFFFFF',
-                  borderColor: isSelected ? numColor : colors.border,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.stepText,
-                  {
-                    color: isSelected ? '#FFFFFF' : colors.text,
-                    fontWeight: isSelected ? '700' : '500',
-                  },
-                ]}
-              >
-                {num}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+              accessibilityLabel={`Nível de ansiedade ${num} de 10`}
+              accessibilityState={{ checked: value === num, selected: value === num }}
+              style={styles.touchStep}
+              activeOpacity={0.7}
+            />
+          ))}
+        </View>
+      </View>
 
-      <View style={styles.scaleHints}>
-        <Text style={[styles.hintText, { color: colors.textMuted }]}>0 (Tranquilo)</Text>
-        <Text style={[styles.hintText, { color: colors.textMuted }]}>5 (Moderado)</Text>
-        <Text style={[styles.hintText, { color: colors.textMuted }]}>10 (Intenso)</Text>
+      {/* Rótulos Descritivos Inferiores */}
+      <View style={styles.bottomLabelsRow}>
+        <Text style={[styles.bottomLabelText, { color: isDark ? colors.textMuted : '#68736F' }]}>
+          Tranquilo
+        </Text>
+        <Text style={[styles.bottomLabelText, { color: isDark ? colors.textMuted : '#68736F' }]}>
+          Intenso
+        </Text>
       </View>
     </View>
   );
@@ -109,52 +179,81 @@ export const AnxietySlider: React.FC<AnxietySliderProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 12,
+    width: '100%',
+    marginVertical: 4,
   },
-  headerRow: {
+  valueRow: {
+    marginBottom: 8,
+  },
+  currentValueText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  topLabelsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 8,
+    paddingHorizontal: 2,
   },
-  label: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  valueText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  numbersRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    gap: 8,
-  },
-  stepButton: {
-    width: 38,
-    height: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepText: {
+  endpointNumber: {
     fontSize: 14,
+    fontWeight: '500',
   },
-  scaleHints: {
+  sliderContainer: {
+    height: 32,
+    justifyContent: 'center',
+    position: 'relative',
+    width: '100%',
+  },
+  trackBg: {
+    height: 4,
+    borderRadius: 2,
+    width: '100%',
+    position: 'absolute',
+  },
+  trackFill: {
+    height: 4,
+    borderRadius: 2,
+    position: 'absolute',
+  },
+  tickDot: {
+    position: 'absolute',
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginLeft: -2,
+    top: 14,
+  },
+  thumbKnob: {
+    position: 'absolute',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2.5,
+    marginLeft: -11,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  touchAreaRow: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: 'row',
+  },
+  touchStep: {
+    flex: 1,
+    height: '100%',
+  },
+  bottomLabelsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 6,
     paddingHorizontal: 2,
   },
-  hintText: {
-    fontSize: 11,
+  bottomLabelText: {
+    fontSize: 13,
+    fontWeight: '400',
   },
 });
+
