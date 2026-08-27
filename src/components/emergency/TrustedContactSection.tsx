@@ -239,7 +239,7 @@ export const TrustedContactSection: React.FC = () => {
             aria-hidden={true}
           />
           <Text style={[styles.emptyText, { color: isDark ? colors.textMuted : '#65736F' }]}>
-            Cadastre até 3 pessoas de confiança para acionar rapidamente em momentos difíceis.
+            Adicione contatos próximos para conversar ou pedir ajuda quando precisar.
           </Text>
           <TouchableOpacity
             onPress={openAddModal}
@@ -350,7 +350,7 @@ export const TrustedContactSection: React.FC = () => {
               style={styles.addAnotherBtn}
             >
               <UserRoundPlus size={16} color="#147D78" strokeWidth={1.75} />
-              <Text style={styles.addAnotherBtnText}>Adicionar outro contato de confiança</Text>
+              <Text style={styles.addAnotherBtnText}>Adicionar outro contato</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -366,7 +366,7 @@ export const TrustedContactSection: React.FC = () => {
           aria-hidden={true}
         />
         <Text style={[styles.privacyNoteText, { color: isDark ? colors.textMuted : '#65736F' }]}>
-          Seus contatos são salvos apenas no seu dispositivo e protegidos com segurança.
+          Estes contatos ficam gravados apenas no seu aparelho e não são compartilhados com ninguém.
         </Text>
       </View>
 

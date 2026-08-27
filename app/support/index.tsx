@@ -65,7 +65,7 @@ export default function SupportScreen() {
     setSelectedServiceToCall(null);
   };
 
-  // Mapeamento visual dedicado para cada serviço público
+  // Mapeamento visual para serviços públicos com cores sóbrias
   const getServiceConfig = (index: number) => {
     switch (index) {
       case 0:
@@ -73,7 +73,7 @@ export default function SupportScreen() {
           icon: Ambulance,
           iconColor: '#E64A2E',
           btnType: 'call' as const,
-          btnLabel: 'Ligar (192)',
+          btnLabel: 'Ligar 192',
           btnColor: '#E64A2E',
           btnBorder: '#F4A58A',
           btnBg: '#FFF7F5',
@@ -83,7 +83,7 @@ export default function SupportScreen() {
           icon: CirclePlus,
           iconColor: '#E64A2E',
           btnType: 'call' as const,
-          btnLabel: 'Ligar (136)',
+          btnLabel: 'Ligar 136',
           btnColor: '#E64A2E',
           btnBorder: '#F4A58A',
           btnBg: '#FFF7F5',
@@ -93,7 +93,7 @@ export default function SupportScreen() {
           icon: MessageCircle,
           iconColor: '#147D78',
           btnType: 'web' as const,
-          btnLabel: 'Abrir',
+          btnLabel: 'Acessar',
           btnColor: '#147D78',
           btnBorder: '#147D78',
           btnBg: '#E7F3EF',
@@ -104,7 +104,7 @@ export default function SupportScreen() {
           icon: Building2,
           iconColor: '#147D78',
           btnType: 'web' as const,
-          btnLabel: 'Abrir',
+          btnLabel: 'Consultar',
           btnColor: '#147D78',
           btnBorder: '#147D78',
           btnBg: '#E7F3EF',
@@ -147,11 +147,10 @@ export default function SupportScreen() {
         <View style={styles.alertAccentBar} />
         <View style={styles.alertContent}>
           <Text style={styles.alertTitle}>
-            O Respira não é um serviço de emergência
+            Aviso importante
           </Text>
           <Text style={[styles.alertBody, { color: isDark ? '#F5DDD6' : '#733722' }]}>
-            Se você estiver em risco iminente ou vivenciando sofrimento intenso, entre em contato
-            com os canais de apoio gratuito abaixo ou procure uma pessoa de sua confiança.
+            O Respira não substitui atendimento médico ou de emergência. Em situações de perigo urgente, ligue para o SAMU (192) ou procure o pronto-atendimento mais próximo.
           </Text>
         </View>
       </View>
@@ -159,7 +158,7 @@ export default function SupportScreen() {
       {/* 3. Seção Contatos de Confiança */}
       <TrustedContactSection />
 
-      {/* 4. Card Discreto do CVV */}
+      {/* 4. Card Discreto do CVV (Sem badge verde artificial e sem sombras pesadas) */}
       <View
         style={[
           styles.cvvCard,
@@ -169,12 +168,6 @@ export default function SupportScreen() {
           },
         ]}
       >
-        <View style={styles.cvvBadge}>
-          <Text style={styles.cvvBadgeText}>
-            Apoio Emocional Gratuito 24h
-          </Text>
-        </View>
-
         <Text
           accessibilityRole="header"
           aria-level={2}
@@ -186,7 +179,7 @@ export default function SupportScreen() {
           {countryData.primaryService.description}
         </Text>
         <Text style={styles.cvvHours}>
-          Disponibilidade: {countryData.primaryService.availableHours}
+          {countryData.primaryService.availableHours}
         </Text>
 
         <TouchableOpacity
@@ -203,19 +196,19 @@ export default function SupportScreen() {
         >
           <Phone size={18} color="#FFFFFF" strokeWidth={1.75} aria-hidden={true} />
           <Text style={styles.cvvCallBtnText}>
-            Ligar para {countryData.primaryService.number} (Gratuito)
+            Ligar para o {countryData.primaryService.number} (Gratuito)
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* 5. Seção Outros Contatos e Serviços Públicos do Brasil */}
+      {/* 5. Seção Outros Serviços Públicos de Saúde */}
       <View style={styles.publicServicesSection}>
         <Text
           accessibilityRole="header"
           aria-level={2}
           style={[styles.sectionTitle, { color: isDark ? colors.text : '#123F3A' }]}
         >
-          Outros Contatos e Serviços Públicos do Brasil
+          Outros serviços públicos de saúde
         </Text>
 
         <View style={styles.servicesListWrap}>
@@ -262,7 +255,7 @@ export default function SupportScreen() {
                   onPress={() => handleAction(service)}
                   activeOpacity={0.8}
                   accessibilityRole="button"
-                  accessibilityLabel={`${config.btnType === 'web' ? 'Abrir portal de' : 'Ligar para'} ${service.name}`}
+                  accessibilityLabel={`${config.btnType === 'web' ? 'Abrir página de' : 'Ligar para'} ${service.name}`}
                   style={[
                     styles.serviceActionBtn,
                     {
@@ -356,24 +349,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 18,
     marginBottom: 20,
-    shadowColor: '#123F3A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  cvvBadge: {
-    backgroundColor: '#DDE9E4',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginBottom: 10,
-  },
-  cvvBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#147D78',
   },
   cvvTitle: {
     fontSize: 18,
@@ -384,7 +359,7 @@ const styles = StyleSheet.create({
   cvvDesc: {
     fontSize: 13.5,
     lineHeight: 19,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   cvvHours: {
     fontSize: 13,
@@ -400,11 +375,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: '#147D78',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 2,
   },
   cvvCallBtnText: {
     color: '#FFFFFF',
@@ -430,11 +400,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     gap: 12,
-    shadowColor: '#123F3A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 4,
-    elevation: 1,
   },
   serviceIcon: {
     flexShrink: 0,
