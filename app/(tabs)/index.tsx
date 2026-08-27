@@ -1,10 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -28,239 +27,320 @@ import { useMoodStore } from '../../src/store/moodStore';
 import { usePracticeStore } from '../../src/store/practiceStore';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
-import { getGreeting, formatDate, getRelativeDateLabel } from '../../src/utils/date';
-import { BotanicalLeaves } from '../../src/components/illustrations/BotanicalLeaves';
-import { PeacefulLandscape } from '../../src/components/illustrations/PeacefulLandscape';
+import { getGreeting, getRelativeDateLabel } from '../../src/utils/date';
+import { AnaAvatar } from '../../src/components/illustrations/AnaAvatar';
+import { PracticeThumbnail } from '../../src/components/practices/PracticeThumbnail';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { colors, isDark } = useTheme();
-  const { isDesktop, isTablet } = useBreakpoint();
+  const { isDesktop } = useBreakpoint();
 
   const { records } = useMoodStore();
   const { practices, toggleFavorite: togglePracticeFavorite } = usePracticeStore();
 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.title = 'Diário & Início — Respira';
+      document.title = 'Início & Diário — Respira';
     }
   }, []);
 
   const lastRecord = records.length > 0 ? records[0] : null;
-  const recommendedPractice = practices.find((p) => p.id === 'practice-breathing-478') || practices[0] || null;
+  const recommendedPractice =
+    practices.find((p) => p.id === 'practice-breathing-478') || practices[0] || null;
 
+  // Formatação de data em português: "Quinta-feira, 27 de agosto"
+  const formattedToday = useMemo(() => {
+    try {
+      const now = new Date();
+      const raw = new Intl.DateTimeFormat('pt-BR', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      }).format(now);
+      return raw.charAt(0).toUpperCase() + raw.slice(1);
+    } catch {
+      return 'Hoje';
+    }
+  }, []);
+
+  const userName = user?.name || 'Ana';
+
+  // 4 Ações Rápidas Padronizadas
   const quickActions = [
     {
       title: 'Respirar',
       desc: 'Técnica 4-7-8',
       icon: Wind,
-      color: '#2F7F7C',
-      bg: isDark ? colors.surfaceSecondary : '#E2F4F2',
       onPress: () => router.push('/practices/breathing'),
     },
     {
       title: 'Relaxar',
       desc: 'Relaxamento guiado',
       icon: Leaf,
-      color: '#2F7F7C',
-      bg: isDark ? colors.surfaceSecondary : '#E2F4ED',
       onPress: () => router.push('/practices/relaxation' as any),
     },
     {
       title: 'Humor',
       desc: 'Check-in do seu momento',
       icon: Smile,
-      color: '#D98968',
-      bg: isDark ? colors.surfaceSecondary : '#FDECE5',
       onPress: () => router.push('/mood/new'),
     },
     {
       title: 'Assistente',
       desc: 'Acolhimento e orientações',
       icon: MessageCircle,
-      color: '#426E91',
-      bg: isDark ? colors.surfaceSecondary : '#E8EEF5',
       onPress: () => router.push('/chat'),
     },
   ];
 
-  // Painel lateral direito contextual exclusivo do Desktop
+  // Painel lateral contextual exclusivo do Desktop (>= 1200px)
   const renderDesktopRightPanel = () => (
     <View style={styles.sidePanelWrap}>
-      <Text style={[styles.sidePanelTitle, { color: colors.text }]}>Resumo do Dia</Text>
+      <Text
+        accessibilityRole="header"
+        aria-level={2}
+        style={[styles.sidePanelTitle, { color: isDark ? colors.text : '#123F3A' }]}
+      >
+        Resumo do dia
+      </Text>
 
       {/* Card de Lembrete Ativo */}
-      <Card variant="bordered" padding="sm" style={{ marginBottom: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-          <Clock size={15} color={colors.primary} style={{ marginRight: 6 }} />
-          <Text style={[styles.sideCardHeading, { color: colors.text }]}>Lembrete de Cuidado</Text>
+      <Card
+        variant="bordered"
+        padding="md"
+        style={[
+          styles.sideCard,
+          {
+            backgroundColor: isDark ? colors.surface : '#FFFFFF',
+            borderColor: isDark ? colors.border : '#DFE5E2',
+          },
+        ]}
+      >
+        <View style={styles.sideCardHeaderRow}>
+          <Clock size={16} color="#2F817A" strokeWidth={2} style={{ marginRight: 8 }} aria-hidden={true} />
+          <Text style={[styles.sideCardHeading, { color: isDark ? colors.text : '#123F3A' }]}>
+            Lembrete de cuidado
+          </Text>
         </View>
-        <Text style={[styles.sideCardText, { color: colors.textSecondary }]}>
+        <Text style={[styles.sideCardText, { color: isDark ? colors.textMuted : '#65736F' }]}>
           Seu momento diário de reflexão está configurado para às{' '}
-          <Text style={{ fontWeight: '700', color: colors.text }}>20:30</Text>.
+          <Text style={{ fontWeight: '600', color: isDark ? colors.text : '#263633' }}>20:30</Text>.
         </Text>
       </Card>
 
       {/* Card de Apoio SOS */}
       <Card
         variant="bordered"
-        padding="sm"
-        style={{
-          backgroundColor: isDark ? '#2D1F1A' : '#FFF4EE',
-          borderColor: '#E8A58C',
-          marginBottom: 12,
-        }}
+        padding="md"
+        style={[
+          styles.sideCard,
+          {
+            backgroundColor: isDark ? '#261C19' : '#FDF6F3',
+            borderColor: isDark ? '#4A2A22' : '#F4D3C6',
+          },
+        ]}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-          <HeartHandshake size={15} color="#D98968" style={{ marginRight: 6 }} />
-          <Text style={[styles.sideCardHeading, { color: '#D98968' }]}>Precisa de Escuta?</Text>
+        <View style={styles.sideCardHeaderRow}>
+          <HeartHandshake
+            size={16}
+            color="#C9785B"
+            strokeWidth={2}
+            style={{ marginRight: 8 }}
+            aria-hidden={true}
+          />
+          <Text style={[styles.sideCardHeading, { color: '#C9785B' }]}>Precisa de escuta?</Text>
         </View>
         <Text style={[styles.sideCardText, { color: isDark ? '#F5DDD6' : '#733722' }]}>
-          O CVV oferece apoio emocional gratuito pelo número{' '}
-          <Text style={{ fontWeight: '800' }}>188</Text> (24h).
+          O CVV oferece apoio emocional gratuito pelo telefone{' '}
+          <Text style={{ fontWeight: '700' }}>188</Text> (24 horas).
         </Text>
         <TouchableOpacity
           onPress={() => router.push('/support')}
-          style={{ marginTop: 6 }}
+          style={{ marginTop: 8 }}
           accessibilityRole="button"
-          accessibilityLabel="Ver canais de apoio"
+          accessibilityLabel="Ver canais de apoio emocional"
         >
-          <Text style={{ fontSize: 12, fontWeight: '700', color: '#D98968' }}>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: '#C9785B' }}>
             Ver canais de apoio →
           </Text>
         </TouchableOpacity>
       </Card>
 
       {/* Estatística Rápida */}
-      <Card variant="bordered" padding="sm">
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-          <Calendar size={15} color={colors.primary} style={{ marginRight: 6 }} />
-          <Text style={[styles.sideCardHeading, { color: colors.text }]}>Registros no Mês</Text>
+      <Card
+        variant="bordered"
+        padding="md"
+        style={[
+          styles.sideCard,
+          {
+            backgroundColor: isDark ? colors.surface : '#FFFFFF',
+            borderColor: isDark ? colors.border : '#DFE5E2',
+          },
+        ]}
+      >
+        <View style={styles.sideCardHeaderRow}>
+          <Calendar size={16} color="#2F817A" strokeWidth={2} style={{ marginRight: 8 }} aria-hidden={true} />
+          <Text style={[styles.sideCardHeading, { color: isDark ? colors.text : '#123F3A' }]}>
+            Registros no mês
+          </Text>
         </View>
-        <Text style={{ fontSize: 20, fontWeight: '800', color: colors.primary }}>
-          {records.length} <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>check-ins realizados</Text>
+        <Text style={{ fontSize: 22, fontWeight: '700', color: '#2F817A', marginTop: 2 }}>
+          {records.length}{' '}
+          <Text style={{ fontSize: 13, fontWeight: '400', color: isDark ? colors.textMuted : '#65736F' }}>
+            check-ins realizados
+          </Text>
         </Text>
       </Card>
     </View>
   );
 
-  const userName = user?.name || 'Ana';
-  const userInitial = userName.trim().charAt(0).toUpperCase() || 'A';
-
   return (
     <AppShell rightPanel={renderDesktopRightPanel()}>
-      {/* 1. Cabeçalho Superior Redesenhado */}
+      {/* 1. Cabeçalho Superior Compacto e Humano */}
       <View style={styles.topHeader}>
         <View style={styles.userGreetingRow}>
-          <View style={[styles.avatarCircle, { backgroundColor: '#173D3B' }]}>
-            <Text style={styles.avatarLetter}>{userInitial}</Text>
-          </View>
-          <View style={{ marginLeft: 12 }}>
+          <AnaAvatar
+            size={44}
+            avatarUrl={user?.avatarUrl}
+            name={userName}
+            style={styles.avatarWrap}
+          />
+          <View style={styles.headerTextGroup}>
             <Text
               accessibilityRole="header"
               aria-level={1}
-              style={[styles.greetingTitle, { color: isDark ? colors.text : '#173D3B' }]}
+              style={[styles.greetingTitle, { color: isDark ? colors.text : '#123F3A' }]}
             >
               {getGreeting(userName)}
             </Text>
-            <Text style={[styles.dateSubtitle, { color: isDark ? colors.textMuted : '#607174' }]}>
-              {formatDate(new Date().toISOString())}
+            <Text style={[styles.dateSubtitle, { color: isDark ? colors.textMuted : '#65736F' }]}>
+              {formattedToday}
             </Text>
           </View>
         </View>
 
         <TouchableOpacity
           onPress={() => router.push('/support')}
+          activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="Apoio imediato e escuta gratuita"
+          accessibilityLabel="Apoio imediato e escuta gratuita pelo CVV"
           style={[
             styles.sosHeaderBtn,
             {
-              backgroundColor: isDark ? '#3D251C' : '#FFF5F0',
-              borderColor: '#F2B5A0',
+              backgroundColor: isDark ? '#261C19' : '#FDF6F3',
+              borderColor: isDark ? '#4A2A22' : '#F4D3C6',
             },
           ]}
         >
-          <Heart size={15} color="#D98968" strokeWidth={2.2} />
-          <Text style={[styles.sosHeaderText, { color: '#D98968' }]}>Apoio imediato</Text>
+          <Heart size={15} color="#C9785B" strokeWidth={2} aria-hidden={true} />
+          <Text style={styles.sosHeaderText}>Apoio imediato</Text>
         </TouchableOpacity>
       </View>
 
-      {/* 2. Card "Momento atual" com Ilustração Botânica */}
+      {/* 2. Momento Atual — Card Branco Limpo com Barra Lateral Verde */}
       <View
         style={[
           styles.heroCard,
           {
-            backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
-            borderColor: isDark ? colors.border : '#D8EBE4',
+            backgroundColor: isDark ? colors.surface : '#FFFFFF',
+            borderColor: isDark ? colors.border : '#DFE5E2',
           },
         ]}
       >
-        {/* Ilustração Botânica sutil à direita */}
-        <BotanicalLeaves
-          width={135}
-          height={145}
-          style={styles.botanicalBg}
-        />
+        {/* Barra lateral verde como detalhe visual sutil */}
+        <View style={styles.heroAccentBar} />
 
         <View style={styles.heroCardContent}>
-          {/* Badge MOMENTO ATUAL */}
-          <View style={[styles.heroBadge, { backgroundColor: '#D4EAE3' }]}>
-            <Text style={styles.heroBadgeText}>MOMENTO ATUAL</Text>
+          {/* Badge Pequena e Sóbria */}
+          <View
+            style={[
+              styles.heroBadge,
+              { backgroundColor: isDark ? '#1C302D' : '#DDE9E4' },
+            ]}
+          >
+            <Text style={[styles.heroBadgeText, { color: '#2F817A' }]}>
+              MOMENTO ATUAL
+            </Text>
           </View>
 
           {/* Pergunta Principal */}
           <Text
             accessibilityRole="header"
             aria-level={2}
-            style={[styles.heroQuestion, { color: isDark ? colors.text : '#173D3B' }]}
+            style={[styles.heroQuestion, { color: isDark ? colors.text : '#123F3A' }]}
           >
             Como você está agora?
           </Text>
 
-          {/* Último Registro */}
+          {/* Último Registro com Organização Clara */}
           <View style={styles.lastRecordRow}>
-            <CheckCircle2 size={16} color="#2F7F7C" style={{ marginRight: 6, marginTop: 2 }} />
+            <CheckCircle2
+              size={17}
+              color="#2F817A"
+              strokeWidth={2}
+              style={{ marginRight: 8, marginTop: 2 }}
+              aria-hidden={true}
+            />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.lastRecordTitle, { color: '#173D3B' }]}>
-                Último registro: {lastRecord ? getRelativeDateLabel(lastRecord.createdAt) : 'Nenhum ainda hoje'}
-              </Text>
-              <Text style={[styles.lastRecordMeta, { color: '#567571' }]}>
+              <Text style={[styles.lastRecordTitle, { color: isDark ? colors.text : '#263633' }]}>
                 {lastRecord
-                  ? `(Humor ${lastRecord.mood}/5 • Ansiedade ${lastRecord.anxietyLevel}/10)`
-                  : 'Faça um check-in para registrar suas emoções'}
+                  ? `Último registro: ${getRelativeDateLabel(lastRecord.createdAt)}`
+                  : 'Nenhum registro ainda hoje'}
+              </Text>
+              <Text style={[styles.lastRecordMeta, { color: isDark ? colors.textMuted : '#65736F' }]}>
+                {lastRecord
+                  ? `Humor ${lastRecord.mood}/5 • Ansiedade ${lastRecord.anxietyLevel}/10`
+                  : 'Faça um check-in breve para escutar e registrar suas emoções.'}
               </Text>
             </View>
           </View>
 
-          {/* Botão Primário "Registrar meu momento" */}
-          <TouchableOpacity
-            onPress={() => router.push('/mood/new')}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Registrar meu momento"
-            style={styles.primaryActionButton}
-          >
-            <Smile size={18} color="#FFFFFF" strokeWidth={2.2} />
-            <Text style={styles.primaryActionText}>Registrar meu momento</Text>
-          </TouchableOpacity>
+          {/* Divisor Discreto */}
+          <View
+            style={[
+              styles.heroDivider,
+              { backgroundColor: isDark ? colors.border : '#DFE5E2' },
+            ]}
+          />
 
-          {/* Link para o Histórico de Momento Atual */}
-          <TouchableOpacity
-            onPress={() => router.push('/diary/history' as any)}
-            accessibilityRole="link"
-            accessibilityLabel="Visualizar histórico de momento atual"
-            style={styles.historyLinkBtn}
-          >
-            <Text style={styles.historyLinkText}>Visualizar histórico de momento atual →</Text>
-          </TouchableOpacity>
+          {/* Ações do Card */}
+          <View style={styles.heroActionsContainer}>
+            <TouchableOpacity
+              onPress={() => router.push('/mood/new')}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Registrar meu momento"
+              style={styles.primaryActionButton}
+            >
+              <Smile size={18} color="#FFFFFF" strokeWidth={2} aria-hidden={true} />
+              <Text style={styles.primaryActionText}>Registrar meu momento</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.push('/diary/history' as any)}
+              accessibilityRole="link"
+              accessibilityLabel="Visualizar histórico de momento atual"
+              style={styles.historyLinkBtn}
+            >
+              <Text style={styles.historyLinkText}>
+                Visualizar histórico de momento atual →
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
-      {/* 3. Ações Rápidas (4 Cards Compactos) */}
-      <View style={styles.sectionHeaderRow}>
-        <Text style={[styles.sectionTitle, { color: '#173D3B' }]}>Ações rápidas</Text>
+      {/* 3. Ações Rápidas — Grade Equilibrada de 2 Colunas */}
+      <View style={styles.sectionHeaderWrap}>
+        <Text
+          accessibilityRole="header"
+          aria-level={2}
+          style={[styles.sectionTitle, { color: isDark ? colors.text : '#123F3A' }]}
+        >
+          Ações rápidas
+        </Text>
       </View>
 
       {isDesktop ? (
@@ -270,7 +350,7 @@ export default function HomeScreen() {
             return (
               <TouchableOpacity
                 key={idx}
-                activeOpacity={0.8}
+                activeOpacity={0.75}
                 onPress={action.onPress}
                 accessibilityRole="button"
                 accessibilityLabel={`${action.title}: ${action.desc}`}
@@ -278,55 +358,75 @@ export default function HomeScreen() {
                   styles.quickActionCard,
                   {
                     backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                    borderColor: isDark ? colors.border : '#EEF3F1',
+                    borderColor: isDark ? colors.border : '#DFE5E2',
                     flex: 1,
                   },
                 ]}
               >
-                <View style={[styles.quickActionIconCircle, { backgroundColor: action.bg }]}>
-                  <Icon size={20} color={action.color} strokeWidth={2} />
-                </View>
-                <Text style={[styles.quickActionTitle, { color: '#173D3B' }]}>{action.title}</Text>
-                <Text style={[styles.quickActionDesc, { color: '#687E7B' }]}>{action.desc}</Text>
+                <Icon
+                  size={22}
+                  color="#2F817A"
+                  strokeWidth={2}
+                  style={styles.quickActionIcon}
+                  aria-hidden={true}
+                />
+                <Text style={[styles.quickActionTitle, { color: isDark ? colors.text : '#123F3A' }]}>
+                  {action.title}
+                </Text>
+                <Text style={[styles.quickActionDesc, { color: isDark ? colors.textMuted : '#65736F' }]}>
+                  {action.desc}
+                </Text>
               </TouchableOpacity>
             );
           })}
         </View>
       ) : (
-        <View style={styles.quickActionsRowMobile}>
+        <View style={styles.quickActionsGridMobile}>
           {quickActions.map((action, idx) => {
             const Icon = action.icon;
             return (
               <TouchableOpacity
                 key={idx}
-                activeOpacity={0.8}
+                activeOpacity={0.75}
                 onPress={action.onPress}
                 accessibilityRole="button"
                 accessibilityLabel={`${action.title}: ${action.desc}`}
                 style={[
-                  styles.quickActionCard,
+                  styles.quickActionCardMobile,
                   {
                     backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                    borderColor: isDark ? colors.border : '#EEF3F1',
+                    borderColor: isDark ? colors.border : '#DFE5E2',
                   },
                 ]}
               >
-                <View style={[styles.quickActionIconCircle, { backgroundColor: action.bg }]}>
-                  <Icon size={20} color={action.color} strokeWidth={2} />
-                </View>
-                <Text style={[styles.quickActionTitle, { color: '#173D3B' }]}>{action.title}</Text>
-                <Text style={[styles.quickActionDesc, { color: '#687E7B' }]}>{action.desc}</Text>
+                <Icon
+                  size={22}
+                  color="#2F817A"
+                  strokeWidth={2}
+                  style={styles.quickActionIcon}
+                  aria-hidden={true}
+                />
+                <Text style={[styles.quickActionTitle, { color: isDark ? colors.text : '#123F3A' }]}>
+                  {action.title}
+                </Text>
+                <Text style={[styles.quickActionDesc, { color: isDark ? colors.textMuted : '#65736F' }]}>
+                  {action.desc}
+                </Text>
               </TouchableOpacity>
             );
           })}
         </View>
       )}
 
-      {/* 4. Recomendação para Hoje */}
+      {/* 4. Recomendação para Hoje — Card Editorial e Profissional */}
       {recommendedPractice && (
         <View style={styles.recSectionWrap}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { color: '#173D3B' }]}>
+          <View style={styles.sectionHeaderWrap}>
+            <Text
+              accessibilityRole="header"
+              aria-level={2}
+              style={[styles.sectionTitle, { color: isDark ? colors.text : '#123F3A' }]}
+            >
               Recomendação para hoje
             </Text>
           </View>
@@ -336,43 +436,58 @@ export default function HomeScreen() {
               styles.recommendationCard,
               {
                 backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                borderColor: isDark ? colors.border : '#EEF3F1',
+                borderColor: isDark ? colors.border : '#DFE5E2',
               },
             ]}
           >
-            {/* Ilustração Artística da Paisagem */}
-            <PeacefulLandscape
-              width={88}
-              height={88}
-              borderRadius={14}
-              style={{ alignSelf: 'center' }}
-            />
+            {/* Miniatura visual realista e dedicada */}
+            <View style={styles.recThumbnailBox}>
+              <PracticeThumbnail
+                practiceId={recommendedPractice.id}
+                category={recommendedPractice.category}
+                title={recommendedPractice.title}
+                isDark={isDark}
+              />
+            </View>
 
-            {/* Conteúdo da Recomendação */}
+            {/* Conteúdo à direita com tipografia clara */}
             <View style={styles.recContentCol}>
               <View style={styles.recTopLine}>
-                <Text style={[styles.recTitle, { color: '#173D3B' }]}>
+                <Text
+                  accessibilityRole="header"
+                  aria-level={3}
+                  style={[styles.recTitle, { color: isDark ? colors.text : '#123F3A' }]}
+                >
                   {recommendedPractice.title}
                 </Text>
                 <TouchableOpacity
                   onPress={() => togglePracticeFavorite(recommendedPractice.id)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   accessibilityRole="button"
-                  accessibilityLabel="Favoritar prática recomendada"
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel={
+                    recommendedPractice.isFavorite
+                      ? 'Remover prática dos favoritos'
+                      : 'Adicionar prática aos favoritos'
+                  }
                 >
                   <Bookmark
-                    size={18}
-                    color="#2F7F7C"
-                    fill={recommendedPractice.isFavorite ? '#2F7F7C' : 'transparent'}
+                    size={19}
+                    color="#2F817A"
+                    fill={recommendedPractice.isFavorite ? '#2F817A' : 'transparent'}
+                    strokeWidth={2}
+                    aria-hidden={true}
                   />
                 </TouchableOpacity>
               </View>
 
               <Text style={styles.recMetaText}>
-                {recommendedPractice.durationMinutes} min • {recommendedPractice.level}
+                {recommendedPractice.durationMinutes} min • {recommendedPractice.level} • Guiado
               </Text>
 
-              <Text style={[styles.recDesc, { color: '#687E7B' }]} numberOfLines={2}>
+              <Text
+                style={[styles.recDesc, { color: isDark ? colors.textMuted : '#65736F' }]}
+                numberOfLines={2}
+              >
                 {recommendedPractice.description}
               </Text>
 
@@ -380,11 +495,11 @@ export default function HomeScreen() {
                 onPress={() => router.push('/practices/breathing')}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel={`Iniciar ${recommendedPractice.title}`}
+                accessibilityLabel={`Iniciar prática: ${recommendedPractice.title}`}
                 style={styles.startPracticeBtn}
               >
-                <Play size={12} color="#FFFFFF" fill="#FFFFFF" />
-                <Text style={styles.startPracticeBtnText}>Iniciar</Text>
+                <Play size={12} color="#FFFFFF" fill="#FFFFFF" aria-hidden={true} />
+                <Text style={styles.startPracticeBtnText}>Iniciar prática</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -395,151 +510,167 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  // 1. Header Superior
+  // 1. Cabeçalho Superior
   topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 20,
     paddingTop: 4,
+    gap: 12,
   },
   userGreetingRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
   },
-  avatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
+  avatarWrap: {
+    marginRight: 12,
   },
-  avatarLetter: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '800',
+  headerTextGroup: {
+    flex: 1,
+    minWidth: 0,
   },
   greetingTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: '700',
     letterSpacing: -0.2,
   },
   dateSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: '400',
     marginTop: 1,
   },
   sosHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 7,
+    paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 20,
+    borderRadius: 12,
     borderWidth: 1,
+    minHeight: 40,
   },
   sosHeaderText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
+    color: '#C9785B',
   },
 
-  // 2. Card "Momento Atual"
+  // 2. Card Momento Atual
   heroCard: {
-    borderRadius: 22,
-    padding: 18,
-    marginBottom: 22,
+    borderRadius: 16,
+    marginBottom: 24,
     borderWidth: 1,
     overflow: 'hidden',
     position: 'relative',
-    shadowColor: '#173D3B',
-    shadowOffset: { width: 0, height: 3 },
+    shadowColor: '#123F3A',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
   },
-  botanicalBg: {
+  heroAccentBar: {
     position: 'absolute',
-    right: -8,
-    top: 10,
-    zIndex: 0,
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: '#2F817A',
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
   },
   heroCardContent: {
-    zIndex: 1,
+    padding: 20,
+    paddingLeft: 22,
   },
   heroBadge: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 6,
     alignSelf: 'flex-start',
     marginBottom: 10,
   },
   heroBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#2F7F7C',
-    letterSpacing: 0.6,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   heroQuestion: {
-    fontSize: 21,
-    fontWeight: '800',
-    marginBottom: 12,
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 14,
     letterSpacing: -0.3,
+    lineHeight: 32,
   },
   lastRecordRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 16,
-    maxWidth: '75%',
+    marginBottom: 4,
   },
   lastRecordTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
+    lineHeight: 20,
   },
   lastRecordMeta: {
-    fontSize: 12,
-    marginTop: 1,
+    fontSize: 13,
+    fontWeight: '400',
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  heroDivider: {
+    height: 1,
+    marginVertical: 16,
+  },
+  heroActionsContainer: {
+    gap: 12,
   },
   primaryActionButton: {
-    backgroundColor: '#2F7F7C',
-    borderRadius: 14,
+    backgroundColor: '#2F817A',
+    borderRadius: 12,
     height: 46,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: '#2F7F7C',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.22,
-    shadowRadius: 6,
-    elevation: 3,
+    paddingHorizontal: 20,
+    shadowColor: '#123F3A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
   },
   primaryActionText: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
   },
   historyLinkBtn: {
-    marginTop: 12,
     alignSelf: 'flex-start',
+    paddingVertical: 4,
   },
   historyLinkText: {
-    color: '#2F7F7C',
-    fontSize: 13,
-    fontWeight: '700',
+    color: '#2F817A',
+    fontSize: 14,
+    fontWeight: '600',
   },
 
   // 3. Ações Rápidas
-  sectionHeaderRow: {
+  sectionHeaderWrap: {
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: '650' as any,
     letterSpacing: -0.2,
   },
-  quickActionsRowMobile: {
+  quickActionsGridMobile: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 22,
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 24,
   },
   quickActionsGridDesktop: {
     flexDirection: 'row',
@@ -547,37 +678,43 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   quickActionCard: {
-    flex: 1,
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 14,
+    padding: 16,
     borderWidth: 1,
-    shadowColor: '#173D3B',
+    shadowColor: '#123F3A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
     elevation: 1,
-  },
-  quickActionIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
+    minHeight: 104,
     justifyContent: 'center',
+  },
+  quickActionCardMobile: {
+    width: '48%',
+    flexGrow: 1,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    shadowColor: '#123F3A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+    minHeight: 102,
+    justifyContent: 'center',
+  },
+  quickActionIcon: {
     marginBottom: 8,
   },
   quickActionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '600',
   },
   quickActionDesc: {
-    fontSize: 10,
-    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '400',
     marginTop: 2,
-    lineHeight: 13,
+    lineHeight: 17,
   },
 
   // 4. Recomendação para Hoje
@@ -585,47 +722,53 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   recommendationCard: {
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 16,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 16,
     borderWidth: 1,
-    shadowColor: '#173D3B',
+    shadowColor: '#123F3A',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 1,
   },
+  recThumbnailBox: {
+    alignSelf: 'center',
+  },
   recContentCol: {
     flex: 1,
+    minWidth: 0,
   },
   recTopLine: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
   },
   recTitle: {
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 17,
+    fontWeight: '600',
     letterSpacing: -0.2,
+    flex: 1,
   },
   recMetaText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2F7F7C',
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2F817A',
     marginTop: 2,
     marginBottom: 4,
   },
   recDesc: {
-    fontSize: 12,
-    lineHeight: 16,
-    marginBottom: 10,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 12,
   },
   startPracticeBtn: {
-    backgroundColor: '#2F7F7C',
-    height: 32,
-    paddingHorizontal: 14,
+    backgroundColor: '#2F817A',
+    height: 36,
+    paddingHorizontal: 16,
     borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -634,25 +777,34 @@ const styles = StyleSheet.create({
   },
   startPracticeBtnText: {
     color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
   },
 
-  // Desktop Side Panel
+  // Painel Lateral Desktop
   sidePanelWrap: {
     gap: 12,
   },
   sidePanelTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 4,
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  sideCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  sideCardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
   },
   sideCardHeading: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
   },
   sideCardText: {
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

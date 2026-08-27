@@ -15,18 +15,18 @@ export default function TabLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: '#2F7F7C',
-          tabBarInactiveTintColor: '#8C9E9B',
+          tabBarActiveTintColor: '#2F817A',
+          tabBarInactiveTintColor: '#65736F',
           tabBarStyle: {
             display: isDesktop ? 'none' : 'flex',
             backgroundColor: isDark ? colors.surface : '#FFFFFF',
-            borderTopColor: isDark ? colors.border : '#DCE5E2',
+            borderTopColor: isDark ? colors.border : '#DFE5E2',
             borderTopWidth: 1,
-            height: Platform.OS === 'ios' ? 84 : 62,
-            paddingBottom: Platform.OS === 'ios' ? 24 : 8,
-            paddingTop: 6,
-            elevation: 6,
-            shadowColor: '#173D3B',
+            height: Platform.OS === 'ios' ? 84 : 64,
+            paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+            paddingTop: 8,
+            elevation: 3,
+            shadowColor: '#123F3A',
             shadowOffset: { width: 0, height: -2 },
             shadowOpacity: 0.04,
             shadowRadius: 6,
@@ -34,7 +34,7 @@ export default function TabLayout() {
           tabBarLabelStyle: {
             fontSize: 11,
             fontWeight: '600',
-            marginTop: -2,
+            marginTop: 2,
           },
         }}
       >
