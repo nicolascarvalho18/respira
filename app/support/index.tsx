@@ -1,16 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking, ScrollView, Platform } from 'react-native';
-import { Phone, HeartHandshake, ShieldAlert, ExternalLink, PhoneCall, Globe } from 'lucide-react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Linking,
+  Platform,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import {
+  ArrowLeft,
+  Phone,
+  Ambulance,
+  CirclePlus,
+  MessageCircle,
+  Building2,
+  ChevronRight,
+  ExternalLink,
+} from 'lucide-react-native';
 import { ScreenContainer } from '../../src/components/ui/ScreenContainer';
-import { AppHeader } from '../../src/components/ui/AppHeader';
 import { ConfirmationModal } from '../../src/components/ui/ConfirmationModal';
-import { AppButton } from '../../src/components/ui/AppButton';
 import { HELPLINES_BY_COUNTRY } from '../../src/constants/helplines';
 import { useTheme } from '../../src/hooks/useTheme';
 import { TrustedContactSection } from '../../src/components/emergency/TrustedContactSection';
 import { useToast } from '../../src/components/ui/Toast';
 
 export default function SupportScreen() {
+  const router = useRouter();
   const { colors, isDark } = useTheme();
   const { showToast } = useToast();
 
@@ -49,140 +65,226 @@ export default function SupportScreen() {
     setSelectedServiceToCall(null);
   };
 
-  return (
-    <ScreenContainer scrollable>
-      <AppHeader showBack title="Apoio Imediato" />
+  // Mapeamento visual dedicado para cada serviço público
+  const getServiceConfig = (index: number) => {
+    switch (index) {
+      case 0:
+        return {
+          icon: Ambulance,
+          iconColor: '#E64A2E',
+          btnType: 'call' as const,
+          btnLabel: 'Ligar (192)',
+          btnColor: '#E64A2E',
+          btnBorder: '#F4A58A',
+          btnBg: '#FFF7F5',
+        };
+      case 1:
+        return {
+          icon: CirclePlus,
+          iconColor: '#E64A2E',
+          btnType: 'call' as const,
+          btnLabel: 'Ligar (136)',
+          btnColor: '#E64A2E',
+          btnBorder: '#F4A58A',
+          btnBg: '#FFF7F5',
+        };
+      case 2:
+        return {
+          icon: MessageCircle,
+          iconColor: '#147D78',
+          btnType: 'web' as const,
+          btnLabel: 'Abrir',
+          btnColor: '#147D78',
+          btnBorder: '#147D78',
+          btnBg: '#E7F3EF',
+        };
+      case 3:
+      default:
+        return {
+          icon: Building2,
+          iconColor: '#147D78',
+          btnType: 'web' as const,
+          btnLabel: 'Abrir',
+          btnColor: '#147D78',
+          btnBorder: '#147D78',
+          btnBg: '#E7F3EF',
+        };
+    }
+  };
 
-      {/* Alerta Institucional de Não Emergência */}
+  return (
+    <ScreenContainer scrollable style={styles.screenContainer}>
+      {/* 1. Cabeçalho com Seta ArrowLeft e Título */}
+      <View style={styles.topHeader}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar para a tela anterior"
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.backBtn}
+        >
+          <ArrowLeft size={20} color={isDark ? colors.text : '#44514F'} strokeWidth={1.75} />
+        </TouchableOpacity>
+        <Text
+          accessibilityRole="header"
+          aria-level={1}
+          style={[styles.headerTitle, { color: isDark ? colors.text : '#123F3A' }]}
+        >
+          Apoio imediato
+        </Text>
+      </View>
+
+      {/* 2. Aviso Compacto com Fundo Coral Claro e Barra Lateral */}
       <View
         style={[
-          styles.alertBanner,
+          styles.alertCard,
           {
-            backgroundColor: isDark ? '#3D201A' : '#FFF1EB',
-            borderColor: '#F2B5A0',
+            backgroundColor: isDark ? '#261C19' : '#FFF7F5',
+            borderColor: isDark ? '#4A2A22' : '#F6B7A5',
           },
         ]}
       >
-        <ShieldAlert size={22} color="#D98968" style={{ marginRight: 10, marginTop: 2 }} />
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.alertTitle, { color: '#D98968' }]}>
+        <View style={styles.alertAccentBar} />
+        <View style={styles.alertContent}>
+          <Text style={styles.alertTitle}>
             O Respira não é um serviço de emergência
           </Text>
-          <Text style={[styles.alertBody, { color: isDark ? '#F0D0C8' : '#733722' }]}>
+          <Text style={[styles.alertBody, { color: isDark ? '#F5DDD6' : '#733722' }]}>
             Se você estiver em risco iminente ou vivenciando sofrimento intenso, entre em contato
             com os canais de apoio gratuito abaixo ou procure uma pessoa de sua confiança.
           </Text>
         </View>
       </View>
 
-      {/* Seção 1: Contatos de Confiança Pessoais */}
+      {/* 3. Seção Contatos de Confiança */}
       <TrustedContactSection />
 
-      {/* Seção 2: Canal Principal de Apoio (CVV 188) */}
+      {/* 4. Card Discreto do CVV */}
       <View
         style={[
-          styles.primaryCard,
+          styles.cvvCard,
           {
             backgroundColor: isDark ? colors.surface : '#FFFFFF',
-            borderColor: '#2F7F7C',
+            borderColor: isDark ? colors.border : '#E8EDEA',
           },
         ]}
       >
-        <View style={styles.primaryBadge}>
-          <HeartHandshake size={15} color="#2F7F7C" style={{ marginRight: 5 }} />
-          <Text style={styles.primaryBadgeText}>
+        <View style={styles.cvvBadge}>
+          <Text style={styles.cvvBadgeText}>
             Apoio Emocional Gratuito 24h
           </Text>
         </View>
 
-        <Text style={[styles.serviceName, { color: isDark ? colors.text : '#173D3B' }]}>
+        <Text
+          accessibilityRole="header"
+          aria-level={2}
+          style={[styles.cvvTitle, { color: isDark ? colors.text : '#123F3A' }]}
+        >
           {countryData.primaryService.name}
         </Text>
-        <Text style={[styles.serviceDesc, { color: isDark ? colors.textMuted : '#667775' }]}>
+        <Text style={[styles.cvvDesc, { color: isDark ? colors.textMuted : '#65736F' }]}>
           {countryData.primaryService.description}
         </Text>
-        <Text style={styles.serviceHours}>
+        <Text style={styles.cvvHours}>
           Disponibilidade: {countryData.primaryService.availableHours}
         </Text>
 
-        <AppButton
-          title={`Ligar para ${countryData.primaryService.number} (Gratuito)`}
-          leftIcon={<Phone size={18} color="#FFFFFF" />}
+        <TouchableOpacity
           onPress={() =>
             handleAction({
               name: countryData.primaryService.name,
               number: countryData.primaryService.number,
             })
           }
-          size="lg"
-          style={{ marginTop: 14 }}
-        />
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={`Ligar para ${countryData.primaryService.number} gratuitamente`}
+          style={styles.cvvCallBtn}
+        >
+          <Phone size={18} color="#FFFFFF" strokeWidth={1.75} aria-hidden={true} />
+          <Text style={styles.cvvCallBtnText}>
+            Ligar para {countryData.primaryService.number} (Gratuito)
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Seção 3: Outros Serviços e Canais Públicos do Brasil */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+      {/* 5. Seção Outros Contatos e Serviços Públicos do Brasil */}
+      <View style={styles.publicServicesSection}>
+        <Text
+          accessibilityRole="header"
+          aria-level={2}
+          style={[styles.sectionTitle, { color: isDark ? colors.text : '#123F3A' }]}
+        >
           Outros Contatos e Serviços Públicos do Brasil
         </Text>
 
-        {countryData.secondaryServices.map((service, index) => {
-          const isWebLink = service.number.startsWith('http');
+        <View style={styles.servicesListWrap}>
+          {countryData.secondaryServices.map((service, index) => {
+            const config = getServiceConfig(index);
+            const Icon = config.icon;
 
-          return (
-            <View
-              key={index}
-              style={[
-                styles.secondaryCard,
-                {
-                  backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                  borderColor: isDark ? colors.border : '#DCE5E2',
-                },
-              ]}
-            >
-              <View style={{ flex: 1, paddingRight: 10 }}>
-                <Text style={[styles.secName, { color: isDark ? colors.text : '#173D3B' }]}>
-                  {service.name}
-                </Text>
-                <Text style={[styles.secDesc, { color: isDark ? colors.textMuted : '#667775' }]}>
-                  {service.description}
-                </Text>
-              </View>
-
-              <TouchableOpacity
-                onPress={() => handleAction(service)}
-                accessibilityRole="button"
-                accessibilityLabel={`${isWebLink ? 'Abrir página de' : 'Ligar para'} ${service.name}`}
+            return (
+              <View
+                key={index}
                 style={[
-                  styles.actionSmallBtn,
+                  styles.serviceCard,
                   {
-                    backgroundColor: isWebLink
-                      ? isDark
-                        ? colors.surfaceSecondary
-                        : '#E7F3EF'
-                      : isDark
-                      ? colors.surfaceSecondary
-                      : '#FFF5F0',
-                    borderColor: isWebLink ? '#2F7F7C' : '#D98968',
+                    backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                    borderColor: isDark ? colors.border : '#E8EDEA',
                   },
                 ]}
               >
-                {isWebLink ? (
-                  <ExternalLink size={14} color="#2F7F7C" />
-                ) : (
-                  <PhoneCall size={14} color="#D98968" />
-                )}
-                <Text
+                {/* Ícone à esquerda */}
+                <Icon
+                  size={22}
+                  color={config.iconColor}
+                  strokeWidth={1.75}
+                  style={styles.serviceIcon}
+                  aria-hidden={true}
+                />
+
+                {/* Informações centrais */}
+                <View style={styles.serviceInfoCol}>
+                  <Text
+                    accessibilityRole="header"
+                    aria-level={3}
+                    style={[styles.serviceName, { color: isDark ? colors.text : '#123F3A' }]}
+                  >
+                    {service.name}
+                  </Text>
+                  <Text style={[styles.serviceDesc, { color: isDark ? colors.textMuted : '#65736F' }]}>
+                    {service.description}
+                  </Text>
+                </View>
+
+                {/* Botão de Ação à direita */}
+                <TouchableOpacity
+                  onPress={() => handleAction(service)}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${config.btnType === 'web' ? 'Abrir portal de' : 'Ligar para'} ${service.name}`}
                   style={[
-                    styles.actionSmallText,
-                    { color: isWebLink ? '#2F7F7C' : '#D98968' },
+                    styles.serviceActionBtn,
+                    {
+                      borderColor: config.btnBorder,
+                      backgroundColor: isDark ? colors.surfaceSecondary : config.btnBg,
+                    },
                   ]}
                 >
-                  {isWebLink ? 'Abrir' : `Ligar (${service.number})`}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          );
-        })}
+                  {config.btnType === 'call' ? (
+                    <Phone size={14} color={config.btnColor} strokeWidth={1.75} aria-hidden={true} />
+                  ) : (
+                    <ExternalLink size={14} color={config.btnColor} strokeWidth={1.75} aria-hidden={true} />
+                  )}
+                  <Text style={[styles.serviceActionBtnText, { color: config.btnColor }]}>
+                    {config.btnLabel}
+                  </Text>
+                  <ChevronRight size={14} color={config.btnColor} strokeWidth={1.75} aria-hidden={true} />
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </View>
       </View>
 
       {/* Modal de Confirmação para Chamada Telefônica */}
@@ -200,103 +302,170 @@ export default function SupportScreen() {
 }
 
 const styles = StyleSheet.create({
-  alertBanner: {
+  screenContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 36,
+  },
+  topHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 14,
-    borderRadius: 14,
+    alignItems: 'center',
+    paddingVertical: 14,
+    marginBottom: 4,
+    gap: 12,
+  },
+  backBtn: {
+    padding: 6,
+    marginLeft: -6,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  alertCard: {
+    borderRadius: 10,
     borderWidth: 1,
-    marginBottom: 16,
+    overflow: 'hidden',
+    position: 'relative',
+    marginBottom: 14,
+  },
+  alertAccentBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: '#E64A2E',
+  },
+  alertContent: {
+    padding: 14,
+    paddingLeft: 16,
   },
   alertTitle: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#E64A2E',
     marginBottom: 4,
   },
   alertBody: {
     fontSize: 12,
     lineHeight: 17,
   },
-  primaryCard: {
+  cvvCard: {
+    borderRadius: 12,
+    borderWidth: 1,
     padding: 18,
-    borderRadius: 18,
-    borderWidth: 1.5,
     marginBottom: 20,
-    shadowColor: '#2F7F7C',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowColor: '#123F3A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
     shadowRadius: 6,
-    elevation: 2,
+    elevation: 1,
   },
-  primaryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E7F3EF',
+  cvvBadge: {
+    backgroundColor: '#DDE9E4',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 6,
     alignSelf: 'flex-start',
     marginBottom: 10,
   },
-  primaryBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#2F7F7C',
+  cvvBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#147D78',
   },
-  serviceName: {
+  cvvTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: -0.2,
     marginBottom: 4,
   },
-  serviceDesc: {
-    fontSize: 13,
-    lineHeight: 18,
+  cvvDesc: {
+    fontSize: 13.5,
+    lineHeight: 19,
     marginBottom: 8,
   },
-  serviceHours: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2F7F7C',
+  cvvHours: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#147D78',
+    marginBottom: 16,
   },
-  section: {
-    marginBottom: 30,
+  cvvCallBtn: {
+    backgroundColor: '#147D78',
+    borderRadius: 10,
+    height: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#147D78',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  cvvCallBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  publicServicesSection: {
+    marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 17,
+    fontWeight: '700',
     letterSpacing: -0.2,
     marginBottom: 12,
   },
-  secondaryCard: {
+  servicesListWrap: {
+    gap: 10,
+  },
+  serviceCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 10,
     borderWidth: 1,
-    marginBottom: 10,
+    gap: 12,
+    shadowColor: '#123F3A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  secName: {
-    fontSize: 14,
+  serviceIcon: {
+    flexShrink: 0,
+    marginTop: 2,
+  },
+  serviceInfoCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  serviceName: {
+    fontSize: 14.5,
     fontWeight: '700',
-    marginBottom: 2,
+    letterSpacing: -0.1,
+    marginBottom: 3,
   },
-  secDesc: {
-    fontSize: 12,
-    lineHeight: 16,
+  serviceDesc: {
+    fontSize: 12.5,
+    lineHeight: 17,
   },
-  actionSmallBtn: {
+  serviceActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 4,
+    flexShrink: 0,
   },
-  actionSmallText: {
-    fontSize: 12,
-    fontWeight: '800',
+  serviceActionBtnText: {
+    fontSize: 12.5,
+    fontWeight: '600',
   },
 });

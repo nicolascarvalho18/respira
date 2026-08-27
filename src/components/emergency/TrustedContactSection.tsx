@@ -11,26 +11,21 @@ import {
   Platform,
 } from 'react-native';
 import {
-  HeartHandshake,
+  UserRoundPlus,
+  LockKeyhole,
   Phone,
   MessageCircle,
-  Plus,
-  Edit2,
+  Pencil,
   Trash2,
   Check,
   X,
   Share2,
   Copy,
   AlertCircle,
-  PhoneCall,
-  Star,
-  Shield,
-  Info,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../ui/Toast';
-import { Card } from '../ui/Card';
 import { AppButton } from '../ui/AppButton';
 import { ConfirmationModal } from '../ui/ConfirmationModal';
 import {
@@ -214,81 +209,58 @@ export const TrustedContactSection: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <HeartHandshake size={20} color={colors.primary} />
-          <Text style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}>
-            Contatos de Confiança
-          </Text>
-        </View>
-        {contacts.length > 0 && (
-          <TouchableOpacity onPress={openAddModal} style={styles.addSmallBtn}>
-            <Plus size={16} color={colors.primary} />
-            <Text style={[styles.addSmallText, { color: colors.primary }]}>Novo contato</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <Text style={[styles.subtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
-        Cadastre pessoas próximas e de sua confiança para apoio em momentos difíceis.
-      </Text>
-
-      {/* Aviso Explicativo e Ético */}
-      <View
-        style={[
-          styles.disclaimerBox,
-          {
-            backgroundColor: isDark ? colors.surfaceSecondary : '#F0F7F6',
-            borderColor: isDark ? colors.border : '#D8EBE4',
-          },
-        ]}
-      >
-        <Info size={15} color={colors.primary} style={{ marginRight: 6, marginTop: 1 }} />
-        <Text style={[styles.disclaimerText, { color: isDark ? colors.textMuted : '#567571' }]}>
-          Este recurso facilita o contato rápido com uma pessoa de sua confiança, mas não substitui
-          serviços profissionais ou de emergência. Nenhuma mensagem ou ligação é realizada automaticamente.
+      {/* Título da Seção */}
+      <View style={styles.sectionHeaderRow}>
+        <Text
+          accessibilityRole="header"
+          aria-level={2}
+          style={[styles.sectionTitle, { color: isDark ? colors.text : '#123F3A' }]}
+        >
+          Contatos de confiança
         </Text>
       </View>
 
+      {/* Estado sem contatos — Estrutura Horizontal Limpa */}
       {contacts.length === 0 ? (
-        <Card
-          variant="bordered"
+        <View
           style={[
-            styles.emptyCard,
+            styles.emptyRowCard,
             {
               backgroundColor: isDark ? colors.surface : '#FFFFFF',
-              borderColor: isDark ? colors.border : '#DCE5E2',
+              borderColor: isDark ? colors.border : '#E8EDEA',
             },
           ]}
         >
-          <Text style={[styles.emptyTitle, { color: isDark ? colors.text : '#173D3B' }]}>
-            Nenhum contato cadastrado
-          </Text>
-          <Text style={[styles.emptyDesc, { color: isDark ? colors.textMuted : '#667775' }]}>
-            Ter uma pessoa de confiança cadastrada facilita o contato rápido em momentos de sobrecarga.
-          </Text>
-          <AppButton
-            title="Adicionar contato de confiança"
-            leftIcon={<Plus size={18} color="#FFFFFF" />}
-            onPress={openAddModal}
-            size="md"
-            style={{ marginTop: 14 }}
+          <UserRoundPlus
+            size={20}
+            color="#44514F"
+            strokeWidth={1.75}
+            style={styles.emptyIcon}
+            aria-hidden={true}
           />
-        </Card>
+          <Text style={[styles.emptyText, { color: isDark ? colors.textMuted : '#65736F' }]}>
+            Cadastre até 3 pessoas de confiança para acionar rapidamente em momentos difíceis.
+          </Text>
+          <TouchableOpacity
+            onPress={openAddModal}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Adicionar contato de confiança"
+            style={styles.addInlineBtn}
+          >
+            <Text style={styles.addInlineBtnText}>Adicionar</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
-        <View style={{ gap: 12 }}>
+        <View style={styles.contactsListWrap}>
           {contacts.map((contact) => (
-            <Card
+            <View
               key={contact.id}
-              variant="bordered"
               style={[
                 styles.contactCard,
-                contact.isPrimary && {
-                  borderColor: '#2F7F7C',
-                  borderWidth: 1.5,
-                },
                 {
                   backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                  borderColor: isDark ? colors.border : '#E8EDEA',
                 },
               ]}
             >
@@ -296,36 +268,23 @@ export const TrustedContactSection: React.FC = () => {
                 <View
                   style={[
                     styles.avatarCircle,
-                    { backgroundColor: contact.isPrimary ? '#2F7F7C' : isDark ? colors.surfaceSecondary : '#E7F3EF' },
+                    { backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF' },
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.avatarText,
-                      { color: contact.isPrimary ? '#FFFFFF' : '#2F7F7C' },
-                    ]}
-                  >
+                  <Text style={styles.avatarText}>
                     {contact.name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
 
                 <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={[styles.contactName, { color: isDark ? colors.text : '#173D3B' }]}>
-                      {contact.name}
-                    </Text>
-                    {contact.isPrimary && (
-                      <View style={styles.primaryBadge}>
-                        <Star size={10} color="#FFFFFF" fill="#FFFFFF" style={{ marginRight: 3 }} />
-                        <Text style={styles.primaryBadgeText}>Principal</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={[styles.contactRel, { color: isDark ? colors.textMuted : '#667775' }]}>
+                  <Text style={[styles.contactName, { color: isDark ? colors.text : '#123F3A' }]}>
+                    {contact.name}
+                  </Text>
+                  <Text style={[styles.contactRel, { color: isDark ? colors.textMuted : '#65736F' }]}>
                     {contact.relationship} • {contact.phoneMasked}
                   </Text>
                   {contact.notes ? (
-                    <Text style={[styles.contactNote, { color: isDark ? colors.textMuted : '#8C9E9B' }]}>
+                    <Text style={[styles.contactNote, { color: isDark ? colors.textMuted : '#65736F' }]}>
                       Obs: {contact.notes}
                     </Text>
                   ) : null}
@@ -335,16 +294,18 @@ export const TrustedContactSection: React.FC = () => {
                   <TouchableOpacity
                     onPress={() => openEditModal(contact)}
                     style={styles.iconBtn}
+                    accessibilityRole="button"
                     accessibilityLabel={`Editar ${contact.name}`}
                   >
-                    <Edit2 size={16} color={isDark ? colors.textMuted : '#667775'} />
+                    <Pencil size={16} color="#65736F" strokeWidth={1.75} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => setContactToDelete(contact)}
                     style={styles.iconBtn}
+                    accessibilityRole="button"
                     accessibilityLabel={`Remover ${contact.name}`}
                   >
-                    <Trash2 size={16} color="#D9534F" />
+                    <Trash2 size={16} color="#E64A2E" strokeWidth={1.75} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -354,16 +315,12 @@ export const TrustedContactSection: React.FC = () => {
                 {contact.allowCall && (
                   <TouchableOpacity
                     onPress={() => setContactToCall(contact)}
-                    style={[
-                      styles.actionBtn,
-                      {
-                        backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
-                        borderColor: '#2F7F7C',
-                      },
-                    ]}
+                    style={styles.contactActionBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Ligar para ${contact.name}`}
                   >
-                    <PhoneCall size={15} color="#2F7F7C" />
-                    <Text style={[styles.actionBtnText, { color: '#2F7F7C' }]}>
+                    <Phone size={15} color="#147D78" strokeWidth={1.75} />
+                    <Text style={styles.contactActionBtnText}>
                       Ligar para {contact.name.split(' ')[0]}
                     </Text>
                   </TouchableOpacity>
@@ -372,25 +329,46 @@ export const TrustedContactSection: React.FC = () => {
                 {contact.allowMessage && (
                   <TouchableOpacity
                     onPress={() => setMessageModalContact(contact)}
-                    style={[
-                      styles.actionBtn,
-                      {
-                        backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFA',
-                        borderColor: isDark ? colors.border : '#DCE5E2',
-                      },
-                    ]}
+                    style={[styles.contactActionBtn, styles.contactActionBtnOutline]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Enviar mensagem para ${contact.name}`}
                   >
-                    <MessageCircle size={15} color="#2F7F7C" />
-                    <Text style={[styles.actionBtnText, { color: isDark ? colors.text : '#173D3B' }]}>
+                    <MessageCircle size={15} color="#147D78" strokeWidth={1.75} />
+                    <Text style={[styles.contactActionBtnText, { color: isDark ? colors.text : '#123F3A' }]}>
                       Enviar mensagem
                     </Text>
                   </TouchableOpacity>
                 )}
               </View>
-            </Card>
+            </View>
           ))}
+
+          {contacts.length < 3 && (
+            <TouchableOpacity
+              onPress={openAddModal}
+              activeOpacity={0.8}
+              style={styles.addAnotherBtn}
+            >
+              <UserRoundPlus size={16} color="#147D78" strokeWidth={1.75} />
+              <Text style={styles.addAnotherBtnText}>Adicionar outro contato de confiança</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
+
+      {/* Observação de Privacidade com LockKeyhole */}
+      <View style={styles.privacyNoteRow}>
+        <LockKeyhole
+          size={16}
+          color="#65736F"
+          strokeWidth={1.75}
+          style={{ marginRight: 8, marginTop: 1 }}
+          aria-hidden={true}
+        />
+        <Text style={[styles.privacyNoteText, { color: isDark ? colors.textMuted : '#65736F' }]}>
+          Seus contatos são salvos apenas no seu dispositivo e protegidos com segurança.
+        </Text>
+      </View>
 
       {/* Modal de Cadastro / Edição */}
       <Modal visible={isModalOpen} transparent animationType="fade" onRequestClose={() => setIsModalOpen(false)}>
@@ -402,24 +380,28 @@ export const TrustedContactSection: React.FC = () => {
             ]}
           >
             <View style={styles.modalTop}>
-              <Text style={[styles.modalTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              <Text style={[styles.modalTitle, { color: isDark ? colors.text : '#123F3A' }]}>
                 {editingContact ? 'Editar contato de confiança' : 'Novo contato de confiança'}
               </Text>
-              <TouchableOpacity onPress={() => setIsModalOpen(false)}>
-                <X size={20} color="#8C9E9B" />
+              <TouchableOpacity
+                onPress={() => setIsModalOpen(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Fechar formulário"
+              >
+                <X size={20} color="#65736F" strokeWidth={1.75} />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
               {formError ? (
-                <View style={[styles.errorBox, { backgroundColor: '#FDF0F0', borderColor: '#F2B5A0' }]}>
-                  <AlertCircle size={15} color="#D9534F" />
-                  <Text style={[styles.errorText, { color: '#D9534F' }]}>{formError}</Text>
+                <View style={styles.errorBox}>
+                  <AlertCircle size={15} color="#E64A2E" strokeWidth={1.75} />
+                  <Text style={styles.errorText}>{formError}</Text>
                 </View>
               ) : null}
 
               <View>
-                <Text style={[styles.inputLabel, { color: isDark ? colors.text : '#173D3B' }]}>
+                <Text style={[styles.inputLabel, { color: isDark ? colors.text : '#123F3A' }]}>
                   Nome da pessoa *
                 </Text>
                 <TextInput
@@ -430,8 +412,8 @@ export const TrustedContactSection: React.FC = () => {
                   style={[
                     styles.inputField,
                     {
-                      color: isDark ? colors.text : '#173D3B',
-                      borderColor: isDark ? colors.border : '#DCE5E2',
+                      color: isDark ? colors.text : '#123F3A',
+                      borderColor: isDark ? colors.border : '#E8EDEA',
                       backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
                     },
                   ]}
@@ -439,7 +421,7 @@ export const TrustedContactSection: React.FC = () => {
               </View>
 
               <View>
-                <Text style={[styles.inputLabel, { color: isDark ? colors.text : '#173D3B' }]}>
+                <Text style={[styles.inputLabel, { color: isDark ? colors.text : '#123F3A' }]}>
                   Vínculo / Parentesco
                 </Text>
                 <View style={styles.relWrap}>
@@ -453,11 +435,11 @@ export const TrustedContactSection: React.FC = () => {
                           styles.relChip,
                           {
                             backgroundColor: isSelected
-                              ? '#2F7F7C'
+                              ? '#147D78'
                               : isDark
                               ? colors.surfaceSecondary
                               : '#FFFFFF',
-                            borderColor: isSelected ? '#2F7F7C' : isDark ? colors.border : '#DCE5E2',
+                            borderColor: isSelected ? '#147D78' : isDark ? colors.border : '#E8EDEA',
                           },
                         ]}
                       >
@@ -465,7 +447,7 @@ export const TrustedContactSection: React.FC = () => {
                           style={[
                             styles.relText,
                             {
-                              color: isSelected ? '#FFFFFF' : isDark ? colors.text : '#173D3B',
+                              color: isSelected ? '#FFFFFF' : isDark ? colors.text : '#123F3A',
                               fontWeight: isSelected ? '700' : '500',
                             },
                           ]}
@@ -479,7 +461,7 @@ export const TrustedContactSection: React.FC = () => {
               </View>
 
               <View>
-                <Text style={[styles.inputLabel, { color: isDark ? colors.text : '#173D3B' }]}>
+                <Text style={[styles.inputLabel, { color: isDark ? colors.text : '#123F3A' }]}>
                   Telefone celular com DDD *
                 </Text>
                 <TextInput
@@ -492,8 +474,8 @@ export const TrustedContactSection: React.FC = () => {
                   style={[
                     styles.inputField,
                     {
-                      color: isDark ? colors.text : '#173D3B',
-                      borderColor: isDark ? colors.border : '#DCE5E2',
+                      color: isDark ? colors.text : '#123F3A',
+                      borderColor: isDark ? colors.border : '#E8EDEA',
                       backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
                     },
                   ]}
@@ -501,7 +483,7 @@ export const TrustedContactSection: React.FC = () => {
               </View>
 
               <View>
-                <Text style={[styles.inputLabel, { color: isDark ? colors.text : '#173D3B' }]}>
+                <Text style={[styles.inputLabel, { color: isDark ? colors.text : '#123F3A' }]}>
                   Observação opcional
                 </Text>
                 <TextInput
@@ -512,31 +494,13 @@ export const TrustedContactSection: React.FC = () => {
                   style={[
                     styles.inputField,
                     {
-                      color: isDark ? colors.text : '#173D3B',
-                      borderColor: isDark ? colors.border : '#DCE5E2',
+                      color: isDark ? colors.text : '#123F3A',
+                      borderColor: isDark ? colors.border : '#E8EDEA',
                       backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
                     },
                   ]}
                 />
               </View>
-
-              {/* Definir como Contato Principal */}
-              <TouchableOpacity
-                onPress={() => setIsPrimary(!isPrimary)}
-                style={styles.checkRow}
-              >
-                <View
-                  style={[
-                    styles.checkbox,
-                    isPrimary && { backgroundColor: '#2F7F7C', borderColor: '#2F7F7C' },
-                  ]}
-                >
-                  {isPrimary && <Check size={13} color="#FFFFFF" strokeWidth={3} />}
-                </View>
-                <Text style={[styles.checkText, { color: isDark ? colors.text : '#173D3B' }]}>
-                  Destacar como meu contato principal de apoio
-                </Text>
-              </TouchableOpacity>
 
               {/* Opções de Comunicação */}
               <TouchableOpacity
@@ -546,12 +510,12 @@ export const TrustedContactSection: React.FC = () => {
                 <View
                   style={[
                     styles.checkbox,
-                    allowCall && { backgroundColor: '#2F7F7C', borderColor: '#2F7F7C' },
+                    allowCall && { backgroundColor: '#147D78', borderColor: '#147D78' },
                   ]}
                 >
                   {allowCall && <Check size={13} color="#FFFFFF" strokeWidth={3} />}
                 </View>
-                <Text style={[styles.checkText, { color: isDark ? colors.text : '#173D3B' }]}>
+                <Text style={[styles.checkText, { color: isDark ? colors.text : '#123F3A' }]}>
                   Permitir botão de ligação direta
                 </Text>
               </TouchableOpacity>
@@ -563,12 +527,12 @@ export const TrustedContactSection: React.FC = () => {
                 <View
                   style={[
                     styles.checkbox,
-                    allowMessage && { backgroundColor: '#2F7F7C', borderColor: '#2F7F7C' },
+                    allowMessage && { backgroundColor: '#147D78', borderColor: '#147D78' },
                   ]}
                 >
                   {allowMessage && <Check size={13} color="#FFFFFF" strokeWidth={3} />}
                 </View>
-                <Text style={[styles.checkText, { color: isDark ? colors.text : '#173D3B' }]}>
+                <Text style={[styles.checkText, { color: isDark ? colors.text : '#123F3A' }]}>
                   Permitir envio de mensagem (WhatsApp / SMS)
                 </Text>
               </TouchableOpacity>
@@ -580,12 +544,12 @@ export const TrustedContactSection: React.FC = () => {
                 <View
                   style={[
                     styles.checkbox,
-                    contactIsAware && { backgroundColor: '#2F7F7C', borderColor: '#2F7F7C' },
+                    contactIsAware && { backgroundColor: '#147D78', borderColor: '#147D78' },
                   ]}
                 >
                   {contactIsAware && <Check size={13} color="#FFFFFF" strokeWidth={3} />}
                 </View>
-                <Text style={[styles.checkText, { color: isDark ? colors.text : '#173D3B' }]}>
+                <Text style={[styles.checkText, { color: isDark ? colors.text : '#123F3A' }]}>
                   Esta pessoa sabe que foi indicada como meu contato de confiança *
                 </Text>
               </TouchableOpacity>
@@ -620,15 +584,19 @@ export const TrustedContactSection: React.FC = () => {
             ]}
           >
             <View style={styles.modalTop}>
-              <Text style={[styles.modalTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              <Text style={[styles.modalTitle, { color: isDark ? colors.text : '#123F3A' }]}>
                 Enviar mensagem para {messageModalContact?.name.split(' ')[0]}
               </Text>
-              <TouchableOpacity onPress={() => setMessageModalContact(null)}>
-                <X size={20} color="#8C9E9B" />
+              <TouchableOpacity
+                onPress={() => setMessageModalContact(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Fechar modal de mensagem"
+              >
+                <X size={20} color="#65736F" strokeWidth={1.75} />
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.msgPrompt, { color: isDark ? colors.textMuted : '#667775' }]}>
+            <Text style={[styles.msgPrompt, { color: isDark ? colors.textMuted : '#65736F' }]}>
               Você pode personalizar a mensagem antes de enviar:
             </Text>
 
@@ -639,8 +607,8 @@ export const TrustedContactSection: React.FC = () => {
               style={[
                 styles.msgInput,
                 {
-                  color: isDark ? colors.text : '#173D3B',
-                  borderColor: isDark ? colors.border : '#DCE5E2',
+                  color: isDark ? colors.text : '#123F3A',
+                  borderColor: isDark ? colors.border : '#E8EDEA',
                   backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFA',
                 },
               ]}
@@ -649,20 +617,20 @@ export const TrustedContactSection: React.FC = () => {
             <View style={styles.msgOptionsCol}>
               <AppButton
                 title="Abrir no WhatsApp"
-                leftIcon={<Share2 size={16} color="#FFFFFF" />}
+                leftIcon={<Share2 size={16} color="#FFFFFF" strokeWidth={1.75} />}
                 onPress={handleSendWhatsApp}
                 style={{ backgroundColor: '#25D366' }}
               />
               <AppButton
                 title="Enviar por SMS"
                 variant="outline"
-                leftIcon={<MessageCircle size={16} color="#2F7F7C" />}
+                leftIcon={<MessageCircle size={16} color="#147D78" strokeWidth={1.75} />}
                 onPress={handleSendSMS}
               />
               <AppButton
                 title="Copiar Texto"
                 variant="ghost"
-                leftIcon={<Copy size={16} color={isDark ? colors.text : '#173D3B'} />}
+                leftIcon={<Copy size={16} color={isDark ? colors.text : '#123F3A'} strokeWidth={1.75} />}
                 onPress={handleCopyMessage}
               />
             </View>
@@ -700,63 +668,55 @@ const styles = StyleSheet.create({
   container: {
     marginVertical: 14,
   },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
+  sectionHeaderRow: {
+    marginBottom: 8,
   },
-  title: {
+  sectionTitle: {
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: -0.2,
   },
-  subtitle: {
+  emptyRowCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 12,
+    shadowColor: '#123F3A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  emptyIcon: {
+    flexShrink: 0,
+  },
+  emptyText: {
     fontSize: 13,
     lineHeight: 18,
-    marginBottom: 10,
-  },
-  disclaimerBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 14,
-  },
-  disclaimerText: {
-    fontSize: 11,
-    lineHeight: 16,
     flex: 1,
   },
-  addSmallBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  addSmallText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  emptyCard: {
-    alignItems: 'center',
-    padding: 22,
-    borderRadius: 18,
+  addInlineBtn: {
+    backgroundColor: '#E7F3EF',
+    borderColor: '#147D78',
     borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    flexShrink: 0,
   },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  emptyDesc: {
+  addInlineBtnText: {
+    color: '#147D78',
     fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 18,
+    fontWeight: '600',
+  },
+  contactsListWrap: {
+    gap: 10,
   },
   contactCard: {
     padding: 14,
-    borderRadius: 16,
+    borderRadius: 10,
     borderWidth: 1,
   },
   contactHeader: {
@@ -765,39 +725,27 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   avatarCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#147D78',
   },
   contactName: {
     fontSize: 15,
     fontWeight: '700',
   },
-  primaryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#2F7F7C',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  primaryBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-  },
   contactRel: {
-    fontSize: 12,
+    fontSize: 12.5,
     marginTop: 2,
   },
   contactNote: {
-    fontSize: 11,
+    fontSize: 11.5,
     marginTop: 2,
     fontStyle: 'italic',
   },
@@ -811,22 +759,56 @@ const styles = StyleSheet.create({
   btnRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 12,
+    marginTop: 10,
   },
-  actionBtn: {
+  contactActionBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 9,
+    paddingVertical: 8,
     paddingHorizontal: 8,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
+    borderColor: '#147D78',
+    backgroundColor: '#E7F3EF',
     gap: 6,
   },
-  actionBtnText: {
+  contactActionBtnOutline: {
+    backgroundColor: 'transparent',
+    borderColor: '#E8EDEA',
+  },
+  contactActionBtnText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#147D78',
+  },
+  addAnotherBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#E8EDEA',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  addAnotherBtnText: {
+    color: '#147D78',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  privacyNoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingHorizontal: 2,
+  },
+  privacyNoteText: {
     fontSize: 12,
-    fontWeight: '700',
+    lineHeight: 16,
+    flex: 1,
   },
   modalOverlay: {
     flex: 1,
@@ -840,14 +822,14 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 460,
     maxHeight: '90%',
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     padding: 20,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 18,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 14,
+    elevation: 6,
   },
   modalTop: {
     flexDirection: 'row',
@@ -857,16 +839,16 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   inputLabel: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
     marginBottom: 6,
   },
   inputField: {
     height: 42,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     paddingHorizontal: 12,
     fontSize: 13,
@@ -879,7 +861,7 @@ const styles = StyleSheet.create({
   relChip: {
     paddingVertical: 5,
     paddingHorizontal: 9,
-    borderRadius: 8,
+    borderRadius: 6,
     borderWidth: 1,
   },
   relText: {
@@ -894,7 +876,7 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 18,
     height: 18,
-    borderRadius: 5,
+    borderRadius: 4,
     borderWidth: 1.5,
     borderColor: '#8C9E9B',
     alignItems: 'center',
@@ -910,11 +892,14 @@ const styles = StyleSheet.create({
     padding: 9,
     borderRadius: 8,
     borderWidth: 1,
+    borderColor: '#F6B7A5',
+    backgroundColor: '#FFF7F5',
     gap: 6,
   },
   errorText: {
     fontSize: 11,
     fontWeight: '600',
+    color: '#E64A2E',
     flex: 1,
   },
   msgPrompt: {
@@ -923,7 +908,7 @@ const styles = StyleSheet.create({
   },
   msgInput: {
     minHeight: 70,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     padding: 10,
     fontSize: 13,
