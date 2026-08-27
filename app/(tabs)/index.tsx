@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Image,
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -27,9 +28,7 @@ import { useMoodStore } from '../../src/store/moodStore';
 import { usePracticeStore } from '../../src/store/practiceStore';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
-import { getGreeting, getRelativeDateLabel } from '../../src/utils/date';
-import { AnaAvatar } from '../../src/components/illustrations/AnaAvatar';
-import { PracticeThumbnail } from '../../src/components/practices/PracticeThumbnail';
+import { getGreeting, formatDate, formatDateTime } from '../../src/utils/date';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -42,7 +41,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.title = 'Início & Diário — Respira';
+      document.title = 'Início — Respira';
     }
   }, []);
 
@@ -50,24 +49,19 @@ export default function HomeScreen() {
   const recommendedPractice =
     practices.find((p) => p.id === 'practice-breathing-478') || practices[0] || null;
 
-  // Formatação de data em português: "Quinta-feira, 27 de agosto"
+  // Formatação de data da barra superior (ex: "27 de ago. de 2026")
   const formattedToday = useMemo(() => {
     try {
-      const now = new Date();
-      const raw = new Intl.DateTimeFormat('pt-BR', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-      }).format(now);
-      return raw.charAt(0).toUpperCase() + raw.slice(1);
+      return formatDate(new Date().toISOString());
     } catch {
       return 'Hoje';
     }
   }, []);
 
-  const userName = user?.name || 'Ana';
+  const userName = user?.name || 'Nicolas';
+  const userInitial = userName.trim().charAt(0).toUpperCase() || 'N';
 
-  // 4 Ações Rápidas Padronizadas
+  // 4 Ações Rápidas Padronizadas com Ícones Lineares Lucide
   const quickActions = [
     {
       title: 'Respirar',
@@ -114,12 +108,12 @@ export default function HomeScreen() {
           styles.sideCard,
           {
             backgroundColor: isDark ? colors.surface : '#FFFFFF',
-            borderColor: isDark ? colors.border : '#DFE5E2',
+            borderColor: isDark ? colors.border : '#E8EDEA',
           },
         ]}
       >
         <View style={styles.sideCardHeaderRow}>
-          <Clock size={16} color="#2F817A" strokeWidth={2} style={{ marginRight: 8 }} aria-hidden={true} />
+          <Clock size={16} color="#1B645D" strokeWidth={2} style={{ marginRight: 8 }} aria-hidden={true} />
           <Text style={[styles.sideCardHeading, { color: isDark ? colors.text : '#123F3A' }]}>
             Lembrete de cuidado
           </Text>
@@ -137,20 +131,20 @@ export default function HomeScreen() {
         style={[
           styles.sideCard,
           {
-            backgroundColor: isDark ? '#261C19' : '#FDF6F3',
-            borderColor: isDark ? '#4A2A22' : '#F4D3C6',
+            backgroundColor: isDark ? '#261C19' : '#FFF7F5',
+            borderColor: isDark ? '#4A2A22' : '#F6B7A5',
           },
         ]}
       >
         <View style={styles.sideCardHeaderRow}>
           <HeartHandshake
             size={16}
-            color="#C9785B"
+            color="#E05638"
             strokeWidth={2}
             style={{ marginRight: 8 }}
             aria-hidden={true}
           />
-          <Text style={[styles.sideCardHeading, { color: '#C9785B' }]}>Precisa de escuta?</Text>
+          <Text style={[styles.sideCardHeading, { color: '#E05638' }]}>Precisa de escuta?</Text>
         </View>
         <Text style={[styles.sideCardText, { color: isDark ? '#F5DDD6' : '#733722' }]}>
           O CVV oferece apoio emocional gratuito pelo telefone{' '}
@@ -162,7 +156,7 @@ export default function HomeScreen() {
           accessibilityRole="button"
           accessibilityLabel="Ver canais de apoio emocional"
         >
-          <Text style={{ fontSize: 13, fontWeight: '600', color: '#C9785B' }}>
+          <Text style={{ fontSize: 13, fontWeight: '600', color: '#E05638' }}>
             Ver canais de apoio →
           </Text>
         </TouchableOpacity>
@@ -176,17 +170,17 @@ export default function HomeScreen() {
           styles.sideCard,
           {
             backgroundColor: isDark ? colors.surface : '#FFFFFF',
-            borderColor: isDark ? colors.border : '#DFE5E2',
+            borderColor: isDark ? colors.border : '#E8EDEA',
           },
         ]}
       >
         <View style={styles.sideCardHeaderRow}>
-          <Calendar size={16} color="#2F817A" strokeWidth={2} style={{ marginRight: 8 }} aria-hidden={true} />
+          <Calendar size={16} color="#1B645D" strokeWidth={2} style={{ marginRight: 8 }} aria-hidden={true} />
           <Text style={[styles.sideCardHeading, { color: isDark ? colors.text : '#123F3A' }]}>
             Registros no mês
           </Text>
         </View>
-        <Text style={{ fontSize: 22, fontWeight: '700', color: '#2F817A', marginTop: 2 }}>
+        <Text style={{ fontSize: 22, fontWeight: '700', color: '#1B645D', marginTop: 2 }}>
           {records.length}{' '}
           <Text style={{ fontSize: 13, fontWeight: '400', color: isDark ? colors.textMuted : '#65736F' }}>
             check-ins realizados
@@ -198,15 +192,12 @@ export default function HomeScreen() {
 
   return (
     <AppShell rightPanel={renderDesktopRightPanel()}>
-      {/* 1. Cabeçalho Superior Compacto e Humano */}
+      {/* 1. Cabeçalho Superior */}
       <View style={styles.topHeader}>
         <View style={styles.userGreetingRow}>
-          <AnaAvatar
-            size={44}
-            avatarUrl={user?.avatarUrl}
-            name={userName}
-            style={styles.avatarWrap}
-          />
+          <View style={[styles.avatarCircle, { backgroundColor: '#123F3A' }]}>
+            <Text style={styles.avatarLetter}>{userInitial}</Text>
+          </View>
           <View style={styles.headerTextGroup}>
             <Text
               accessibilityRole="header"
@@ -229,110 +220,94 @@ export default function HomeScreen() {
           style={[
             styles.sosHeaderBtn,
             {
-              backgroundColor: isDark ? '#261C19' : '#FDF6F3',
-              borderColor: isDark ? '#4A2A22' : '#F4D3C6',
+              backgroundColor: isDark ? '#261C19' : '#FFF7F5',
+              borderColor: isDark ? '#4A2A22' : '#F6B7A5',
             },
           ]}
         >
-          <Heart size={15} color="#C9785B" strokeWidth={2} aria-hidden={true} />
+          <Heart size={15} color="#E05638" strokeWidth={1.8} aria-hidden={true} />
           <Text style={styles.sosHeaderText}>Apoio imediato</Text>
         </TouchableOpacity>
       </View>
 
-      {/* 2. Momento Atual — Card Branco Limpo com Barra Lateral Verde */}
+      {/* 2. Card Momento Atual */}
       <View
         style={[
           styles.heroCard,
           {
             backgroundColor: isDark ? colors.surface : '#FFFFFF',
-            borderColor: isDark ? colors.border : '#DFE5E2',
+            borderColor: isDark ? colors.border : '#E8EDEA',
           },
         ]}
       >
-        {/* Barra lateral verde como detalhe visual sutil */}
-        <View style={styles.heroAccentBar} />
+        {/* Badge Sóbria */}
+        <View
+          style={[
+            styles.heroBadge,
+            { backgroundColor: isDark ? '#1C302D' : '#DDE9E4' },
+          ]}
+        >
+          <Text style={[styles.heroBadgeText, { color: '#1B645D' }]}>
+            Momento atual
+          </Text>
+        </View>
 
-        <View style={styles.heroCardContent}>
-          {/* Badge Pequena e Sóbria */}
-          <View
-            style={[
-              styles.heroBadge,
-              { backgroundColor: isDark ? '#1C302D' : '#DDE9E4' },
-            ]}
-          >
-            <Text style={[styles.heroBadgeText, { color: '#2F817A' }]}>
-              MOMENTO ATUAL
+        {/* Pergunta Principal */}
+        <Text
+          accessibilityRole="header"
+          aria-level={2}
+          style={[styles.heroQuestion, { color: isDark ? colors.text : '#123F3A' }]}
+        >
+          Como você está agora?
+        </Text>
+
+        {/* Último Registro com Linha e Métricas */}
+        <View style={styles.lastRecordRow}>
+          <CheckCircle2
+            size={18}
+            color="#1B645D"
+            strokeWidth={1.8}
+            style={{ marginTop: 2 }}
+            aria-hidden={true}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.lastRecordTitle, { color: isDark ? colors.text : '#263633' }]}>
+              Último registro: {lastRecord ? formatDateTime(lastRecord.createdAt) : 'Nenhum ainda hoje'}
+            </Text>
+            <Text style={[styles.lastRecordMeta, { color: isDark ? colors.textMuted : '#65736F' }]}>
+              {lastRecord
+                ? `Humor ${lastRecord.mood}/5  •  Ansiedade ${lastRecord.anxietyLevel}/10`
+                : 'Faça um check-in breve para registrar suas emoções.'}
             </Text>
           </View>
-
-          {/* Pergunta Principal */}
-          <Text
-            accessibilityRole="header"
-            aria-level={2}
-            style={[styles.heroQuestion, { color: isDark ? colors.text : '#123F3A' }]}
-          >
-            Como você está agora?
-          </Text>
-
-          {/* Último Registro com Organização Clara */}
-          <View style={styles.lastRecordRow}>
-            <CheckCircle2
-              size={17}
-              color="#2F817A"
-              strokeWidth={2}
-              style={{ marginRight: 8, marginTop: 2 }}
-              aria-hidden={true}
-            />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.lastRecordTitle, { color: isDark ? colors.text : '#263633' }]}>
-                {lastRecord
-                  ? `Último registro: ${getRelativeDateLabel(lastRecord.createdAt)}`
-                  : 'Nenhum registro ainda hoje'}
-              </Text>
-              <Text style={[styles.lastRecordMeta, { color: isDark ? colors.textMuted : '#65736F' }]}>
-                {lastRecord
-                  ? `Humor ${lastRecord.mood}/5 • Ansiedade ${lastRecord.anxietyLevel}/10`
-                  : 'Faça um check-in breve para escutar e registrar suas emoções.'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Divisor Discreto */}
-          <View
-            style={[
-              styles.heroDivider,
-              { backgroundColor: isDark ? colors.border : '#DFE5E2' },
-            ]}
-          />
-
-          {/* Ações do Card */}
-          <View style={styles.heroActionsContainer}>
-            <TouchableOpacity
-              onPress={() => router.push('/mood/new')}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel="Registrar meu momento"
-              style={styles.primaryActionButton}
-            >
-              <Smile size={18} color="#FFFFFF" strokeWidth={2} aria-hidden={true} />
-              <Text style={styles.primaryActionText}>Registrar meu momento</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => router.push('/diary/history' as any)}
-              accessibilityRole="link"
-              accessibilityLabel="Visualizar histórico de momento atual"
-              style={styles.historyLinkBtn}
-            >
-              <Text style={styles.historyLinkText}>
-                Visualizar histórico de momento atual →
-              </Text>
-            </TouchableOpacity>
-          </View>
         </View>
+
+        {/* Botão Primário "Registrar meu momento" */}
+        <TouchableOpacity
+          onPress={() => router.push('/mood/new')}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Registrar meu momento"
+          style={styles.primaryActionButton}
+        >
+          <Smile size={19} color="#FFFFFF" strokeWidth={1.8} aria-hidden={true} />
+          <Text style={styles.primaryActionText}>Registrar meu momento</Text>
+        </TouchableOpacity>
+
+        {/* Link Secundário */}
+        <TouchableOpacity
+          onPress={() => router.push('/diary/history' as any)}
+          accessibilityRole="link"
+          accessibilityLabel="Visualizar histórico de momento atual"
+          style={styles.historyLinkBtn}
+        >
+          <Text style={styles.historyLinkText}>
+            Visualizar histórico →
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {/* 3. Ações Rápidas — Grade Equilibrada de 2 Colunas */}
+      {/* 3. Ações Rápidas — Grade 2x2 no Celular */}
       <View style={styles.sectionHeaderWrap}>
         <Text
           accessibilityRole="header"
@@ -358,15 +333,15 @@ export default function HomeScreen() {
                   styles.quickActionCard,
                   {
                     backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                    borderColor: isDark ? colors.border : '#DFE5E2',
+                    borderColor: isDark ? colors.border : '#E8EDEA',
                     flex: 1,
                   },
                 ]}
               >
                 <Icon
-                  size={22}
-                  color="#2F817A"
-                  strokeWidth={2}
+                  size={26}
+                  color="#1B645D"
+                  strokeWidth={1.8}
                   style={styles.quickActionIcon}
                   aria-hidden={true}
                 />
@@ -395,14 +370,14 @@ export default function HomeScreen() {
                   styles.quickActionCardMobile,
                   {
                     backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                    borderColor: isDark ? colors.border : '#DFE5E2',
+                    borderColor: isDark ? colors.border : '#E8EDEA',
                   },
                 ]}
               >
                 <Icon
-                  size={22}
-                  color="#2F817A"
-                  strokeWidth={2}
+                  size={26}
+                  color="#1B645D"
+                  strokeWidth={1.8}
                   style={styles.quickActionIcon}
                   aria-hidden={true}
                 />
@@ -418,7 +393,7 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* 4. Recomendação para Hoje — Card Editorial e Profissional */}
+      {/* 4. Recomendação para Hoje — Card Editorial Realista */}
       {recommendedPractice && (
         <View style={styles.recSectionWrap}>
           <View style={styles.sectionHeaderWrap}>
@@ -436,21 +411,18 @@ export default function HomeScreen() {
               styles.recommendationCard,
               {
                 backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                borderColor: isDark ? colors.border : '#DFE5E2',
+                borderColor: isDark ? colors.border : '#E8EDEA',
               },
             ]}
           >
-            {/* Miniatura visual realista e dedicada */}
-            <View style={styles.recThumbnailBox}>
-              <PracticeThumbnail
-                practiceId={recommendedPractice.id}
-                category={recommendedPractice.category}
-                title={recommendedPractice.title}
-                isDark={isDark}
-              />
-            </View>
+            {/* Foto real e acolhedora da poltrona com planta e janela */}
+            <Image
+              source={require('../../assets/images/practice-chair-window.jpg')}
+              style={styles.recImage}
+              resizeMode="cover"
+            />
 
-            {/* Conteúdo à direita com tipografia clara */}
+            {/* Conteúdo à direita */}
             <View style={styles.recContentCol}>
               <View style={styles.recTopLine}>
                 <Text
@@ -472,16 +444,16 @@ export default function HomeScreen() {
                 >
                   <Bookmark
                     size={19}
-                    color="#2F817A"
-                    fill={recommendedPractice.isFavorite ? '#2F817A' : 'transparent'}
-                    strokeWidth={2}
+                    color="#1B645D"
+                    fill={recommendedPractice.isFavorite ? '#1B645D' : 'transparent'}
+                    strokeWidth={1.8}
                     aria-hidden={true}
                   />
                 </TouchableOpacity>
               </View>
 
               <Text style={styles.recMetaText}>
-                {recommendedPractice.durationMinutes} min • {recommendedPractice.level} • Guiado
+                {recommendedPractice.durationMinutes} min  •  {recommendedPractice.level}
               </Text>
 
               <Text
@@ -499,7 +471,7 @@ export default function HomeScreen() {
                 style={styles.startPracticeBtn}
               >
                 <Play size={12} color="#FFFFFF" fill="#FFFFFF" aria-hidden={true} />
-                <Text style={styles.startPracticeBtnText}>Iniciar prática</Text>
+                <Text style={styles.startPracticeBtnText}>Iniciar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -525,118 +497,106 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  avatarWrap: {
+  avatarCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
+  },
+  avatarLetter: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
   },
   headerTextGroup: {
     flex: 1,
     minWidth: 0,
   },
   greetingTitle: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: '700',
     letterSpacing: -0.2,
   },
   dateSubtitle: {
     fontSize: 13,
     fontWeight: '400',
-    marginTop: 1,
+    marginTop: 2,
   },
   sosHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 8,
+    paddingVertical: 7,
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    minHeight: 40,
+    minHeight: 38,
   },
   sosHeaderText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#C9785B',
+    color: '#E05638',
   },
 
   // 2. Card Momento Atual
   heroCard: {
     borderRadius: 16,
+    padding: 20,
     marginBottom: 24,
     borderWidth: 1,
-    overflow: 'hidden',
-    position: 'relative',
     shadowColor: '#123F3A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 8,
-    elevation: 2,
-  },
-  heroAccentBar: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 4,
-    backgroundColor: '#2F817A',
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
-  },
-  heroCardContent: {
-    padding: 20,
-    paddingLeft: 22,
+    elevation: 1,
   },
   heroBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
     alignSelf: 'flex-start',
-    marginBottom: 10,
+    marginBottom: 2,
   },
   heroBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontSize: 12,
+    fontWeight: '600',
   },
   heroQuestion: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
+    marginTop: 12,
     marginBottom: 14,
     letterSpacing: -0.3,
-    lineHeight: 32,
   },
   lastRecordRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    gap: 10,
     marginBottom: 4,
   },
   lastRecordTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 20,
+    fontSize: 13.5,
+    fontWeight: '500',
+    lineHeight: 19,
   },
   lastRecordMeta: {
     fontSize: 13,
     fontWeight: '400',
-    marginTop: 2,
+    marginTop: 3,
     lineHeight: 18,
   },
-  heroDivider: {
-    height: 1,
-    marginVertical: 16,
-  },
-  heroActionsContainer: {
-    gap: 12,
-  },
   primaryActionButton: {
-    backgroundColor: '#2F817A',
+    backgroundColor: '#1B645D',
     borderRadius: 12,
-    height: 46,
+    height: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingHorizontal: 20,
-    shadowColor: '#123F3A',
+    marginTop: 18,
+    shadowColor: '#1B645D',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 4,
@@ -649,10 +609,11 @@ const styles = StyleSheet.create({
   },
   historyLinkBtn: {
     alignSelf: 'flex-start',
-    paddingVertical: 4,
+    marginTop: 14,
+    paddingVertical: 2,
   },
   historyLinkText: {
-    color: '#2F817A',
+    color: '#1B645D',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -660,10 +621,11 @@ const styles = StyleSheet.create({
   // 3. Ações Rápidas
   sectionHeaderWrap: {
     marginBottom: 12,
+    marginTop: 4,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '650' as any,
+    fontSize: 18,
+    fontWeight: '700',
     letterSpacing: -0.2,
   },
   quickActionsGridMobile: {
@@ -678,64 +640,67 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   quickActionCard: {
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: 16,
+    padding: 18,
     borderWidth: 1,
     shadowColor: '#123F3A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.03,
     shadowRadius: 6,
     elevation: 1,
-    minHeight: 104,
+    minHeight: 110,
     justifyContent: 'center',
   },
   quickActionCardMobile: {
     width: '48%',
     flexGrow: 1,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 16,
+    padding: 18,
     borderWidth: 1,
     shadowColor: '#123F3A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.03,
     shadowRadius: 6,
     elevation: 1,
-    minHeight: 102,
+    minHeight: 110,
     justifyContent: 'center',
   },
   quickActionIcon: {
-    marginBottom: 8,
+    marginBottom: 2,
   },
   quickActionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 10,
   },
   quickActionDesc: {
     fontSize: 13,
     fontWeight: '400',
-    marginTop: 2,
+    marginTop: 4,
     lineHeight: 17,
   },
 
   // 4. Recomendação para Hoje
   recSectionWrap: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   recommendationCard: {
     borderRadius: 16,
-    padding: 16,
+    padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 14,
     borderWidth: 1,
     shadowColor: '#123F3A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.03,
     shadowRadius: 6,
     elevation: 1,
   },
-  recThumbnailBox: {
-    alignSelf: 'center',
+  recImage: {
+    width: 104,
+    height: 112,
+    borderRadius: 12,
   },
   recContentCol: {
     flex: 1,
@@ -745,31 +710,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: 6,
   },
   recTitle: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     letterSpacing: -0.2,
     flex: 1,
   },
   recMetaText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#2F817A',
+    color: '#1B645D',
     marginTop: 2,
     marginBottom: 4,
   },
   recDesc: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 12,
+    fontSize: 12.5,
+    lineHeight: 17,
+    marginBottom: 10,
   },
   startPracticeBtn: {
-    backgroundColor: '#2F817A',
-    height: 36,
-    paddingHorizontal: 16,
-    borderRadius: 10,
+    backgroundColor: '#1B645D',
+    height: 32,
+    paddingHorizontal: 14,
+    borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
