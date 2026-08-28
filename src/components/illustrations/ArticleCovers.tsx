@@ -48,6 +48,12 @@ const EDITORIAL_IMAGE_COVERS: Record<string, any> = {
   'como-criar-uma-rotina-emocionalmente-saudavel': require('../../../assets/images/como-criar-uma-rotina-emocionalmente-saudavel.jpg'),
   'gratidao-sem-ignorar-as-emocoes-dificeis': require('../../../assets/images/gratidao-sem-ignorar-as-emocoes-dificeis.jpg'),
   'como-criar-habitos-de-autocuidado-duradouros': require('../../../assets/images/como-criar-habitos-de-autocuidado-duradouros.jpg'),
+  // Regulação (1 a 5)
+  'o-que-e-regulacao-emocional': require('../../../assets/images/o-que-e-regulacao-emocional.jpg'),
+  'tecnica-5-4-3-2-1-para-voltar-ao-presente': require('../../../assets/images/tecnica-5-4-3-2-1-para-voltar-ao-presente.jpg'),
+  'como-identificar-e-nomear-suas-emocoes': require('../../../assets/images/como-identificar-e-nomear-suas-emocoes.jpg'),
+  'como-acolher-emocoes-desconfortaveis': require('../../../assets/images/como-acolher-emocoes-desconfortaveis.jpg'),
+  'como-a-respiracao-ajuda-a-regular-o-corpo': require('../../../assets/images/como-a-respiracao-ajuda-a-regular-o-corpo.jpg'),
 };
 
 export interface ArticleCoverProps {
