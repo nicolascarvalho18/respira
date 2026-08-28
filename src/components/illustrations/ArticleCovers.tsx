@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Image } from 'react-native';
 import Svg, {
   Rect,
   Circle,
@@ -12,6 +12,14 @@ import Svg, {
   Mask,
   Text as SvgText,
 } from 'react-native-svg';
+
+const EDITORIAL_IMAGE_COVERS: Record<string, any> = {
+  'o-que-e-ansiedade-e-como-ela-funciona': require('../../../assets/images/o-que-e-ansiedade-e-como-ela-funciona.jpg'),
+  'como-reconhecer-os-sinais-da-ansiedade': require('../../../assets/images/como-reconhecer-os-sinais-da-ansiedade.jpg'),
+  'ansiedade-e-estresse-qual-e-a-diferenca': require('../../../assets/images/ansiedade-e-estresse-qual-e-a-diferenca.jpg'),
+  'o-que-acontece-no-corpo-durante-uma-crise-de-ansiedade': require('../../../assets/images/o-que-acontece-no-corpo-durante-uma-crise-de-ansiedade.jpg'),
+  'como-acalmar-os-pensamentos-acelerados': require('../../../assets/images/como-acalmar-os-pensamentos-acelerados.jpg'),
+};
 
 export interface ArticleCoverProps {
   slug: string;
@@ -32,6 +40,29 @@ export const ArticleCoverImage: React.FC<ArticleCoverProps> = ({
 }) => {
   const normSlug = slug ? slug.toLowerCase().trim() : '';
   const normCat = category ? category.toLowerCase().trim() : '';
+
+  if (EDITORIAL_IMAGE_COVERS[normSlug]) {
+    return (
+      <View
+        style={[
+          styles.container,
+          {
+            width,
+            height,
+            borderRadius,
+          },
+          style,
+        ]}
+      >
+        <Image
+          source={EDITORIAL_IMAGE_COVERS[normSlug]}
+          style={{ width: '100%', height: '100%' }}
+          resizeMode="cover"
+          accessibilityLabel={`Capa ilustrada para ${slug}`}
+        />
+      </View>
+    );
+  }
 
   // Determine category color themes
   const isAnxiety = normCat.includes('ansiedade') || normSlug.includes('ansiedade');
