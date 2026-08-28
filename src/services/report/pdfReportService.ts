@@ -3,18 +3,32 @@ import { formatDate, formatDateTime } from '../../utils/date';
 import { Platform } from 'react-native';
 
 export interface ReportOptions {
-  month?: number; // 0-11 (se undefined, gera de todos os meses disponíveis)
+  month?: number; // 0-11
   year?: number;
   allMonths?: boolean;
-  includeStats: boolean;
-  includeEmotions: boolean;
-  includePractices: boolean;
-  includeNotes: boolean;
+  includeMoodSummary?: boolean;
+  includeSymptoms?: boolean;
+  includePractices?: boolean;
+  includeDiaryNotes?: boolean;
+  // Aliases de retrocompatibilidade:
+  includeStats?: boolean;
+  includeEmotions?: boolean;
+  includeNotes?: boolean;
 }
 
-const MONTH_NAMES = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+export const MONTH_NAMES = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
 ];
 
 export class PdfReportService {
@@ -26,7 +40,12 @@ export class PdfReportService {
   ): string {
     const isSingleMonth = !options.allMonths && options.month !== undefined && options.year !== undefined;
 
-    // Agrupamento de registros por Mês/Ano
+    // Normalizar opções
+    const showMoodSummary = options.includeMoodSummary ?? options.includeStats ?? true;
+    const showSymptoms = options.includeSymptoms ?? options.includeEmotions ?? true;
+    const showPractices = options.includePractices ?? true;
+    const showDiaryNotes = options.includeDiaryNotes ?? options.includeNotes ?? false;
+
     type MonthGroup = {
       monthKey: string;
       monthIndex: number;
@@ -38,10 +57,17 @@ export class PdfReportService {
     const monthGroups: MonthGroup[] = [];
 
     if (isSingleMonth && options.month !== undefined && options.year !== undefined) {
-      const filtered = records.filter((r) => {
-        const d = new Date(r.createdAt);
-        return d.getMonth() === options.month && d.getFullYear() === options.year;
-      }).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      // Primeiro dia do mês às 00:00:00.000
+      const startOfMonth = new Date(options.year, options.month, 1, 0, 0, 0, 0).getTime();
+      // Primeiro dia do próximo mês às 00:00:00.000 (calcula automaticamente anos bissextos em Fev)
+      const startOfNextMonth = new Date(options.year, options.month + 1, 1, 0, 0, 0, 0).getTime();
+
+      const filtered = records
+        .filter((r) => {
+          const t = new Date(r.createdAt).getTime();
+          return t >= startOfMonth && t < startOfNextMonth;
+        })
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
       monthGroups.push({
         monthKey: `${options.year}-${options.month}`,
@@ -51,7 +77,7 @@ export class PdfReportService {
         records: filtered,
       });
     } else {
-      // Todos os registros organizados cronologicamente
+      // Histórico Completo: agrupado cronologicamente por mês
       if (records.length === 0) {
         const now = new Date();
         monthGroups.push({
@@ -90,15 +116,21 @@ export class PdfReportService {
       }
     }
 
-    // Totais globais
-    const totalCheckinsAll = records.length;
-    const avgMoodAll =
-      totalCheckinsAll > 0
-        ? (records.reduce((acc, r) => acc + r.mood, 0) / totalCheckinsAll).toFixed(1)
+    // Totais calculados
+    const totalRecordsFiltered = monthGroups.reduce((acc, g) => acc + g.records.length, 0);
+    const allFilteredRecords = monthGroups.flatMap((g) => g.records);
+
+    const avgMood =
+      totalRecordsFiltered > 0
+        ? (allFilteredRecords.reduce((acc, r) => acc + r.mood, 0) / totalRecordsFiltered).toFixed(1)
         : '0.0';
-    const avgAnxietyAll =
-      totalCheckinsAll > 0
-        ? (records.reduce((acc, r) => acc + (r.anxietyLevel || 0), 0) / totalCheckinsAll).toFixed(1)
+
+    const avgAnxiety =
+      totalRecordsFiltered > 0
+        ? (
+            allFilteredRecords.reduce((acc, r) => acc + (r.anxietyLevel || 0), 0) /
+            totalRecordsFiltered
+          ).toFixed(1)
         : '0.0';
 
     const completedPracticesSum = practices.reduce(
@@ -106,34 +138,39 @@ export class PdfReportService {
       0
     );
 
-    const periodLabel = isSingleMonth && options.month !== undefined && options.year !== undefined
-      ? `${MONTH_NAMES[options.month]} de ${options.year}`
-      : monthGroups.length > 1
-      ? `${monthGroups[0].label} a ${monthGroups[monthGroups.length - 1].label}`
-      : monthGroups[0]?.label || 'Histórico Completo';
+    const periodLabel =
+      isSingleMonth && options.month !== undefined && options.year !== undefined
+        ? `${MONTH_NAMES[options.month]} de ${options.year}`
+        : monthGroups.length > 1
+        ? `${monthGroups[0].label} a ${monthGroups[monthGroups.length - 1].label}`
+        : monthGroups[0]?.label || 'Histórico Completo';
+
+    const userName = user.name || 'Usuário';
 
     return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Relatório de Acompanhamento Emocional • Respira</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatório de Acompanhamento • Respira</title>
   <style>
     * {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      margin: 0;
-      padding: 36px 40px;
-      color: #173D3B;
+      padding: 40px 48px;
+      color: #17332F;
       background: #FFFFFF;
       line-height: 1.5;
       font-size: 13px;
     }
     .header {
-      border-bottom: 2.5px solid #2F7F7C;
+      border-bottom: 2px solid #247B74;
       padding-bottom: 16px;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
@@ -142,92 +179,96 @@ export class PdfReportService {
       display: flex;
       flex-direction: column;
     }
-    .logo {
-      font-size: 26px;
+    .brand-title {
+      font-size: 24px;
       font-weight: 800;
-      color: #2F7F7C;
+      color: #247B74;
       letter-spacing: -0.5px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
     }
-    .subtitle {
-      font-size: 13px;
-      color: #667775;
-      margin-top: 2px;
+    .doc-title {
+      font-size: 14px;
+      color: #5F706C;
+      font-weight: 600;
+      margin-top: 4px;
     }
-    .meta-grid {
+    .emission-info {
+      text-align: right;
+      font-size: 11px;
+      color: #8C9E9B;
+    }
+    .emission-info strong {
+      color: #17332F;
+    }
+    .meta-box {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 24px;
-      background: #F7F9F7;
-      border: 1px solid #DCE5E2;
-      border-radius: 12px;
+      gap: 12px;
+      background: #F8FAF9;
+      border: 1px solid #DDE6E3;
+      border-radius: 10px;
       padding: 14px 18px;
+      margin-bottom: 24px;
+    }
+    .meta-item {
+      font-size: 12px;
     }
     .meta-item strong {
-      color: #173D3B;
-      font-size: 12px;
+      color: #5F706C;
       text-transform: uppercase;
+      font-size: 11px;
       letter-spacing: 0.3px;
     }
     .meta-item span {
-      color: #2F7F7C;
-      font-size: 13px;
+      color: #17332F;
       font-weight: 600;
       margin-left: 6px;
+      font-size: 13px;
     }
-    .stats-row {
+    .stats-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 12px;
-      margin-bottom: 26px;
+      margin-bottom: 28px;
     }
     .stat-card {
-      border: 1px solid #DCE5E2;
+      background: #F8FAF9;
+      border: 1px solid #DDE6E3;
       border-radius: 10px;
-      padding: 12px 10px;
+      padding: 14px 10px;
       text-align: center;
-      background: #FAFCFB;
     }
-    .stat-val {
-      font-size: 22px;
+    .stat-number {
+      font-size: 24px;
       font-weight: 800;
-      color: #2F7F7C;
+      color: #247B74;
     }
-    .stat-lbl {
-      font-size: 10px;
-      color: #667775;
+    .stat-label {
+      font-size: 11px;
+      color: #5F706C;
       text-transform: uppercase;
       font-weight: 700;
-      margin-top: 3px;
-      letter-spacing: 0.4px;
+      margin-top: 4px;
+      letter-spacing: 0.3px;
     }
     .month-section {
-      margin-bottom: 30px;
+      margin-bottom: 32px;
       page-break-inside: avoid;
     }
-    .month-title {
-      font-size: 16px;
-      font-weight: 800;
-      color: #173D3B;
-      border-left: 4px solid #2F7F7C;
-      padding-left: 10px;
-      margin-bottom: 12px;
-      background: #E7F3EF;
-      padding-top: 6px;
-      padding-bottom: 6px;
+    .month-header {
+      font-size: 15px;
+      font-weight: 700;
+      color: #17332F;
+      border-left: 4px solid #247B74;
+      padding: 6px 12px;
+      background: #EAF7F3;
       border-radius: 0 8px 8px 0;
+      margin-bottom: 14px;
     }
-    .section-title {
-      font-size: 14px;
-      font-weight: 800;
-      color: #173D3B;
-      border-left: 3px solid #79B8A4;
-      padding-left: 8px;
-      margin-bottom: 10px;
-      margin-top: 20px;
+    .month-header-sub {
+      font-size: 12px;
+      font-weight: normal;
+      color: #5F706C;
+      margin-left: 8px;
     }
     table {
       width: 100%;
@@ -236,16 +277,16 @@ export class PdfReportService {
       font-size: 12px;
     }
     th {
-      background: #E7F3EF;
-      color: #173D3B;
+      background: #EAF7F3;
+      color: #17332F;
       text-align: left;
-      padding: 8px 10px;
-      border: 1px solid #DCE5E2;
+      padding: 9px 12px;
+      border: 1px solid #DDE6E3;
       font-weight: 700;
     }
     td {
-      padding: 8px 10px;
-      border: 1px solid #DCE5E2;
+      padding: 9px 12px;
+      border: 1px solid #DDE6E3;
       vertical-align: top;
     }
     tr:nth-child(even) td {
@@ -253,33 +294,42 @@ export class PdfReportService {
     }
     .badge {
       display: inline-block;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 10px;
+      padding: 3px 7px;
+      border-radius: 6px;
+      font-size: 11px;
       font-weight: 700;
     }
     .badge-mood {
-      background: #E7F3EF;
-      color: #2F7F7C;
+      background: #EAF7F3;
+      color: #176B61;
     }
     .badge-anxiety {
-      background: #FFF4EE;
-      color: #D98968;
+      background: #FFF3EB;
+      color: #C85A32;
     }
-    .empty-month-box {
-      border: 1px dashed #C5D6D2;
+    .empty-box {
+      border: 1px dashed #B8CDC8;
       border-radius: 8px;
       padding: 16px;
       text-align: center;
-      color: #667775;
+      color: #5F706C;
       font-style: italic;
-      background: #F7F9F7;
+      background: #F8FAF9;
       margin-bottom: 16px;
     }
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #17332F;
+      border-left: 3px solid #247B74;
+      padding-left: 10px;
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
     .footer {
-      margin-top: 36px;
-      padding-top: 14px;
-      border-top: 1px solid #DCE5E2;
+      margin-top: 40px;
+      padding-top: 16px;
+      border-top: 1px solid #DDE6E3;
       font-size: 11px;
       color: #708885;
       text-align: center;
@@ -287,53 +337,56 @@ export class PdfReportService {
     }
     @media print {
       body { padding: 12px; }
-      @page { margin: 1.5cm; }
+      @page { margin: 1.2cm; }
     }
   </style>
 </head>
 <body>
+  <!-- Cabeçalho -->
   <div class="header">
     <div class="logo-area">
-      <div class="logo">🌿 Respira</div>
-      <div class="subtitle">Relatório Mensal de Acompanhamento Emocional</div>
+      <div class="brand-title">🌿 Respira</div>
+      <div class="doc-title">Relatório de acompanhamento</div>
     </div>
-    <div style="text-align:right;font-size:11px;color:#708885;">
-      Emissão: <strong>${formatDateTime(new Date().toISOString())}</strong>
+    <div class="emission-info">
+      Data de geração: <strong>${formatDateTime(new Date().toISOString())}</strong>
     </div>
   </div>
 
-  <div class="meta-grid">
-    <div class="meta-item"><strong>Paciente / Usuário:</strong> <span>${user.name}</span></div>
-    <div class="meta-item"><strong>Período Analisado:</strong> <span>${periodLabel}</span></div>
-    <div class="meta-item"><strong>E-mail de Cadastro:</strong> <span>${user.email}</span></div>
-    <div class="meta-item"><strong>Total de Check-ins:</strong> <span>${totalCheckinsAll} registros</span></div>
+  <!-- Metadados -->
+  <div class="meta-box">
+    <div class="meta-item"><strong>Usuário:</strong> <span>${userName}</span></div>
+    <div class="meta-item"><strong>Período:</strong> <span>${periodLabel}</span></div>
+    <div class="meta-item"><strong>E-mail:</strong> <span>${user.email || '—'}</span></div>
+    <div class="meta-item"><strong>Registros:</strong> <span>${totalRecordsFiltered} ${totalRecordsFiltered === 1 ? 'registro' : 'registros'}</span></div>
   </div>
 
+  <!-- Resumo Estatístico de Humor e Ansiedade -->
   ${
-    options.includeStats
+    showMoodSummary
       ? `
-  <div class="stats-row">
+  <div class="stats-grid">
     <div class="stat-card">
-      <div class="stat-val">${totalCheckinsAll}</div>
-      <div class="stat-lbl">Check-ins Totais</div>
+      <div class="stat-number">${totalRecordsFiltered}</div>
+      <div class="stat-label">Check-ins</div>
     </div>
     <div class="stat-card">
-      <div class="stat-val">${avgMoodAll} <span style="font-size:12px;color:#667775">/5</span></div>
-      <div class="stat-lbl">Humor Médio</div>
+      <div class="stat-number">${avgMood}<span style="font-size:13px;color:#5F706C">/5</span></div>
+      <div class="stat-label">Humor Médio</div>
     </div>
     <div class="stat-card">
-      <div class="stat-val">${avgAnxietyAll} <span style="font-size:12px;color:#667775">/10</span></div>
-      <div class="stat-lbl">Ansiedade Média</div>
+      <div class="stat-number">${avgAnxiety}<span style="font-size:13px;color:#5F706C">/10</span></div>
+      <div class="stat-label">Ansiedade Média</div>
     </div>
     <div class="stat-card">
-      <div class="stat-val">${completedPracticesSum}</div>
-      <div class="stat-lbl">Práticas Concluídas</div>
+      <div class="stat-number">${completedPracticesSum}</div>
+      <div class="stat-label">Práticas Realizadas</div>
     </div>
   </div>`
       : ''
   }
 
-  <!-- Seções de Meses em Ordem Cronológica -->
+  <!-- Registros por Mês -->
   ${monthGroups
     .map((group) => {
       const hasRecords = group.records.length > 0;
@@ -348,24 +401,26 @@ export class PdfReportService {
 
       return `
     <div class="month-section">
-      <div class="month-title">📅 ${group.label} ${
-        hasRecords
-          ? `<span style="font-size:12px;font-weight:normal;color:#567571;margin-left:8px;">(${group.records.length} check-ins • Humor Médio: ${groupAvgMood}/5 • Ansiedade Média: ${groupAvgAnxiety}/10)</span>`
-          : ''
-      }</div>
+      <div class="month-header">
+        📅 ${group.label}
+        ${
+          hasRecords && showMoodSummary
+            ? `<span class="month-header-sub">(${group.records.length} check-in(s) • Humor: ${groupAvgMood}/5 • Ansiedade: ${groupAvgAnxiety}/10)</span>`
+            : ''
+        }
+      </div>
 
       ${
         !hasRecords
-          ? `<div class="empty-month-box">Nenhum registro disponível para este período.</div>`
+          ? `<div class="empty-box">Não houve registros neste período.</div>`
           : `
       <table>
         <thead>
           <tr>
-            <th style="width:18%">Data / Hora</th>
-            <th style="width:12%">Humor</th>
-            <th style="width:14%">Ansiedade</th>
-            ${options.includeEmotions ? '<th>Emoções & Sintomas</th>' : ''}
-            ${options.includeNotes ? '<th style="width:28%">Observações do Usuário</th>' : ''}
+            <th style="width:20%">Data / Hora</th>
+            ${showMoodSummary ? '<th style="width:14%">Humor</th><th style="width:14%">Ansiedade</th>' : ''}
+            ${showSymptoms ? '<th>Sintomas & Emoções</th>' : ''}
+            ${showDiaryNotes ? '<th style="width:30%">Anotações do Diário</th>' : ''}
           </tr>
         </thead>
         <tbody>
@@ -374,28 +429,31 @@ export class PdfReportService {
               (rec) => `
             <tr>
               <td>${formatDate(rec.createdAt)}</td>
-              <td><span class="badge badge-mood">${rec.mood}/5</span></td>
-              <td><span class="badge badge-anxiety">${rec.anxietyLevel || 0}/10</span></td>
               ${
-                options.includeEmotions
+                showMoodSummary
+                  ? `<td><span class="badge badge-mood">${rec.mood}/5</span></td>
+                     <td><span class="badge badge-anxiety">${rec.anxietyLevel || 0}/10</span></td>`
+                  : ''
+              }
+              ${
+                showSymptoms
                   ? `<td>${(rec.emotions || []).join(', ') || 'Nenhum sintoma assinalado'}</td>`
                   : ''
               }
-              ${options.includeNotes ? `<td>${rec.notes || '—'}</td>` : ''}
-            </tr>
-          `
+              ${showDiaryNotes ? `<td>${rec.notes || '—'}</td>` : ''}
+            </tr>`
             )
             .join('')}
         </tbody>
       </table>`
       }
-    </div>
-    `;
+    </div>`;
     })
     .join('')}
 
+  <!-- Práticas Realizadas -->
   ${
-    options.includePractices && practices.length > 0
+    showPractices && practices.length > 0
       ? `
   <div class="section-title">🌿 Práticas de Respiração e Relaxamento Realizadas</div>
   <table>
@@ -416,8 +474,7 @@ export class PdfReportService {
           <td>${p.subtitle || p.category}</td>
           <td>${p.durationMinutes} minutos</td>
           <td><strong>${p.completedCount || 0} vezes</strong></td>
-        </tr>
-      `
+        </tr>`
         )
         .join('')}
     </tbody>
@@ -425,8 +482,9 @@ export class PdfReportService {
       : ''
   }
 
+  <!-- Rodapé -->
   <div class="footer">
-    <strong>Aviso Importante:</strong> Este relatório apresenta informações registradas pelo próprio usuário e não substitui avaliação, diagnóstico ou acompanhamento profissional de saúde.
+    Este documento possui finalidade informativa e de acompanhamento pessoal. Ele não representa diagnóstico médico ou psicológico e não substitui avaliação, diagnóstico ou acompanhamento profissional de saúde.
   </div>
 </body>
 </html>`;

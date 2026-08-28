@@ -89,7 +89,7 @@ describe('Perfil e Conteúdos — Validação e Testes Obrigatórios', () => {
       });
 
       expect(html).toContain('Fevereiro de 2026');
-      expect(html).toContain('Nenhum registro disponível para este período.');
+      expect(html).toContain('Não houve registros neste período.');
     });
 
     it('deve respeitar as opções do usuário ao desativar estatísticas e práticas', () => {
@@ -103,8 +103,8 @@ describe('Perfil e Conteúdos — Validação e Testes Obrigatórios', () => {
         includeNotes: false,
       });
 
-      expect(html).not.toContain('<div class="stats-row">');
-      expect(html).not.toContain('Check-ins Totais');
+      expect(html).not.toContain('<div class="stats-grid">');
+      expect(html).not.toContain('<div class="stat-number">');
       expect(html).not.toContain('Práticas de Respiração e Relaxamento Realizadas');
     });
   });

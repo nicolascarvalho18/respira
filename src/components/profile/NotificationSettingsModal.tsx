@@ -8,23 +8,22 @@ import {
   Switch,
   ScrollView,
   Platform,
+  TextInput,
 } from 'react-native';
 import {
   X,
   Bell,
   Clock,
-  Calendar,
-  Leaf,
-  CheckCircle2,
-  Check,
   Coffee,
+  AlertCircle,
+  Check,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { AppButton } from '../ui/AppButton';
+import { useAuth } from '../../hooks/useAuth';
 import {
   notificationService,
   NotificationScheduleConfig,
-  GENTLE_NOTIFICATION_MESSAGES,
 } from '../../services/notifications/notificationService';
 import { useToast } from '../ui/Toast';
 
@@ -34,63 +33,91 @@ export interface NotificationSettingsModalProps {
 }
 
 const WEEK_DAYS = [
-  { id: 1, label: 'Seg', fullName: 'Segunda-feira' },
-  { id: 2, label: 'Ter', fullName: 'Terça-feira' },
-  { id: 3, label: 'Qua', fullName: 'Quarta-feira' },
-  { id: 4, label: 'Qui', fullName: 'Quinta-feira' },
-  { id: 5, label: 'Sex', fullName: 'Sexta-feira' },
-  { id: 6, label: 'Sáb', fullName: 'Sábado' },
-  { id: 0, label: 'Dom', fullName: 'Domingo' },
+  { id: 1, label: 'S', name: 'Segunda-feira' },
+  { id: 2, label: 'T', name: 'Terça-feira' },
+  { id: 3, label: 'Q', name: 'Quarta-feira' },
+  { id: 4, label: 'Q', name: 'Quinta-feira' },
+  { id: 5, label: 'S', name: 'Sexta-feira' },
+  { id: 6, label: 'S', name: 'Sábado' },
+  { id: 0, label: 'D', name: 'Domingo' },
 ];
 
-const PRESET_TIMES = ['08:00', '12:30', '18:00', '20:30', '22:00'];
+const PRESET_HOURS = ['08:00', '12:30', '18:00', '20:30', '22:00'];
+const MICRO_PAUSE_INTERVALS = [
+  { hours: 2, label: 'A cada 2 horas' },
+  { hours: 3, label: 'A cada 3 horas' },
+  { hours: 4, label: 'A cada 4 horas' },
+];
 
 export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps> = ({
   visible,
   onClose,
 }) => {
-  const { colors, isDark } = useTheme();
+  const { user } = useAuth();
+  const { isDark } = useTheme();
   const { showToast } = useToast();
 
   const [config, setConfig] = useState<NotificationScheduleConfig>({
     dailyReminderEnabled: true,
-    reminderTime: '20:30',
+    reminderTime: '18:00',
     selectedDays: [1, 2, 3, 4, 5, 6, 0],
     microPausesEnabled: false,
     microPausesIntervalHours: 4,
   });
 
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [permissionStatus, setPermissionStatus] = useState<string>('default');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (visible) {
-      notificationService.getSavedConfig().then(setConfig);
+      notificationService.getSavedConfig(user?.id).then(setConfig);
+      notificationService.getPermissionStatus().then(setPermissionStatus);
     }
-  }, [visible]);
+  }, [visible, user?.id]);
 
   if (!visible) return null;
 
   const toggleDay = (dayId: number) => {
     const exists = config.selectedDays.includes(dayId);
+    if (exists && config.selectedDays.length === 1) {
+      // Manter pelo menos 1 dia selecionado
+      return;
+    }
     const updated = exists
       ? config.selectedDays.filter((d) => d !== dayId)
       : [...config.selectedDays, dayId];
     setConfig((prev) => ({ ...prev, selectedDays: updated }));
   };
 
+  const handleToggleDaily = async (enabled: boolean) => {
+    if (enabled) {
+      const granted = await notificationService.requestPermissionContextually();
+      if (!granted) {
+        const currentStatus = await notificationService.getPermissionStatus();
+        setPermissionStatus(currentStatus);
+      }
+    }
+    setConfig((prev) => ({ ...prev, dailyReminderEnabled: enabled }));
+  };
+
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      await notificationService.saveConfig(config);
+      await notificationService.saveConfig(config, user?.id);
       showToast({ message: 'Preferências salvas', type: 'success' });
       onClose();
-    } catch {
-      showToast({ message: 'Erro ao salvar preferências.', type: 'error' });
+    } catch (_err) {
+      showToast({ message: 'Não foi possível salvar as preferências.', type: 'error' });
     } finally {
       setIsSaving(false);
     }
   };
+
+  const accentColor = isDark ? '#5ECFC3' : '#238C82';
+  const cardBg = isDark ? '#1F2937' : '#F8FAF9';
+  const cardBorder = isDark ? '#334155' : '#DDE6E3';
+  const textPrimary = isDark ? '#FFFFFF' : '#17332F';
+  const textSecondary = isDark ? '#F1F5F9' : '#5F706C';
 
   return (
     <Modal
@@ -105,23 +132,22 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
           style={[
             styles.modalCard,
             {
-              backgroundColor: isDark ? colors.surface : '#FFFFFF',
-              borderColor: colors.border,
+              backgroundColor: isDark ? '#172033' : '#FFFFFF',
+              borderColor: isDark ? '#334155' : '#DDE6E3',
             },
           ]}
         >
-          {/* Header */}
+          {/* Cabeçalho */}
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
               <Text
-                id="notification-modal-title"
                 accessibilityRole="header"
                 aria-level={2}
-                style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}
+                style={[styles.title, { color: textPrimary }]}
               >
                 Lembretes e Notificações
               </Text>
-              <Text style={[styles.subtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
+              <Text style={[styles.subtitle, { color: textSecondary }]}>
                 Avisos gentis para desacelerar no seu ritmo
               </Text>
             </View>
@@ -129,194 +155,182 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
               onPress={onClose}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
-              accessibilityLabel="Fechar modal de lembretes"
-              {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
+              accessibilityLabel="Fechar janela"
+              style={styles.closeBtn}
             >
-              <X size={20} color="#8C9E9B" />
+              <X size={20} color={textSecondary} strokeWidth={1.75} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={{ maxHeight: 390 }} showsVerticalScrollIndicator={false}>
+          {/* Conteúdo Rolável */}
+          <ScrollView
+            style={styles.scrollArea}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Aviso se notificações estiverem bloqueadas */}
+            {permissionStatus === 'denied' && (
+              <View style={styles.warningBox}>
+                <AlertCircle size={16} color="#D87556" style={{ marginRight: 8, marginTop: 1 }} />
+                <Text style={styles.warningText}>
+                  Notificações bloqueadas no navegador. Para receber lembretes, revise as permissões do site nas configurações do navegador.
+                </Text>
+              </View>
+            )}
+
             {/* 1. Lembrete Diário */}
             <View
               style={[
-                styles.sectionCard,
+                styles.configCard,
                 {
-                  backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFA',
-                  borderColor: isDark ? colors.border : '#EBF1EF',
+                  backgroundColor: cardBg,
+                  borderColor: cardBorder,
                 },
               ]}
             >
-              <View style={styles.toggleRow}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                  <Bell size={18} color="#2F7F7C" style={{ marginRight: 8 }} />
+              <View style={styles.cardHeaderRow}>
+                <View style={styles.cardIconTitleGroup}>
+                  <View style={[styles.iconCircle, { backgroundColor: isDark ? '#183B38' : '#EAF7F3' }]}>
+                    <Bell size={18} color={accentColor} strokeWidth={2} />
+                  </View>
                   <View>
-                    <Text style={[styles.cardTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+                    <Text style={[styles.cardTitle, { color: textPrimary }]}>
                       Lembrete diário
                     </Text>
-                    <Text style={[styles.cardSub, { color: isDark ? colors.textMuted : '#667775' }]}>
-                      Momento para check-in e respiração
+                    <Text style={[styles.cardDesc, { color: textSecondary }]}>
+                      {config.dailyReminderEnabled ? 'Ativado para check-in de humor' : 'Desativado'}
                     </Text>
                   </View>
                 </View>
                 <Switch
                   value={config.dailyReminderEnabled}
-                  onValueChange={(val) =>
-                    setConfig((prev) => ({ ...prev, dailyReminderEnabled: val }))
-                  }
-                  trackColor={{ false: '#DCE5E2', true: '#2F7F7C' }}
+                  onValueChange={handleToggleDaily}
+                  trackColor={{ false: isDark ? '#334155' : '#DDE6E3', true: accentColor }}
                   thumbColor="#FFFFFF"
                   accessibilityLabel="Ativar lembrete diário"
                 />
               </View>
 
               {config.dailyReminderEnabled && (
-                <View style={{ marginTop: 12 }}>
-                  <Text style={[styles.fieldLabel, { color: isDark ? colors.text : '#173D3B' }]}>
-                    Horário preferido:
-                  </Text>
-                  <View style={styles.pillsRow} accessibilityRole="radiogroup" aria-label="Horário do lembrete diário">
-                    {PRESET_TIMES.map((time) => {
-                      const isSelected = config.reminderTime === time;
-                      return (
-                        <TouchableOpacity
-                          key={time}
-                          onPress={() =>
-                            setConfig((prev) => ({ ...prev, reminderTime: time }))
-                          }
-                          accessibilityRole="radio"
-                          accessibilityState={{ checked: isSelected, selected: isSelected }}
-                          accessibilityLabel={`Horário: ${time}`}
-                          {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
-                          style={[
-                            styles.timePill,
-                            isSelected && {
-                              backgroundColor: '#2F7F7C',
-                              borderColor: '#79B8A4',
-                            },
-                            {
-                              backgroundColor: isSelected
-                                ? '#2F7F7C'
-                                : isDark
-                                ? colors.surface
-                                : '#FFFFFF',
-                              borderColor: isSelected
-                                ? '#79B8A4'
-                                : isDark
-                                ? colors.borderStrong || colors.border
-                                : '#DCE5E2',
-                            },
-                          ]}
-                        >
-                          <Text
+                <View style={styles.cardBody}>
+                  {/* Horário */}
+                  <View style={styles.fieldSection}>
+                    <Text style={[styles.fieldLabel, { color: textPrimary }]}>
+                      Horário
+                    </Text>
+                    <View style={styles.timePillsWrap}>
+                      {PRESET_HOURS.map((hour) => {
+                        const isSelected = config.reminderTime === hour;
+                        return (
+                          <TouchableOpacity
+                            key={hour}
+                            onPress={() => setConfig((prev) => ({ ...prev, reminderTime: hour }))}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Horário: ${hour}`}
                             style={[
-                              styles.timePillText,
-                              {
-                                color: isSelected
-                                  ? '#FFFFFF'
-                                  : isDark
-                                  ? colors.text
-                                  : '#173D3B',
-                                fontWeight: isSelected ? '700' : '500',
+                              styles.timePill,
+                              isSelected && {
+                                backgroundColor: isDark ? '#5ECFC3' : '#238C82',
+                                borderColor: isDark ? '#5ECFC3' : '#238C82',
+                              },
+                              !isSelected && {
+                                backgroundColor: isDark ? '#172033' : '#FFFFFF',
+                                borderColor: cardBorder,
                               },
                             ]}
                           >
-                            {time}
-                          </Text>
-                          {isSelected && (
-                            <Check size={12} color="#FFFFFF" strokeWidth={3} style={{ marginLeft: 3 }} />
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
+                            <Text
+                              style={[
+                                styles.timePillText,
+                                {
+                                  color: isSelected
+                                    ? isDark
+                                      ? '#172033'
+                                      : '#FFFFFF'
+                                    : textPrimary,
+                                  fontWeight: isSelected ? '700' : '500',
+                                },
+                              ]}
+                            >
+                              {hour}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
                   </View>
 
-                  <Text
-                    style={[
-                      styles.fieldLabel,
-                      { color: isDark ? colors.text : '#173D3B', marginTop: 12 },
-                    ]}
-                  >
-                    Dias da semana:
-                  </Text>
-                  <View
-                    style={styles.daysRow}
-                    aria-label="Dias da semana para notificação"
-                    {...(Platform.OS === 'web' ? ({ role: 'group' } as any) : {})}
-                  >
-                    {WEEK_DAYS.map((day) => {
-                      const isSelected = config.selectedDays.includes(day.id);
-                      return (
-                        <TouchableOpacity
-                          key={day.id}
-                          onPress={() => toggleDay(day.id)}
-                          accessibilityRole="checkbox"
-                          accessibilityState={{ checked: isSelected }}
-                          accessibilityLabel={`${day.fullName} (${isSelected ? 'selecionado' : 'não selecionado'})`}
-                          {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
-                          style={[
-                            styles.dayCircle,
-                            isSelected && {
-                              backgroundColor: '#2F7F7C',
-                              borderColor: '#79B8A4',
-                            },
-                            {
-                              backgroundColor: isSelected
-                                ? '#2F7F7C'
-                                : isDark
-                                ? colors.surface
-                                : '#FFFFFF',
-                              borderColor: isSelected
-                                ? '#79B8A4'
-                                : isDark
-                                ? colors.borderStrong || colors.border
-                                : '#DCE5E2',
-                            },
-                          ]}
-                        >
-                          <Text
+                  {/* Dias da Semana */}
+                  <View style={styles.fieldSection}>
+                    <Text style={[styles.fieldLabel, { color: textPrimary }]}>
+                      Dias da semana
+                    </Text>
+                    <View style={styles.daysRow}>
+                      {WEEK_DAYS.map((day) => {
+                        const isSelected = config.selectedDays.includes(day.id);
+                        return (
+                          <TouchableOpacity
+                            key={day.id}
+                            onPress={() => toggleDay(day.id)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${day.name} (${isSelected ? 'selecionado' : 'não selecionado'})`}
                             style={[
-                              styles.dayText,
-                              {
-                                color: isSelected
-                                  ? '#FFFFFF'
-                                  : isDark
-                                  ? colors.text
-                                  : '#667775',
-                                fontWeight: isSelected ? '700' : '500',
+                              styles.dayBtn,
+                              isSelected && {
+                                backgroundColor: isDark ? '#5ECFC3' : '#238C82',
+                                borderColor: isDark ? '#5ECFC3' : '#238C82',
+                              },
+                              !isSelected && {
+                                backgroundColor: isDark ? '#172033' : '#FFFFFF',
+                                borderColor: cardBorder,
                               },
                             ]}
                           >
-                            {day.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
+                            <Text
+                              style={[
+                                styles.dayBtnText,
+                                {
+                                  color: isSelected
+                                    ? isDark
+                                      ? '#172033'
+                                      : '#FFFFFF'
+                                    : textPrimary,
+                                  fontWeight: isSelected ? '700' : '600',
+                                },
+                              ]}
+                            >
+                              {day.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
                   </View>
                 </View>
               )}
             </View>
 
-            {/* 2. Micro-pausas no dia */}
+            {/* 2. Micro-pausas */}
             <View
               style={[
-                styles.sectionCard,
+                styles.configCard,
                 {
-                  backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFA',
-                  borderColor: isDark ? colors.border : '#EBF1EF',
-                  marginTop: 10,
+                  backgroundColor: cardBg,
+                  borderColor: cardBorder,
                 },
               ]}
             >
-              <View style={styles.toggleRow}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                  <Coffee size={18} color="#2F7F7C" style={{ marginRight: 8 }} />
+              <View style={styles.cardHeaderRow}>
+                <View style={styles.cardIconTitleGroup}>
+                  <View style={[styles.iconCircle, { backgroundColor: isDark ? '#183B38' : '#EAF7F3' }]}>
+                    <Coffee size={18} color={accentColor} strokeWidth={2} />
+                  </View>
                   <View>
-                    <Text style={[styles.cardTitle, { color: isDark ? colors.text : '#173D3B' }]}>
-                      Micro-pausas na rotina
+                    <Text style={[styles.cardTitle, { color: textPrimary }]}>
+                      Micro-pausas
                     </Text>
-                    <Text style={[styles.cardSub, { color: isDark ? colors.textMuted : '#667775' }]}>
-                      Lembretes para afastar os olhos da tela
+                    <Text style={[styles.cardDesc, { color: textSecondary }]}>
+                      {config.microPausesEnabled ? 'Avisos breves ao longo do dia' : 'Desativado'}
                     </Text>
                   </View>
                 </View>
@@ -325,71 +339,55 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                   onValueChange={(val) =>
                     setConfig((prev) => ({ ...prev, microPausesEnabled: val }))
                   }
-                  trackColor={{ false: '#DCE5E2', true: '#2F7F7C' }}
+                  trackColor={{ false: isDark ? '#334155' : '#DDE6E3', true: accentColor }}
                   thumbColor="#FFFFFF"
-                  accessibilityLabel="Ativar micro-pausas na rotina"
+                  accessibilityLabel="Ativar micro-pausas"
                 />
               </View>
 
               {config.microPausesEnabled && (
-                <View style={{ marginTop: 10 }}>
-                  <Text style={[styles.fieldLabel, { color: isDark ? colors.text : '#173D3B' }]}>
-                    Frequência das pausas:
+                <View style={styles.cardBody}>
+                  <Text style={[styles.fieldLabel, { color: textPrimary }]}>
+                    Frequência
                   </Text>
-                  <View style={styles.pillsRow} accessibilityRole="radiogroup" aria-label="Frequência das micro-pausas">
-                    {[2, 3, 4].map((hours) => {
-                      const isSelected = config.microPausesIntervalHours === hours;
+                  <View style={styles.frequencyList}>
+                    {MICRO_PAUSE_INTERVALS.map((item) => {
+                      const isSelected = config.microPausesIntervalHours === item.hours;
                       return (
                         <TouchableOpacity
-                          key={hours}
+                          key={item.hours}
                           onPress={() =>
                             setConfig((prev) => ({
                               ...prev,
-                              microPausesIntervalHours: hours,
+                              microPausesIntervalHours: item.hours,
                             }))
                           }
-                          accessibilityRole="radio"
-                          accessibilityState={{ checked: isSelected, selected: isSelected }}
-                          accessibilityLabel={`A cada ${hours} horas`}
-                          {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
+                          accessibilityRole="button"
+                          accessibilityLabel={item.label}
                           style={[
-                            styles.timePill,
+                            styles.frequencyOption,
                             isSelected && {
-                              backgroundColor: '#2F7F7C',
-                              borderColor: '#79B8A4',
+                              backgroundColor: isDark ? '#183B38' : '#EAF7F3',
+                              borderColor: accentColor,
                             },
-                            {
-                              backgroundColor: isSelected
-                                ? '#2F7F7C'
-                                : isDark
-                                ? colors.surface
-                                : '#FFFFFF',
-                              borderColor: isSelected
-                                ? '#79B8A4'
-                                : isDark
-                                ? colors.borderStrong || colors.border
-                                : '#DCE5E2',
+                            !isSelected && {
+                              backgroundColor: isDark ? '#172033' : '#FFFFFF',
+                              borderColor: cardBorder,
                             },
                           ]}
                         >
                           <Text
                             style={[
-                              styles.timePillText,
+                              styles.frequencyOptionText,
                               {
-                                color: isSelected
-                                  ? '#FFFFFF'
-                                  : isDark
-                                  ? colors.text
-                                  : '#173D3B',
+                                color: isSelected ? accentColor : textPrimary,
                                 fontWeight: isSelected ? '700' : '500',
                               },
                             ]}
                           >
-                            A cada {hours}h
+                            {item.label}
                           </Text>
-                          {isSelected && (
-                            <Check size={12} color="#FFFFFF" strokeWidth={3} style={{ marginLeft: 3 }} />
-                          )}
+                          {isSelected && <Check size={16} color={accentColor} strokeWidth={2.5} />}
                         </TouchableOpacity>
                       );
                     })}
@@ -397,65 +395,40 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                 </View>
               )}
             </View>
+          </ScrollView>
 
-            {/* 3. Prévia de Notificação de Exemplo */}
+          {/* Ações na Base */}
+          <View
+            style={[
+              styles.footerActions,
+              {
+                borderTopColor: isDark ? '#334155' : '#DDE6E3',
+              },
+            ]}
+          >
             <TouchableOpacity
-              onPress={() => setIsPreviewOpen(!isPreviewOpen)}
+              onPress={onClose}
+              disabled={isSaving}
+              style={[
+                styles.cancelBtn,
+                {
+                  borderColor: isDark ? '#334155' : '#DDE6E3',
+                },
+              ]}
               accessibilityRole="button"
-              accessibilityState={{ expanded: isPreviewOpen }}
-              accessibilityLabel={isPreviewOpen ? 'Ocultar exemplo de notificação' : 'Ver exemplo de notificação'}
-              {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
-              style={styles.previewToggleBtn}
             >
-              <Leaf size={14} color="#2F7F7C" style={{ marginRight: 6 }} aria-hidden={true} />
-              <Text style={styles.previewToggleText}>
-                {isPreviewOpen ? 'Ocultar exemplo' : 'Ver exemplo de notificação'}
+              <Text style={[styles.cancelBtnText, { color: textSecondary }]}>
+                Cancelar
               </Text>
             </TouchableOpacity>
 
-            {isPreviewOpen && (
-              <View
-                style={[
-                  styles.previewBox,
-                  {
-                    backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
-                    borderColor: isDark ? colors.border : '#D8EBE4',
-                  },
-                ]}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                  <Bell size={12} color="#2F7F7C" style={{ marginRight: 4 }} />
-                  <Text style={styles.previewAppTitle}>Respira • Momento de pausa</Text>
-                </View>
-                <Text style={[styles.previewMessage, { color: isDark ? colors.text : '#173D3B' }]}>
-                  {`"${GENTLE_NOTIFICATION_MESSAGES[0]}"`}
-                </Text>
-                <Text style={[styles.previewNote, { color: isDark ? colors.textMuted : '#667775' }]}>
-                  Mensagens acolhedoras, sem cobranças ou pressão por sequências.
-                </Text>
-              </View>
-            )}
-          </ScrollView>
-
-          {/* Ações */}
-          <View style={styles.actionsRow}>
-            <View style={{ flex: 1, marginRight: 8 }}>
-              <AppButton
-                title="Cancelar"
-                variant="outline"
-                size="md"
-                onPress={onClose}
-                disabled={isSaving}
-              />
-            </View>
-            <View style={{ flex: 1, marginLeft: 8 }}>
-              <AppButton
-                title="Salvar"
-                size="md"
-                isLoading={isSaving}
-                onPress={handleSave}
-              />
-            </View>
+            <AppButton
+              title="Salvar alterações"
+              onPress={handleSave}
+              isLoading={isSaving}
+              disabled={isSaving}
+              style={{ flex: 1.5, height: 48 }}
+            />
           </View>
         </View>
       </View>
@@ -466,131 +439,189 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 18,
-    zIndex: 1000,
+    padding: 16,
   },
   modalCard: {
     width: '100%',
-    maxWidth: 440,
-    borderRadius: 20,
-    padding: 20,
+    maxWidth: 480,
+    maxHeight: '90%',
+    borderRadius: 16,
     borderWidth: 1,
-    shadowColor: '#173D3B',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    elevation: 8,
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.16,
+        shadowRadius: 18,
+      },
+      android: {
+        elevation: 8,
+      },
+      web: {
+        boxShadow: '0 8px 30px rgba(0, 0, 0, 0.16)',
+      },
+    }),
   },
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
   },
   title: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 14,
     marginTop: 2,
   },
-  sectionCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 14,
+  closeBtn: {
+    padding: 6,
+    marginLeft: 8,
   },
-  toggleRow: {
+  scrollArea: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    gap: 16,
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFF7E6',
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
+    padding: 12,
+    borderRadius: 10,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#975A16',
+    lineHeight: 18,
+  },
+  configCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+    gap: 14,
+  },
+  cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  cardTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  cardSub: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  fieldLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  pillsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  timePill: {
+  cardIconTitleGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    gap: 12,
+    flex: 1,
+  },
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  cardDesc: {
+    fontSize: 13,
+    marginTop: 1,
+  },
+  cardBody: {
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#DDE6E3',
+    gap: 14,
+  },
+  fieldSection: {
+    gap: 8,
+  },
+  fieldLabel: {
+    fontSize: 13.5,
+    fontWeight: '600',
+  },
+  timePillsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  timePill: {
+    paddingHorizontal: 14,
+    height: 40,
     borderRadius: 10,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   timePillText: {
-    fontSize: 12,
+    fontSize: 13.5,
   },
   daysRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 4,
+    gap: 6,
   },
-  dayCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  dayBtn: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dayText: {
-    fontSize: 11,
+  dayBtnText: {
+    fontSize: 13.5,
   },
-  previewToggleBtn: {
+  frequencyList: {
+    gap: 8,
+  },
+  frequencyOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    marginTop: 8,
-  },
-  previewToggleText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2F7F7C',
-  },
-  previewBox: {
-    borderRadius: 14,
+    justifyContent: 'space-between',
+    height: 44,
+    paddingHorizontal: 14,
+    borderRadius: 10,
     borderWidth: 1,
-    padding: 12,
-    marginTop: 4,
-    marginBottom: 6,
   },
-  previewAppTitle: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#2F7F7C',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  frequencyOptionText: {
+    fontSize: 13.5,
   },
-  previewMessage: {
-    fontSize: 13,
+  footerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtnText: {
+    fontSize: 14,
     fontWeight: '600',
-    lineHeight: 18,
-    marginBottom: 4,
-  },
-  previewNote: {
-    fontSize: 11,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 14,
   },
 });
