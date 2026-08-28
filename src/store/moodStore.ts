@@ -17,7 +17,7 @@ interface MoodState {
   updateExerciseStatus: (
     recordId: string,
     exerciseId: string,
-    status: 'pending' | 'in_progress' | 'completed',
+    status: 'pending' | 'in_progress' | 'completed' | 'ignored',
     notes?: string
   ) => Promise<void>;
   deleteRecord: (id: string) => Promise<void>;

@@ -1,15 +1,19 @@
-// Domain types for Respira - Digital Health Platform
-
 export type MoodValue = 1 | 2 | 3 | 4 | 5;
+
+export type PlannedExercisePeriod = 'morning' | 'afternoon' | 'night' | 'custom';
+export type PlannedExerciseStatus = 'pending' | 'completed' | 'ignored' | 'in_progress';
 
 export interface PlannedExercise {
   id: string;
+  practiceId?: string;
   title: string;
   category: string;
   durationMinutes: number;
   description: string;
+  thumbnailUrl?: string;
+  scheduledPeriod?: PlannedExercisePeriod;
   scheduledTime?: string;
-  status: 'pending' | 'in_progress' | 'completed';
+  status: PlannedExerciseStatus;
   notes?: string;
   completedAt?: string;
 }
@@ -104,6 +108,7 @@ export interface Practice {
   benefits?: string[];
   careAndLimitations?: string[];
   relatedPracticeIds?: string[];
+  nextPracticeId?: string;
   isFavorite?: boolean;
   completedCount?: number;
   isFeatured?: boolean;

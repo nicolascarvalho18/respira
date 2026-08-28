@@ -32,10 +32,13 @@ import { ArticleContourLines } from '../../src/components/illustrations/ArticleC
 import { Article } from '../../src/types';
 import { getCategoryMetas, getRecommendedArticles } from '../../src/data/articles';
 
+import { useToast } from '../../src/components/ui/Toast';
+
 export default function ContentScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { isDesktop } = useBreakpoint();
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -57,6 +60,21 @@ export default function ContentScreen() {
     getFilteredArticles,
     getVisibleArticles,
   } = useContentStore();
+
+  const handleToggleFavorite = async (articleId: string) => {
+    try {
+      const isFav = await toggleFavorite(articleId);
+      showToast({
+        message: isFav ? 'Adicionado aos salvos' : 'Removido dos salvos',
+        type: 'info',
+      });
+    } catch {
+      showToast({
+        message: 'Não foi possível atualizar os salvos. Tente novamente.',
+        type: 'error',
+      });
+    }
+  };
 
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
@@ -443,7 +461,7 @@ export default function ContentScreen() {
               <ContentCard
                 key={article.id}
                 article={article}
-                onToggleFavorite={toggleFavorite}
+                onToggleFavorite={handleToggleFavorite}
               />
             ))}
           </View>

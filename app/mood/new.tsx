@@ -159,6 +159,7 @@ export default function NewMoodScreen() {
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>([]);
   const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
   const [selectedPracticeId, setSelectedPracticeId] = useState<string | null>(null);
+  const [selectedPeriod, setSelectedPeriod] = useState<'morning' | 'afternoon' | 'night'>('morning');
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -280,13 +281,32 @@ export default function NewMoodScreen() {
       if (selectedPracticeId) {
         const option = ALL_PRACTICES.find((o) => o.id === selectedPracticeId);
         if (option) {
+          const mappedPracticeId =
+            option.id === 'ex-breathing'
+              ? 'practice-breathing-478'
+              : option.id === 'ex-stretch'
+              ? 'practice-body-relaxation'
+              : option.id === 'ex-walk'
+              ? 'practice-mindful-walking'
+              : option.id === 'ex-pause'
+              ? 'practice-quick-conscious-pause'
+              : option.id === 'ex-grounding'
+              ? 'practice-mindfulness-grounding'
+              : option.id === 'ex-sounds'
+              ? 'practice-sleep-deceleration'
+              : option.id === 'ex-focus'
+              ? 'practice-focus-recovery'
+              : 'practice-breathing-478';
+
           plannedExercises = [
             {
               id: `${option.id}-${Date.now()}`,
+              practiceId: mappedPracticeId,
               title: option.title,
               category: option.category,
               durationMinutes: option.durationMinutes,
               description: option.description,
+              scheduledPeriod: selectedPeriod,
               status: 'pending',
             },
           ];
@@ -667,6 +687,47 @@ export default function NewMoodScreen() {
                 </Text>
                 <ChevronRight size={16} color="#247B74" strokeWidth={1.75} />
               </TouchableOpacity>
+
+              {selectedPracticeId && (
+                <View style={styles.periodSelectorWrap}>
+                  <Text style={[styles.periodLabel, { color: isDark ? colors.text : '#1F2927' }]}>
+                    Momento planejado para a prática:
+                  </Text>
+                  <View style={styles.periodPillsRow}>
+                    {(['morning', 'afternoon', 'night'] as const).map((p) => {
+                      const isPSelected = selectedPeriod === p;
+                      const pLabel = p === 'morning' ? 'Manhã' : p === 'afternoon' ? 'Tarde' : 'Noite';
+                      return (
+                        <TouchableOpacity
+                          key={p}
+                          onPress={() => setSelectedPeriod(p)}
+                          accessibilityRole="radio"
+                          accessibilityState={{ checked: isPSelected }}
+                          accessibilityLabel={`Período: ${pLabel}`}
+                          style={[
+                            styles.periodPill,
+                            isPSelected
+                              ? { backgroundColor: '#247B74', borderColor: '#247B74' }
+                              : {
+                                  backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
+                                  borderColor: isDark ? colors.border : '#D8DEDB',
+                                },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.periodPillText,
+                              { color: isPSelected ? '#FFFFFF' : isDark ? colors.text : '#1F2927' },
+                            ]}
+                          >
+                            {pLabel}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
 
               <View style={styles.notesSection}>
                 <View style={styles.notesLabelRow}>
@@ -1195,12 +1256,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     paddingVertical: 10,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   viewAllPracticesLinkText: {
     fontSize: 15,
     fontWeight: '500',
     color: '#247B74',
+  },
+  periodSelectorWrap: {
+    marginBottom: 20,
+    paddingTop: 4,
+  },
+  periodLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  periodPillsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  periodPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  periodPillText: {
+    fontSize: 13.5,
+    fontWeight: '600',
   },
   notesSection: {
     marginTop: 4,

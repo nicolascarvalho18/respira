@@ -41,19 +41,31 @@ export default function SupportScreen() {
     number: string;
   } | null>(null);
 
+  const [externalUrlToOpen, setExternalUrlToOpen] = useState<{
+    name: string;
+    url: string;
+  } | null>(null);
+
   const countryData = HELPLINES_BY_COUNTRY.BR;
 
   const handleAction = (service: { name: string; number: string }) => {
     if (service.number.startsWith('http://') || service.number.startsWith('https://')) {
-      Linking.openURL(service.number).catch(() => {
-        showToast({
-          message: 'Não foi possível abrir este endereço online no momento. Tente novamente mais tarde.',
-          type: 'error',
-        });
-      });
+      setExternalUrlToOpen({ name: service.name, url: service.number });
     } else {
       setSelectedServiceToCall(service);
     }
+  };
+
+  const handleExternalLinkConfirm = () => {
+    if (!externalUrlToOpen) return;
+    const url = externalUrlToOpen.url;
+    setExternalUrlToOpen(null);
+    Linking.openURL(url).catch(() => {
+      showToast({
+        message: 'Não foi possível abrir este endereço online no momento. Tente novamente mais tarde.',
+        type: 'error',
+      });
+    });
   };
 
   const handleDialConfirm = () => {
@@ -289,6 +301,17 @@ export default function SupportScreen() {
         cancelTitle="Cancelar"
         onConfirm={handleDialConfirm}
         onCancel={() => setSelectedServiceToCall(null)}
+      />
+
+      {/* Modal de Confirmação para Link Externo */}
+      <ConfirmationModal
+        visible={!!externalUrlToOpen}
+        title="Abrir site externo?"
+        message="Você está prestes a sair do Respira e abrir uma página externa. Deseja continuar?"
+        confirmTitle="Continuar"
+        cancelTitle="Cancelar"
+        onConfirm={handleExternalLinkConfirm}
+        onCancel={() => setExternalUrlToOpen(null)}
       />
     </ScreenContainer>
   );

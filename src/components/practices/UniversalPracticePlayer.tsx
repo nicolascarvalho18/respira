@@ -79,11 +79,20 @@ export const UniversalPracticePlayer: React.FC<UniversalPracticePlayerProps> = (
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [selectedFeeling, setSelectedFeeling] = useState<'calmer' | 'same' | 'uncomfortable' | null>(null);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+  const [hasRecordedCompletion, setHasRecordedCompletion] = useState(false);
 
-  // Related practices lookup
+  // Related & Next practices lookup
   const relatedPractices = (practice.relatedPracticeIds || [])
     .map((id) => allPractices.find((p) => p.id === id))
     .filter((p): p is Practice => p !== undefined);
+
+  const currentIndex = allPractices.findIndex((p) => p.id === practice.id);
+  const nextPractice =
+    practice.nextPracticeId && allPractices.find((p) => p.id === practice.nextPracticeId)
+      ? allPractices.find((p) => p.id === practice.nextPracticeId)!
+      : allPractices.length > 1
+      ? allPractices[(currentIndex + 1) % allPractices.length]
+      : null;
 
   const handleStartOrContinue = () => {
     setIsPlayerActive(true);
@@ -95,7 +104,26 @@ export const UniversalPracticePlayer: React.FC<UniversalPracticePlayerProps> = (
 
   const handlePlayerComplete = async () => {
     await saveProgress(userId, practice.id, practice.durationMinutes * 60, practice.durationMinutes * 60, true);
+    if (!hasRecordedCompletion) {
+      setHasRecordedCompletion(true);
+      await onRecordCompletion(practice.id);
+    }
     setShowCompletionModal(true);
+  };
+
+  const handleRestartPractice = () => {
+    setShowCompletionModal(false);
+    setSelectedFeeling(null);
+    setHasRecordedCompletion(false);
+  };
+
+  const handleSelectNextPractice = () => {
+    if (nextPractice && nextPractice.id !== practice.id) {
+      setShowCompletionModal(false);
+      setSelectedFeeling(null);
+      setHasRecordedCompletion(false);
+      onSelectPractice(nextPractice);
+    }
   };
 
   const handleSelectFeeling = async (feeling: 'calmer' | 'same' | 'uncomfortable') => {
@@ -298,13 +326,52 @@ export const UniversalPracticePlayer: React.FC<UniversalPracticePlayerProps> = (
             </TouchableOpacity>
           </View>
 
-          <View style={{ marginTop: 12, width: '100%', gap: 8 }}>
-            <AppButton
-              title="Registrar no Diário de Humor"
-              leftIcon={<Smile size={16} color="#FFFFFF" />}
+          <View style={{ marginTop: 14, width: '100%', gap: 8 }}>
+            {nextPractice && nextPractice.id !== practice.id && (
+              <AppButton
+                title={`Continuar: ${nextPractice.title}`}
+                rightIcon={<ArrowRight size={16} color="#FFFFFF" />}
+                onPress={handleSelectNextPractice}
+                size="md"
+              />
+            )}
+
+            <View style={{ flexDirection: 'row', gap: 8, width: '100%' }}>
+              <TouchableOpacity
+                onPress={handleRestartPractice}
+                style={[
+                  styles.postActionBtnSecondary,
+                  { backgroundColor: isDark ? colors.surfaceSecondary : '#F2F8F6', borderColor: '#247B74' },
+                ]}
+              >
+                <RotateCcw size={15} color="#247B74" />
+                <Text style={[styles.postActionBtnText, { color: '#247B74' }]}>Fazer novamente</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setIsSelectorOpen(true)}
+                style={[
+                  styles.postActionBtnSecondary,
+                  { backgroundColor: isDark ? colors.surfaceSecondary : '#F2F8F6', borderColor: '#247B74' },
+                ]}
+              >
+                <SlidersHorizontal size={15} color="#247B74" />
+                <Text style={[styles.postActionBtnText, { color: '#247B74' }]}>Escolher outra prática</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
               onPress={() => router.push('/mood/new')}
-              size="sm"
-            />
+              style={[
+                styles.postActionBtnTertiary,
+                { borderColor: isDark ? colors.border : '#E0E5E2' },
+              ]}
+            >
+              <Smile size={15} color={isDark ? colors.textMuted : '#68736F'} />
+              <Text style={[styles.postActionBtnTertiaryText, { color: isDark ? colors.text : '#1F2927' }]}>
+                Registrar no Diário de Humor
+              </Text>
+            </TouchableOpacity>
           </View>
         </Card>
       )}
@@ -711,5 +778,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     marginBottom: 12,
+  },
+  postActionBtnSecondary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  postActionBtnText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  postActionBtnTertiary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 2,
+  },
+  postActionBtnTertiaryText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
 });

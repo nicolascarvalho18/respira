@@ -8,16 +8,16 @@ import path from 'path';
 describe('Relatório QA #1 — Regras, Validações e Persistência', () => {
   describe('1. Paleta de Cores e Tokens de Design', () => {
     it('deve possuir os tokens oficiais do Respira', () => {
-      expect(COLOR_TOKENS.primaryLight).toBe('#2F7F7C'); // Verde Esmeralda / Teal clássico
-      expect(COLOR_TOKENS.backgroundLight).toBe('#F7F9F7'); // Fundo Neutro Respira
-      expect(COLOR_TOKENS.textPrimaryLight).toBe('#173D3B'); // Texto Escuro
-      expect(COLOR_TOKENS.warning).toBe('#D98968'); // Coral Acolhedor
+      expect(COLOR_TOKENS.primary).toBe('#247B74'); // Verde Petróleo oficial
+      expect(COLOR_TOKENS.backgroundLight).toBe('#F7F8F5'); // Fundo Neutro Respira
+      expect(COLOR_TOKENS.textPrimaryLight).toBe('#1F2927'); // Texto Escuro
+      expect(COLOR_TOKENS.warning).toBe('#D87556'); // Coral Acolhedor
     });
 
     it('deve ter tokens semânticos completos no tema claro e escuro', () => {
-      expect(COLORS.light.primary).toBe('#2F7F7C');
+      expect(COLORS.light.primary).toBe('#247B74');
       expect(COLORS.dark.primary).toBeDefined();
-      expect(COLORS.dark.background).toBe('#0F1B1A');
+      expect(COLORS.dark.background).toBe('#121918');
     });
   });
 

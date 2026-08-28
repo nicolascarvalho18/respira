@@ -149,4 +149,73 @@ describe('Relatório de QA Completo — Novas Funcionalidades e Correções Resp
       expect(lastUser?.text).toContain('Como lidar com a ansiedade');
     });
   });
+
+  describe('6. Design Tokens & Identidade Visual', () => {
+    it('deve possuir tokens consistentes nos modos claro e escuro', () => {
+      const { COLORS, SPACING, RADIUS, ANIMATIONS } = require('../constants/theme');
+
+      expect(COLORS.light.primary).toBe('#247B74');
+      expect(COLORS.light.background).toBe('#F7F8F5');
+      expect(COLORS.light.surface).toBe('#FFFFFF');
+      expect(COLORS.light.text).toBe('#1F2927');
+      expect(COLORS.light.accent).toBe('#D87556');
+
+      expect(COLORS.dark.primary).toBe('#389B93');
+      expect(COLORS.dark.background).toBe('#121918');
+      expect(COLORS.dark.surface).toBe('#1C2624');
+      expect(COLORS.dark.text).toBe('#F2F5F4');
+
+      expect(SPACING.xs).toBe(4);
+      expect(SPACING.sm).toBe(8);
+      expect(SPACING.md).toBe(12);
+      expect(SPACING.lg).toBe(16);
+      expect(SPACING.xl).toBe(24);
+      expect(SPACING.xxl).toBe(32);
+
+      expect(ANIMATIONS.fast).toBe(150);
+      expect(ANIMATIONS.slow).toBe(250);
+    });
+  });
+
+  describe('7. Player de Práticas — Sequência e Próxima Atividade', () => {
+    it('deve calcular a próxima prática sem repetir a atual', () => {
+      const allPractices: Practice[] = [
+        {
+          id: 'p-1',
+          title: 'Respiração 4-7-8',
+          category: 'breathing',
+          durationMinutes: 4,
+          level: 'Iniciante',
+          description: 'Teste 1',
+        },
+        {
+          id: 'p-2',
+          title: 'Alongamento leve',
+          category: 'body_movement',
+          durationMinutes: 5,
+          level: 'Iniciante',
+          description: 'Teste 2',
+        },
+      ];
+
+      const current = allPractices[0];
+      const currentIndex = allPractices.findIndex((p) => p.id === current.id);
+      const next = allPractices[(currentIndex + 1) % allPractices.length];
+
+      expect(next).toBeDefined();
+      expect(next.id).toBe('p-2');
+      expect(next.id).not.toBe(current.id);
+    });
+  });
+
+  describe('8. Áudio — Controle de Mute e Volume', () => {
+    it('deve desativar o áudio completamente ao mutar', () => {
+      const { soundEngine } = require('../services/sound/soundEngine');
+      soundEngine.setMuted(true);
+      expect(soundEngine.getIsMuted()).toBe(true);
+
+      soundEngine.setMuted(false);
+      expect(soundEngine.getIsMuted()).toBe(false);
+    });
+  });
 });

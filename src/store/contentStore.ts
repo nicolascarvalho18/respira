@@ -30,7 +30,7 @@ interface ContentState {
   setSelectedFilter: (filter: ArticleFilterOption) => void;
   clearFilters: () => void;
   loadMoreArticles: () => void;
-  toggleFavorite: (articleId: string) => Promise<void>;
+  toggleFavorite: (articleId: string) => Promise<boolean>;
   updateProgress: (articleId: string, progress: number) => Promise<void>;
   getFilteredArticles: () => Article[];
   getVisibleArticles: () => Article[];
@@ -88,6 +88,7 @@ export const useContentStore = create<ContentState>((set, get) => ({
       a.id === articleId ? { ...a, isFavorite: isFav } : a
     );
     set({ articles: updated });
+    return isFav;
   },
 
   updateProgress: async (articleId, progress) => {
