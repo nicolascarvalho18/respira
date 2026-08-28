@@ -6,299 +6,302 @@ import {
   TouchableOpacity,
   Platform,
   Image,
+  ViewStyle,
 } from 'react-native';
-import {
-  Bookmark,
-  Play,
-  CheckCircle2,
-  PlayCircle,
-  Volume2,
-  Activity,
-  Wind,
-  Leaf,
-  Smile,
-  Compass,
-  Clock,
-  Heart,
-} from 'lucide-react-native';
+import { Bookmark } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { Practice, UserPracticeProgress } from '../../types';
-import { formatTimesRealized } from '../../utils/grammar';
-import { PracticeThumbnail } from './PracticeThumbnail';
+import { getPracticeImage, getPracticeAltText } from '../../utils/practiceImages';
 
 export interface PracticeCardProps {
   practice: Practice;
   progress?: UserPracticeProgress;
+  variant?: 'horizontal' | 'vertical' | 'list';
   onPress: () => void;
   onToggleFavorite: (id: string) => void;
+  style?: ViewStyle;
 }
 
 export const PracticeCard: React.FC<PracticeCardProps> = ({
   practice,
   progress,
+  variant = 'horizontal',
   onPress,
   onToggleFavorite,
+  style,
 }) => {
   const { colors, isDark } = useTheme();
 
-  const isCompleted = (progress?.status === 'completed') || (practice.completedCount && practice.completedCount > 0);
   const progressPercent = progress ? progress.progressPercent : 0;
-  const hasStarted = progress && progress.status === 'started' && progressPercent > 0 && progressPercent < 100;
+  const hasStarted =
+    (progress && progress.status === 'started' && progressPercent > 0 && progressPercent < 100) ||
+    (progress && progress.playbackPositionSeconds > 0 && progressPercent < 100);
 
-  const getFormatBadge = () => {
+  const getFormatLabel = () => {
     switch (practice.format) {
       case 'video':
-        return { label: 'Com vídeo', icon: PlayCircle, bg: '#E7F3EF', color: '#2F7F7C' };
+        return 'Vídeo';
       case 'audio':
-        return { label: 'Com áudio', icon: Volume2, bg: '#F2EBF9', color: '#6A4C93' };
+        return 'Áudio';
       case 'interactive':
       default:
-        return { label: 'Guiado', icon: Activity, bg: '#FFF4EE', color: '#D98968' };
+        return 'Áudio';
     }
   };
 
-  const formatBadge = getFormatBadge();
-  const FormatIcon = formatBadge.icon;
+  const formatLabel = getFormatLabel();
+  const metaText = `${practice.durationMinutes} min · ${practice.level} · ${formatLabel}`;
+  const imageSource = getPracticeImage(practice.id);
+  const imageAlt = getPracticeAltText(practice.id);
 
-  return (
-    <TouchableOpacity
-      activeOpacity={0.85}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${practice.title}: ${practice.durationMinutes} minutos, ${practice.level}, formato ${formatBadge.label}`}
-      style={[
-        styles.cardContainer,
-        {
-          backgroundColor: isDark ? colors.surface : '#FFFFFF',
-          borderColor: isDark ? colors.border : '#EBF1EF',
-        },
-        Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined,
-      ]}
-    >
-      {/* 1. Miniatura Visual com Ilustração Específica e Selo de Formato */}
-      <View style={styles.thumbnailWrapper}>
-        <PracticeThumbnail
-          practiceId={practice.id}
-          category={practice.category}
-          title={practice.title}
-          isDark={isDark}
-        />
-
-        {/* Selo de Formato (Com vídeo / Com áudio / Guiado) */}
-        <View style={[styles.formatBadge, { backgroundColor: formatBadge.bg }]}>
-          <FormatIcon size={10} color={formatBadge.color} style={{ marginRight: 3 }} aria-hidden={true} />
-          <Text style={[styles.formatBadgeText, { color: formatBadge.color }]}>
-            {formatBadge.label}
-          </Text>
+  // VERTICAL CARD (for "Práticas rápidas" horizontal scroll)
+  if (variant === 'vertical') {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.88}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${practice.title}, ${metaText}`}
+        style={[
+          styles.verticalCard,
+          {
+            backgroundColor: isDark ? colors.surface : '#FFFFFF',
+            borderColor: isDark ? colors.border : '#DFE4E1',
+          },
+          Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined,
+          style,
+        ]}
+      >
+        <View style={styles.verticalImageWrap}>
+          <Image
+            source={imageSource}
+            accessibilityLabel={imageAlt}
+            style={styles.verticalImage}
+            resizeMode="cover"
+          />
         </View>
 
-        {/* Selo de Concluída */}
-        {isCompleted && (
-          <View style={styles.completedBadge}>
-            <CheckCircle2 size={11} color="#FFFFFF" aria-hidden={true} />
-            <Text style={styles.completedBadgeText}>Concluída</Text>
+        <View style={styles.verticalContent}>
+          <View style={styles.verticalTextCol}>
+            <Text
+              style={[styles.cardTitle, { color: isDark ? colors.text : '#1F2927' }]}
+              numberOfLines={2}
+            >
+              {practice.title}
+            </Text>
+            <Text
+              style={[styles.metaText, { color: isDark ? colors.textMuted : '#68736F' }]}
+              numberOfLines={1}
+            >
+              {metaText}
+            </Text>
           </View>
-        )}
+
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              onToggleFavorite(practice.id);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={
+              practice.isFavorite
+                ? `Remover ${practice.title} dos favoritos`
+                : `Salvar ${practice.title} nos favoritos`
+            }
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.bookmarkBtn}
+          >
+            <Bookmark
+              size={20}
+              color={practice.isFavorite ? '#247B74' : isDark ? colors.textMuted : '#68736F'}
+              fill={practice.isFavorite ? '#247B74' : 'transparent'}
+              strokeWidth={1.75}
+            />
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  // HORIZONTAL CARD (for "Continue de onde parou", "Novidades" and general catalog list)
+  return (
+    <TouchableOpacity
+      activeOpacity={0.88}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${practice.title}, ${metaText}`}
+      style={[
+        styles.horizontalCard,
+        {
+          backgroundColor: isDark ? colors.surface : '#FFFFFF',
+          borderColor: isDark ? colors.border : '#DFE4E1',
+        },
+        Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined,
+        style,
+      ]}
+    >
+      {/* Miniatura Fotográfica 4:3 */}
+      <View style={styles.horizontalImageWrap}>
+        <Image
+          source={imageSource}
+          accessibilityLabel={imageAlt}
+          style={styles.horizontalImage}
+          resizeMode="cover"
+        />
       </View>
 
-      {/* 2. Conteúdo Central */}
-      <View style={styles.centerCol}>
-        <View style={styles.titleRow}>
+      {/* Conteúdo à Direita */}
+      <View style={styles.horizontalContent}>
+        <View style={styles.horizontalHeaderRow}>
           <Text
-            style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}
+            style={[styles.cardTitle, { color: isDark ? colors.text : '#1F2927', flex: 1, marginRight: 8 }]}
             numberOfLines={2}
           >
             {practice.title}
           </Text>
+
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              onToggleFavorite(practice.id);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={
+              practice.isFavorite
+                ? `Remover ${practice.title} dos favoritos`
+                : `Salvar ${practice.title} nos favoritos`
+            }
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.bookmarkBtn}
+          >
+            <Bookmark
+              size={20}
+              color={practice.isFavorite ? '#247B74' : isDark ? colors.textMuted : '#68736F'}
+              fill={practice.isFavorite ? '#247B74' : 'transparent'}
+              strokeWidth={1.75}
+            />
+          </TouchableOpacity>
         </View>
 
         <Text
-          style={[styles.description, { color: isDark ? colors.textMuted : '#667775' }]}
-          numberOfLines={2}
+          style={[styles.metaText, { color: isDark ? colors.textMuted : '#68736F' }]}
+          numberOfLines={1}
         >
-          {practice.subtitle || practice.description}
+          {metaText}
         </Text>
 
-        {/* Metadados: Duração, Nível e Realizações */}
-        <View style={styles.metaRow}>
-          <Text style={[styles.metaText, { color: isDark ? colors.textMuted : '#567571' }]}>
-            {practice.durationMinutes} min • {practice.level}
-          </Text>
-
-          {practice.completedCount && practice.completedCount > 0 ? (
-            <Text style={[styles.completionsText, { color: '#2F7F7C' }]}>
-              {formatTimesRealized(practice.completedCount)}
-            </Text>
-          ) : null}
-        </View>
-
-        {/* Barra de Progresso quando iniciada */}
+        {/* Barra de Progresso e Ação Continuar (somente quando iniciado) */}
         {hasStarted ? (
-          <View style={styles.progressRow}>
+          <View style={styles.progressBlock}>
             <View style={styles.progressBarTrack}>
-              <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+              <View style={[styles.progressBarFill, { width: `${Math.max(15, progressPercent || 45)}%` }]} />
             </View>
-            <Text style={styles.progressPercentText}>{progressPercent}%</Text>
+            <Text style={styles.continueActionText}>Continuar</Text>
           </View>
         ) : null}
-      </View>
-
-      {/* 3. Ações à Direita (Favorito e Play) */}
-      <View style={styles.actionsCol}>
-        <TouchableOpacity
-          onPress={(e) => {
-            e.stopPropagation();
-            onToggleFavorite(practice.id);
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={
-            practice.isFavorite
-              ? `Remover ${practice.title} dos favoritos`
-              : `Adicionar ${practice.title} aos favoritos`
-          }
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          style={styles.favBtn}
-        >
-          <Bookmark
-            size={18}
-            color="#2F7F7C"
-            fill={practice.isFavorite ? '#2F7F7C' : 'transparent'}
-            aria-hidden={true}
-          />
-        </TouchableOpacity>
-
-        <View style={styles.circlePlayBtn}>
-          <Play size={13} color="#FFFFFF" fill="#FFFFFF" style={{ marginLeft: 2 }} aria-hidden={true} />
-        </View>
       </View>
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
-  cardContainer: {
-    borderRadius: 18,
+  // Horizontal Card
+  horizontalCard: {
+    flexDirection: 'row',
+    borderRadius: 12,
     borderWidth: 1,
-    padding: 12,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    shadowColor: '#173D3B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  thumbnailWrapper: {
-    width: 86,
-    height: 86,
-    borderRadius: 14,
     overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#E7F3EF',
+    marginBottom: 12,
+    minHeight: 96,
   },
-  formatBadge: {
-    position: 'absolute',
-    top: 5,
-    left: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 6,
+  horizontalImageWrap: {
+    width: 120,
+    height: '100%',
+    backgroundColor: '#ECEFEE',
   },
-  formatBadgeText: {
-    fontSize: 8.5,
-    fontWeight: '800',
+  horizontalImage: {
+    width: '100%',
+    height: '100%',
+    minHeight: 96,
   },
-  completedBadge: {
-    position: 'absolute',
-    bottom: 5,
-    left: 5,
-    right: 5,
-    backgroundColor: 'rgba(47, 127, 124, 0.92)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 2,
-    borderRadius: 4,
-    gap: 3,
-  },
-  completedBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 8.5,
-    fontWeight: '700',
-  },
-  centerCol: {
+  horizontalContent: {
     flex: 1,
+    padding: 12,
     justifyContent: 'center',
   },
-  titleRow: {
-    marginBottom: 2,
-  },
-  title: {
-    fontSize: 14.5,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-    lineHeight: 19,
-  },
-  description: {
-    fontSize: 12,
-    lineHeight: 16,
-    marginBottom: 5,
-  },
-  metaRow: {
+  horizontalHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+
+  // Vertical Card (Práticas Rápidas)
+  verticalCard: {
+    width: 154,
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginRight: 12,
+  },
+  verticalImageWrap: {
+    width: '100%',
+    height: 115, // 4:3 proportion for 154 width
+    backgroundColor: '#ECEFEE',
+  },
+  verticalImage: {
+    width: '100%',
+    height: '100%',
+  },
+  verticalContent: {
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    minHeight: 64,
+  },
+  verticalTextCol: {
+    flex: 1,
+    marginRight: 6,
+  },
+
+  // Tipografia dos Cards
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+    lineHeight: 20,
   },
   metaText: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '400',
+    marginTop: 2,
+    letterSpacing: -0.1,
   },
-  completionsText: {
-    fontSize: 11,
-    fontWeight: '700',
+  bookmarkBtn: {
+    padding: 2,
   },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-    gap: 6,
+
+  // Progresso
+  progressBlock: {
+    marginTop: 8,
   },
   progressBarTrack: {
-    flex: 1,
     height: 4,
-    backgroundColor: '#EBF1EF',
+    backgroundColor: '#E7EBE9',
     borderRadius: 2,
+    width: '100%',
     overflow: 'hidden',
+    marginBottom: 6,
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#2F7F7C',
+    backgroundColor: '#247B74',
     borderRadius: 2,
   },
-  progressPercentText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#2F7F7C',
-  },
-  actionsCol: {
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    height: 74,
-    paddingLeft: 2,
-  },
-  favBtn: {
-    padding: 4,
-  },
-  circlePlayBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#2F7F7C',
-    alignItems: 'center',
-    justifyContent: 'center',
+  continueActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#247B74',
   },
 });

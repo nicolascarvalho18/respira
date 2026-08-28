@@ -11,14 +11,14 @@ export const MOCK_PRACTICES: Practice[] = [
     description: 'Técnica compassada de controle respiratório para acalmar a mente e aliviar a agitação.',
     category: 'breathing',
     objective: 'relax',
-    format: 'video',
+    format: 'audio',
     durationMinutes: 4,
     level: 'Iniciante',
     effortLevel: 'Suave',
     activityType: 'breathing',
     icon: 'wind',
     thumbnailUrl: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=800&q=80',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    audioUrl: 'https://actions.google.com/sounds/v1/water/gentle_stream_water.ogg',
     instructor: {
       name: 'Dra. Clara Silveira',
       role: 'Especialista em Regulação Emocional',
@@ -73,22 +73,23 @@ export const MOCK_PRACTICES: Practice[] = [
   },
 
   // ==========================================
-  // 2. Respiração quadrada — 3 minutos (Interativo)
+  // 2. Respiração quadrada — 3 minutos (Áudio / Interativo)
   // ==========================================
   {
     id: 'practice-breathing-box',
-    title: 'Respiração Quadrada (Box Breathing)',
+    title: 'Respiração quadrada',
     subtitle: 'Quatro tempos iguais para estabilidade e foco',
     description: 'Equilíbrio entre inspirar, reter, expirar e pausar para recuperar o centramento.',
     category: 'breathing',
     objective: 'regain_focus',
-    format: 'interactive',
+    format: 'audio',
     durationMinutes: 3,
     level: 'Iniciante',
     effortLevel: 'Suave',
     activityType: 'breathing',
     icon: 'square',
     thumbnailUrl: 'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?auto=format&fit=crop&w=800&q=80',
+    audioUrl: 'https://actions.google.com/sounds/v1/water/gentle_stream_water.ogg',
     instructor: {
       name: 'Gabriel Rezende',
       role: 'Instrutor de Atenção Plena',
@@ -233,11 +234,62 @@ export const MOCK_PRACTICES: Practice[] = [
   },
 
   // ==========================================
-  // 5. Pausa consciente — 2 minutos (Áudio)
+  // 5. Coerência cardíaca — 5 minutos (Áudio)
+  // ==========================================
+  {
+    id: 'practice-heart-coherence',
+    title: 'Coerência cardíaca',
+    subtitle: 'Sincronização entre respiração e batimentos cardíacos',
+    description: 'Respiração ritmada de 6 ciclos por minuto com a mão sobre o peito para equilíbrio do sistema nervoso.',
+    category: 'breathing',
+    objective: 'relax',
+    format: 'audio',
+    durationMinutes: 5,
+    level: 'Iniciante',
+    effortLevel: 'Suave',
+    activityType: 'breathing',
+    icon: 'heart',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1517021897933-0e0319cfbc28?auto=format&fit=crop&w=800&q=80',
+    audioUrl: 'https://actions.google.com/sounds/v1/water/gentle_stream_water.ogg',
+    instructor: {
+      name: 'Dra. Clara Silveira',
+      role: 'Especialista em Regulação Emocional',
+    },
+    isFavorite: false,
+    completedCount: 9,
+    order: 5,
+    status: 'published',
+    guidelinesBeforeStarting: [
+      'Sente-se com a coluna relaxada e repouse suavemente uma das mãos sobre o centro do peito.',
+      'Mantenha uma respiração lenta e compassada de 5 segundos ao inspirar e 5 segundos ao expirar.',
+    ],
+    stages: [
+      { step: 1, title: 'Presença no peito', instruction: 'Coloque a mão sobre o peito e sinta o contato acolhedor.', durationSeconds: 30 },
+      { step: 2, title: 'Ritmo 5-5', instruction: 'Inspire pelo nariz em 5 segundos e expire suavemente em 5 segundos.', durationSeconds: 180 },
+      { step: 3, title: 'Sentimento de calma', instruction: 'Imagine uma sensação de serenidade e harmonia irradiando pelo corpo.', durationSeconds: 90 },
+    ],
+    benefits: [
+      'Estabiliza a variabilidade da frequência cardíaca.',
+      'Promove clareza e redução rápida do estresse.',
+    ],
+    careAndLimitations: [
+      'Se o ritmo de 5s parecer longo, faça 4 segundos inspirando e 4 segundos expirando.',
+    ],
+    instructions: [
+      'Repouse a mão sobre o coração.',
+      'Inspire suavemente pelo nariz em 5 segundos.',
+      'Expire lentamente em 5 segundos.',
+      'Mantenha o ciclo contínuo com tranquilidade.',
+    ],
+    relatedPracticeIds: ['practice-breathing-478', 'practice-quick-conscious-pause'],
+  },
+
+  // ==========================================
+  // 6. Pausa consciente — 2 minutos (Áudio)
   // ==========================================
   {
     id: 'practice-quick-conscious-pause',
-    title: 'Pausa Consciente',
+    title: 'Pausa consciente',
     subtitle: 'Micro-pausa de 2 minutos para desarmar o piloto automático',
     description: 'Um intervalo breve e gentil para checar como você está e respirar no meio do dia.',
     category: 'quick_pauses',
@@ -256,7 +308,7 @@ export const MOCK_PRACTICES: Practice[] = [
     },
     isFavorite: true,
     completedCount: 22,
-    order: 5,
+    order: 6,
     status: 'published',
     guidelinesBeforeStarting: [
       'Solte os ombros e desvie o olhar da tela por alguns momentos.',
@@ -282,29 +334,30 @@ export const MOCK_PRACTICES: Practice[] = [
   },
 
   // ==========================================
-  // 6. Ancoragem no momento presente — 6 minutos (Interativo)
+  // 7. Ancoragem no momento presente — 6 minutos (Áudio / Interativo)
   // ==========================================
   {
     id: 'practice-grounding-54321',
-    title: 'Ancoragem no Momento Presente (5–4–3–2–1)',
+    title: 'Ancoragem no momento presente',
     subtitle: 'Técnica multissensorial para aterramento e segurança',
     description: 'Reconecte-se com os 5 sentidos para sair de pensamentos acelerados e ancorar no presente.',
     category: 'mindfulness_focus',
     objective: 'regain_focus',
-    format: 'interactive',
+    format: 'audio',
     durationMinutes: 6,
     level: 'Iniciante',
     effortLevel: 'Suave',
     activityType: 'mental',
     icon: 'compass',
     thumbnailUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80',
+    audioUrl: 'https://actions.google.com/sounds/v1/ambiences/outdoor_ambience.ogg',
     instructor: {
       name: 'Gabriel Rezende',
       role: 'Instrutor de Atenção Plena',
     },
     isFavorite: true,
     completedCount: 20,
-    order: 6,
+    order: 7,
     status: 'published',
     guidelinesBeforeStarting: [
       'Olhe ao redor no espaço onde você está agora.',
@@ -433,23 +486,23 @@ export const MOCK_PRACTICES: Practice[] = [
   },
 
   // ==========================================
-  // 9. Relaxamento muscular progressivo — 12 minutos (Vídeo)
+  // 10. Relaxamento muscular progressivo — 8 minutos (Áudio)
   // ==========================================
   {
     id: 'practice-pmr-relaxation',
-    title: 'Relaxamento Muscular Progressivo',
+    title: 'Relaxamento muscular progressivo',
     subtitle: 'Técnica de Jacobson para alívio de tensões físicas profundas',
     description: 'Sequência orientada de contração e relaxamento voluntário dos principais grupos musculares.',
     category: 'relaxation',
     objective: 'relieve_tension',
-    format: 'video',
-    durationMinutes: 12,
-    level: 'Iniciante',
+    format: 'audio',
+    durationMinutes: 8,
+    level: 'Intermediário',
     effortLevel: 'Leve',
     activityType: 'physical',
     icon: 'activity',
     thumbnailUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=800&q=80',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    audioUrl: 'https://actions.google.com/sounds/v1/water/gentle_stream_water.ogg',
     instructor: {
       name: 'Dra. Clara Silveira',
       role: 'Especialista em Regulação Emocional',
@@ -457,7 +510,7 @@ export const MOCK_PRACTICES: Practice[] = [
     isFavorite: true,
     completedCount: 16,
     isFeatured: true,
-    order: 9,
+    order: 10,
     status: 'published',
     guidelinesBeforeStarting: [
       'Faça os movimentos suavemente e respeite seus limites. Interrompa se sentir dor ou desconforto.',
