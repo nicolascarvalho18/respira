@@ -34,51 +34,87 @@ export function sanitizeMarkdown(raw: string): string {
 }
 
 /**
- * Parses inline markdown tokens: bold (**), italic (*), bold+italic (***), code (`), link ([text](url))
+ * Normaliza fórmulas matemáticas LaTeX simples para texto limpo e legível.
+ */
+export function cleanLatexFormulas(text: string): string {
+  if (!text) return '';
+  return text.replace(/\$\$\\text\{([^}]+)\}\s*=\s*\\text\{([^}]+)\}\s*\\times\s*\\text\{([^}]+)\}\$\$/g, '$1 = $2 × $3')
+    .replace(/\$\$([^$]+)\$\$/g, '$1')
+    .replace(/\\text\{([^}]+)\}/g, '$1')
+    .replace(/\\times/g, '×');
+}
+
+/**
+ * Parses inline markdown and HTML tokens:
+ * - <strong>texto</strong>, <b>texto</b>, **texto**
+ * - <em>texto</em>, <i>texto</i>, *texto*
+ * - <strong><em>texto</em></strong>, ***texto***
+ * - `code`
+ * - [label](url)
  */
 export function parseInlineMarkdown(text: string): InlineToken[] {
   if (!text) return [];
 
-  // Remove stray/trailing formatting asterisks at ends of lines
-  const sanitized = text.replace(/\s+\*+$/, '').replace(/^\*+\s+/, '');
+  // Remove LaTeX wrappers se houver e remove asteriscos soltos no início/fim
+  let cleaned = cleanLatexFormulas(text);
 
   const tokens: InlineToken[] = [];
-  const regex = /(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
+  // Regex que reconhece tags HTML e marcações de markdown de forma segura e não gulosa
+  const regex = /(<strong><em>[\s\S]+?<\/em><\/strong>|<em><strong>[\s\S]+?<\/strong><\/em>|\*\*\*[\s\S]+?\*\*\*|<strong>[\s\S]+?<\/strong>|<b>[\s\S]+?<\/b>|\*\*[\s\S]+?\*\*|<em>[\s\S]+?<\/em>|<i>[\s\S]+?<\/i>|\*[^*\n]+?\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/gi;
 
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  while ((match = regex.exec(sanitized)) !== null) {
+  while ((match = regex.exec(cleaned)) !== null) {
     if (match.index > lastIndex) {
-      tokens.push({
-        type: 'text',
-        text: sanitized.slice(lastIndex, match.index),
-      });
+      // Texto normal intermediário (limpa asteriscos residuais)
+      const rawPiece = cleaned.slice(lastIndex, match.index).replace(/\*/g, '');
+      if (rawPiece) {
+        tokens.push({
+          type: 'text',
+          text: rawPiece,
+        });
+      }
     }
 
     const matchedStr = match[0];
 
-    if (matchedStr.startsWith('***') && matchedStr.endsWith('***')) {
-      tokens.push({
-        type: 'boldItalic',
-        text: matchedStr.slice(3, -3),
-      });
-    } else if (matchedStr.startsWith('**') && matchedStr.endsWith('**')) {
-      tokens.push({
-        type: 'bold',
-        text: matchedStr.slice(2, -2),
-      });
-    } else if (matchedStr.startsWith('*') && matchedStr.endsWith('*')) {
-      tokens.push({
-        type: 'italic',
-        text: matchedStr.slice(1, -1),
-      });
-    } else if (matchedStr.startsWith('`') && matchedStr.endsWith('`')) {
-      tokens.push({
-        type: 'code',
-        text: matchedStr.slice(1, -1),
-      });
-    } else if (matchedStr.startsWith('[') && matchedStr.includes('](')) {
+    // Bold + Italic
+    if (
+      (matchedStr.toLowerCase().startsWith('<strong><em>') && matchedStr.toLowerCase().endsWith('</em></strong>')) ||
+      (matchedStr.toLowerCase().startsWith('<em><strong>') && matchedStr.toLowerCase().endsWith('</strong></em>'))
+    ) {
+      const inner = matchedStr.replace(/<\/?(strong|em|b|i)>/gi, '').replace(/\*/g, '');
+      tokens.push({ type: 'boldItalic', text: inner });
+    } else if (matchedStr.startsWith('***') && matchedStr.endsWith('***') && matchedStr.length >= 6) {
+      tokens.push({ type: 'boldItalic', text: matchedStr.slice(3, -3) });
+    }
+    // Bold: <strong>, <b>, **
+    else if (matchedStr.toLowerCase().startsWith('<strong>') && matchedStr.toLowerCase().endsWith('</strong>')) {
+      const inner = matchedStr.slice(8, -9).replace(/\*/g, '');
+      tokens.push({ type: 'bold', text: inner });
+    } else if (matchedStr.toLowerCase().startsWith('<b>') && matchedStr.toLowerCase().endsWith('</b>')) {
+      const inner = matchedStr.slice(3, -4).replace(/\*/g, '');
+      tokens.push({ type: 'bold', text: inner });
+    } else if (matchedStr.startsWith('**') && matchedStr.endsWith('**') && matchedStr.length >= 4) {
+      tokens.push({ type: 'bold', text: matchedStr.slice(2, -2) });
+    }
+    // Italic: <em>, <i>, *
+    else if (matchedStr.toLowerCase().startsWith('<em>') && matchedStr.toLowerCase().endsWith('</em>')) {
+      const inner = matchedStr.slice(4, -5).replace(/\*/g, '');
+      tokens.push({ type: 'italic', text: inner });
+    } else if (matchedStr.toLowerCase().startsWith('<i>') && matchedStr.toLowerCase().endsWith('</i>')) {
+      const inner = matchedStr.slice(3, -4).replace(/\*/g, '');
+      tokens.push({ type: 'italic', text: inner });
+    } else if (matchedStr.startsWith('*') && matchedStr.endsWith('*') && matchedStr.length >= 2 && !matchedStr.startsWith('**')) {
+      tokens.push({ type: 'italic', text: matchedStr.slice(1, -1) });
+    }
+    // Code: `
+    else if (matchedStr.startsWith('`') && matchedStr.endsWith('`')) {
+      tokens.push({ type: 'code', text: matchedStr.slice(1, -1) });
+    }
+    // Link: [label](url)
+    else if (matchedStr.startsWith('[') && matchedStr.includes('](')) {
       const closingBracket = matchedStr.indexOf('](');
       const label = matchedStr.slice(1, closingBracket);
       const url = matchedStr.slice(closingBracket + 2, -1);
@@ -92,8 +128,8 @@ export function parseInlineMarkdown(text: string): InlineToken[] {
     lastIndex = regex.lastIndex;
   }
 
-  if (lastIndex < sanitized.length) {
-    const remaining = sanitized.slice(lastIndex).replace(/\*+$/, '');
+  if (lastIndex < cleaned.length) {
+    const remaining = cleaned.slice(lastIndex).replace(/\*/g, '');
     if (remaining) {
       tokens.push({
         type: 'text',
@@ -102,7 +138,7 @@ export function parseInlineMarkdown(text: string): InlineToken[] {
     }
   }
 
-  return tokens.length > 0 ? tokens : [{ type: 'text', text: sanitized }];
+  return tokens.length > 0 ? tokens : [{ type: 'text', text: cleaned.replace(/\*/g, '') }];
 }
 
 export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({
@@ -224,7 +260,7 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({
 
         // 1. Heading 2 (## Title)
         if (trimmed.startsWith('## ')) {
-          const headingText = trimmed.replace(/^##\s+/, '');
+          const headingText = trimmed.replace(/^##\s+/, '').replace(/\*\*/g, '').replace(/<\/?strong>/gi, '');
           return (
             <View
               key={bIdx}
@@ -251,7 +287,7 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({
 
         // 2. Heading 3 (### Title)
         if (trimmed.startsWith('### ')) {
-          const headingText = trimmed.replace(/^###\s+/, '');
+          const headingText = trimmed.replace(/^###\s+/, '').replace(/\*\*/g, '').replace(/<\/?strong>/gi, '');
           return (
             <View
               key={bIdx}
@@ -278,7 +314,7 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({
 
         // 3. Heading 4 (#### Title)
         if (trimmed.startsWith('#### ')) {
-          const headingText = trimmed.replace(/^####\s+/, '');
+          const headingText = trimmed.replace(/^####\s+/, '').replace(/\*\*/g, '').replace(/<\/?strong>/gi, '');
           return (
             <View key={bIdx} style={styles.sectionWrap}>
               <Text
@@ -303,11 +339,15 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({
         if (
           trimmed.startsWith('*Aviso:') ||
           trimmed.startsWith('Aviso:') ||
+          trimmed.startsWith('<em>Aviso:') ||
+          trimmed.startsWith('<strong>Aviso:') ||
           trimmed.startsWith('> ')
         ) {
           const calloutText = trimmed
             .replace(/^\*Aviso:\s*/i, '')
             .replace(/^Aviso:\s*/i, '')
+            .replace(/^<em>Aviso:\s*<\/em>\s*/i, '')
+            .replace(/^<strong>Aviso:\s*<\/strong>\s*/i, '')
             .replace(/^>\s*/, '')
             .replace(/\*+$/, '')
             .trim();
@@ -363,25 +403,55 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({
           );
         }
 
-        // 5. Unordered List (- item or * item) or Ordered List (1. item)
-        const lines = trimmed.split('\n');
-        const isList = lines.every(
+        // 5. Bloco de Fórmula Matemática LaTeX
+        if (trimmed.startsWith('$$') && trimmed.endsWith('$$')) {
+          const formulaClean = cleanLatexFormulas(trimmed);
+          return (
+            <View
+              key={bIdx}
+              style={[
+                styles.formulaCard,
+                {
+                  backgroundColor: isDark ? colors.surfaceSecondary : '#F2F8F6',
+                  borderColor: isDark ? colors.border : '#D5E6E1',
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.formulaText,
+                  {
+                    color: isDark ? '#5ECFC3' : '#238C82',
+                    fontSize: 15 * fontSizeMultiplier,
+                  },
+                ]}
+              >
+                {formulaClean}
+              </Text>
+            </View>
+          );
+        }
+
+        // 6. Unordered List (- item or * item) or Ordered List (1. item)
+        const rawLines = trimmed.split('\n');
+        // Se todas as linhas forem itens de lista ou se for um bloco misto de introdução + lista:
+        const isPureList = rawLines.every(
           (line) =>
             /^\s*[-*•]\s+/.test(line) ||
             /^\s*\d+\.\s+/.test(line) ||
             line.trim().length === 0
         );
 
-        if (isList) {
-          const isOrdered = lines.some((l) => /^\s*\d+\.\s+/.test(l));
+        if (isPureList) {
+          const isOrdered = rawLines.some((l) => /^\s*\d+\.\s+/.test(l));
 
           return (
             <View
               key={bIdx}
               style={styles.listContainer}
-              {...(Platform.OS === 'web' ? ({ role: isOrdered ? 'list' : 'list' } as any) : {})}
+              {...(Platform.OS === 'web' ? ({ role: 'list' } as any) : {})}
             >
-              {lines.map((line, lIdx) => {
+              {rawLines.map((line, lIdx) => {
                 const lineTrim = line.trim();
                 if (!lineTrim) return null;
 
@@ -444,28 +514,94 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({
           );
         }
 
-        // 6. Regular Paragraph with mixed inline tokens
-        const tokens = parseInlineMarkdown(trimmed);
-
+        // 7. Regular Paragraph (se contiver quebras de linha com listas embutidas, renderiza cada linha com espaçamento)
         return (
-          <Text
-            key={bIdx}
-            style={[
-              styles.paragraph,
-              {
-                color: isDark ? colors.text : '#2C4A47',
-                fontSize: 15 * fontSizeMultiplier,
-                lineHeight: 26 * fontSizeMultiplier,
-              },
-            ]}
-          >
-            {renderInlineTokens(
-              tokens,
-              15 * fontSizeMultiplier,
-              isDark ? colors.text : '#2C4A47',
-              `p-${bIdx}`
-            )}
-          </Text>
+          <View key={bIdx} style={styles.paragraphWrap}>
+            {rawLines.map((line, lIdx) => {
+              const lineTrim = line.trim();
+              if (!lineTrim) return null;
+
+              // Linha que começa com bullet ou número
+              const isListItem = /^\s*[-*•]\s+/.test(lineTrim);
+              const isNumItem = /^\s*\d+\.\s+/.test(lineTrim);
+
+              if (isListItem || isNumItem) {
+                let bullet = '•';
+                let itemText = lineTrim;
+
+                if (isNumItem) {
+                  const matchNum = lineTrim.match(/^(\d+\.)\s+/);
+                  if (matchNum) {
+                    bullet = matchNum[1];
+                    itemText = lineTrim.slice(matchNum[0].length);
+                  }
+                } else {
+                  itemText = lineTrim.replace(/^[-*•]\s+/, '');
+                }
+
+                const tokens = parseInlineMarkdown(itemText);
+
+                return (
+                  <View key={`line-${lIdx}`} style={styles.listItemRow}>
+                    <Text
+                      style={[
+                        styles.listBullet,
+                        {
+                          color: '#2F7F7C',
+                          fontSize: (isNumItem ? 13 : 15) * fontSizeMultiplier,
+                          minWidth: isNumItem ? 22 : 14,
+                        },
+                      ]}
+                      aria-hidden={true}
+                    >
+                      {bullet}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.listItemText,
+                        {
+                          color: isDark ? colors.text : '#2C4A47',
+                          fontSize: 15 * fontSizeMultiplier,
+                          lineHeight: 24 * fontSizeMultiplier,
+                        },
+                      ]}
+                    >
+                      {renderInlineTokens(
+                        tokens,
+                        15 * fontSizeMultiplier,
+                        isDark ? colors.text : '#2C4A47',
+                        `paralist-${bIdx}-${lIdx}`
+                      )}
+                    </Text>
+                  </View>
+                );
+              }
+
+              const tokens = parseInlineMarkdown(lineTrim);
+
+              return (
+                <Text
+                  key={`line-${lIdx}`}
+                  style={[
+                    styles.paragraph,
+                    {
+                      color: isDark ? colors.text : '#2C4A47',
+                      fontSize: 15 * fontSizeMultiplier,
+                      lineHeight: 25 * fontSizeMultiplier,
+                      marginBottom: lIdx === rawLines.length - 1 ? 0 : 8,
+                    },
+                  ]}
+                >
+                  {renderInlineTokens(
+                    tokens,
+                    15 * fontSizeMultiplier,
+                    isDark ? colors.text : '#2C4A47',
+                    `p-${bIdx}-${lIdx}`
+                  )}
+                </Text>
+              );
+            })}
+          </View>
         );
       })}
     </View>
@@ -475,14 +611,13 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    maxWidth: 680,
   },
   sectionWrap: {
     marginTop: 18,
     marginBottom: 8,
   },
   h2: {
-    fontWeight: '800',
+    fontWeight: '700',
     letterSpacing: -0.3,
   },
   h3: {
@@ -490,41 +625,61 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   h4: {
-    fontWeight: '700',
+    fontWeight: '600',
+    letterSpacing: -0.1,
+  },
+  paragraphWrap: {
+    marginBottom: 16,
   },
   paragraph: {
-    marginBottom: 16,
+    fontWeight: '400',
+  },
+  formulaCard: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formulaText: {
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   calloutCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    borderRadius: 14,
-    borderWidth: 1,
     padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
     marginVertical: 14,
   },
   calloutHeading: {
     fontWeight: '700',
-    marginBottom: 3,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   calloutContent: {
-    fontWeight: '500',
+    fontWeight: '400',
   },
   listContainer: {
     marginVertical: 8,
-    gap: 8,
-    marginBottom: 16,
   },
   listItemRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    marginBottom: 8,
+    paddingLeft: 4,
   },
   listBullet: {
     fontWeight: '700',
-    marginRight: 6,
     marginTop: 1,
+    marginRight: 6,
   },
   listItemText: {
     flex: 1,
+    fontWeight: '400',
   },
 });

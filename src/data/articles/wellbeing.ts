@@ -31,22 +31,22 @@ Trata-se de encontrar "ilhas de presença" dentro das atividades que você já p
 - Fazer 3 respirações profundas enquanto o computador inicializa.
 
 ### As 4 Dimensões do Autocuidado Real
-1. **Físico**: Hidratação regular, postura alinhada na cadeira e alongamento da coluna.
-2. **Emocional**: Permitir-se dizer "não" a convites que sobrecarregam seu tempo e aceitar seus sentimentos sem autocrítica.
-3. **Mental**: Fazer uma pausa para olhar para a janela e descansar a vista das telas.
-4. **Social**: Manter conversas com pessoas que recarregam sua energia em vez de drená-la.
+1. <strong>Físico</strong>: Hidratação regular, postura alinhada na cadeira e alongamento da coluna.
+2. <strong>Emocional</strong>: Permitir-se dizer "não" a convites que sobrecarregam seu tempo e aceitar seus sentimentos sem autocrítica.
+3. <strong>Mental</strong>: Fazer uma pausa para olhar para a janela e descansar a vista das telas.
+4. <strong>Social</strong>: Manter conversas com pessoas que recarregam sua energia em vez de drená-la.
 
 ### Exercício Prático: A Pausa dos 60 Segundos de Autocompaixão
 Em qualquer momento do seu dia agitado:
 1. Pare o que estiver fazendo e apoie as duas mãos suavemente sobre o peito.
-2. Reconheça a pressão do momento: *"Este é um momento exigente do meu dia."*
-3. Ofereça gentileza a si mesmo: *"Que eu possa ter paciência e cuidar de mim enquanto cumpro o que é necessário."*
+2. Reconheça a pressão do momento: <em>"Este é um momento exigente do meu dia."</em>
+3. Ofereça gentileza a si mesmo: <em>"Que eu possa ter paciência e cuidar de mim enquanto cumpro o que é necessário."</em>
 4. Respire fundo e retome a tarefa com mais espaço interno.
 
 ### Conclusão
 Autocuidado não é algo que você faz quando "sobra tempo", mas o que garante que você continue de pé com saúde e dignidade no meio da correria da vida.
 
-*Aviso: Este conteúdo é educativo e visa o desenvolvimento pessoal.*`,
+<em>Aviso: Este conteúdo é educativo e visa o desenvolvimento pessoal.</em>`,
   },
   {
     id: 'art-bem-estar-2',
@@ -79,8 +79,8 @@ A cada 90 a 120 minutos de atividade mental focada, o cérebro atinge o limite s
 Se você insiste em continuar sem pausar, o esforço exigido para realizar a mesma tarefa dobra, gerando exaustão ao final da tarde.
 
 ### O Que É uma "Pausa Real"?
-Muitas pessoas acreditam que fazer uma pausa é parar de trabalhar no computador e abrir o Instagram no celular. Isso **não é descanso**: as redes sociais mantêm o córtex visual e o sistema de processamento de informações trabalhando em sobrecarga.
-- **Pausa restauradora**: Levantar-se, olhar para longe na linha do horizonte (relaxando os músculos oculares), beber água, respirar com calma ou alongar o corpo.
+Muitas pessoas acreditam que fazer uma pausa é parar de trabalhar no computador e abrir o Instagram no celular. Isso <strong>não é descanso</strong>: as redes sociais mantêm o córtex visual e o sistema de processamento de informações trabalhando em sobrecarga.
+- <strong>Pausa restauradora</strong>: Levantar-se, olhar para longe na linha do horizonte (relaxando os músculos oculares), beber água, respirar com calma ou alongar o corpo.
 
 ### Exercício Prático: O Protocolo 50/5
 Configure um alarme suave para hoje:
@@ -93,7 +93,7 @@ Configure um alarme suave para hoje:
 ### Conclusão
 Pausar não é interrupção do trabalho; é a manutenção essencial que garante que seu cérebro continue funcionando com clareza, criatividade e bem-estar.
 
-*Aviso: Este conteúdo é educativo e focado em produtividade sustentável.*`,
+<em>Aviso: Este conteúdo é educativo e focado em produtividade sustentável.</em>`,
   },
   {
     id: 'art-bem-estar-3',
@@ -118,28 +118,28 @@ Aprender a estabelecer limites não é egoísmo nem grosseria; é a condição i
 
 ### Por que Temos Tanto Medo de Estabelecer Limites?
 Na raiz da dificuldade de dizer "não" estão medos psicológicos comuns:
-- **Medo da rejeição ou do abandono**: A crença de que só seremos amados se formos constantemente úteis e disponíveis.
-- **Medo do conflito**: O impulso de evitar qualquer momento de desconforto imediato, mesmo ao custo do sofrimento a longo prazo.
-- **Culpa internalizada**: Achar que descansar ou priorizar a própria saúde é uma atitude indigna.
+- <strong>Medo da rejeição ou do abandono</strong>: A crença de que só seremos amados se formos constantemente úteis e disponíveis.
+- <strong>Medo do conflito</strong>: O impulso de evitar qualquer momento de desconforto imediato, mesmo ao custo do sofrimento a longo prazo.
+- <strong>Culpa internalizada</strong>: Achar que descansar ou priorizar a própria saúde é uma atitude indigna.
 
 ### O Preço Oculto do Limite Ausente
 Quando não dizemos um "não" consciente com a boca, o corpo acaba dizendo um "não" violento por meio de sintomas: enxaquecas, crises de ansiedade, apatia, gastrite e explosões de irritabilidade com quem não tem nada a ver com o problema.
 
 ### 3 Fórmulas Gentis para Dizer "Não" com Firmeza
-1. *"Agradeço muito pelo convite/proposta, mas no momento estou comprometido(a) com outras prioridades e não conseguirei me dedicar como gostaria."*
-2. *"Eu adoraria ajudar, mas hoje estou no meu limite de energia e preciso descansar."*
-3. *"Não consigo assumir isso agora, mas posso indicar outra pessoa ou rever isso na semana que vem."*
+1. <em>"Agradeço muito pelo convite/proposta, mas no momento estou comprometido(a) com outras prioridades e não conseguirei me dedicar como gostaria."<em>
+2. </em>"Eu adoraria ajudar, mas hoje estou no meu limite de energia e preciso descansar."<em>
+3. </em>"Não consigo assumir isso agora, mas posso indicar outra pessoa ou rever isso na semana que vem."</em>
 
 ### Exercício Prático: O Mapeamento do "Sim Cansado"
 Pegue um papel e responda:
-1. *"A qual demanda recente eu disse 'sim' por obrigação, enquanto todo o meu corpo gritava 'não'?"*
-2. *"Qual o preço que minha saúde pagou por essa escolha?"*
-3. *"Qual limite saudável eu preciso comunicar com clareza nos próximos dias?"*
+1. <em>"A qual demanda recente eu disse 'sim' por obrigação, enquanto todo o meu corpo gritava 'não'?"</em>
+2. <em>"Qual o preço que minha saúde pagou por essa escolha?"</em>
+3. <em>"Qual limite saudável eu preciso comunicar com clareza nos próximos dias?"</em>
 
 ### Conclusão
 Respeitar seus próprios limites ensina aos outros como tratar você. Quem ama e valoriza você de verdade respeitará o seu espaço.
 
-*Aviso: Este conteúdo é educativo e visa o fortalecimento da autonomia emocional.*`,
+<em>Aviso: Este conteúdo é educativo e visa o fortalecimento da autonomia emocional.</em>`,
   },
   {
     id: 'art-bem-estar-4',
@@ -163,25 +163,25 @@ Respeitar seus próprios limites ensina aos outros como tratar você. Quem ama e
 Uma rotina emocionalmente saudável não busca a perfeição inflexível, mas sim a harmonia entre esforço, prazer e descanso.
 
 ### Os 4 Pilares de um Dia Equilibrado
-1. **Âncoras de Início e Fim**: Ter rituais claros de abertura da manhã (sem telas nos primeiros minutos) e de encerramento da noite (redução de luzes) define o ritmo biológico.
-2. **Blocos de Foco Protegido**: Agrupar tarefas semelhantes em blocos de 60 a 90 minutos evita a dispersão de atenção gerada pela alternância constante de atividades.
-3. **Momentos Não Negociáveis de Recuperação**: Reservar pelo menos 30 minutos diários para atividades sem finalidade produtiva (ler por prazer, caminhar, ouvir música, conversar).
-4. **Espaço para o Imprevisto (Margem de Segurança)**: Nunca planejar 100% das horas do seu dia; deixe 20% do tempo livre para acomodar emergências sem gerar desespero.
+1. <strong>Âncoras de Início e Fim</strong>: Ter rituais claros de abertura da manhã (sem telas nos primeiros minutos) e de encerramento da noite (redução de luzes) define o ritmo biológico.
+2. <strong>Blocos de Foco Protegido</strong>: Agrupar tarefas semelhantes em blocos de 60 a 90 minutos evita a dispersão de atenção gerada pela alternância constante de atividades.
+3. <strong>Momentos Não Negociáveis de Recuperação</strong>: Reservar pelo menos 30 minutos diários para atividades sem finalidade produtiva (ler por prazer, caminhar, ouvir música, conversar).
+4. <strong>Espaço para o Imprevisto (Margem de Segurança)</strong>: Nunca planejar 100% das horas do seu dia; deixe 20% do tempo livre para acomodar emergências sem gerar desespero.
 
 ### A Armadilha da Rigidez
 A vida é dinâmica. Se você planejou fazer exercícios às 07h e teve uma noite difícil, a maturidade emocional consiste em ajustar gentilmente o plano — talvez fazendo uma caminhada leve de 15 minutos — em vez de abandonar tudo sob a mentalidade de "oito ou oitenta".
 
 ### Exercício Prático: O Desenho da Semana com Cores
 Divida suas atividades diárias em 3 categorias no papel:
-- **Cor Azul (Obrigações e Trabalho)**: Reuniões, tarefas, estudos;
-- **Cor Verde (Manutenção e Saúde)**: Refeições calmas, sono, exercícios físicos;
-- **Cor Amarela (Prazer e Conexão)**: Conversas com amigos, lazer, silêncio.
+- <strong>Cor Azul (Obrigações e Trabalho)</strong>: Reuniões, tarefas, estudos;
+- <strong>Cor Verde (Manutenção e Saúde)</strong>: Refeições calmas, sono, exercícios físicos;
+- <strong>Cor Amarela (Prazer e Conexão)</strong>: Conversas com amigos, lazer, silêncio.
 Observe se o seu dia está pintado quase que inteiramente de azul e resgate intencionalmente pequenos blocos verdes e amarelos.
 
 ### Conclusão
 Uma rotina emocionalmente saudável deve servir à sua vida e ao seu bem-estar, e não o contrário. Construa seu dia com gentileza e flexibilidade.
 
-*Aviso: Este conteúdo é educativo e visa apoiar a organização pessoal.*`,
+<em>Aviso: Este conteúdo é educativo e visa apoiar a organização pessoal.</em>`,
   },
   {
     id: 'art-bem-estar-5',
@@ -200,41 +200,41 @@ Uma rotina emocionalmente saudável deve servir à sua vida e ao seu bem-estar, 
     publishedAt: '2026-08-20T08:00:00Z',
     author: 'Equipe de Psicologia Respira',
     reviewedBy: 'Dra. Camila Nogueira (CRP 06/142980)',
-    content: `Vivemos em uma sociedade que transformou a exaustão em troféu e o descanso em motivo de culpa. Frases como *"trabalhe enquanto eles dormem"* propagam a ilusão perigosa de que o valor de um ser humano é medido exclusivamente pela sua taxa de produção ininterrupta.
+    content: `Vivemos em uma sociedade que transformou a exaustão em troféu e o descanso em motivo de culpa. Frases como <em>"trabalhe enquanto eles dormem"</em> propagam a ilusão perigosa de que o valor de um ser humano é medido exclusivamente pela sua taxa de produção ininterrupta.
 
 No entanto, a neurociência e a biologia comprovam exatamente o oposto: o descanso não é o oposto do trabalho, mas a sua etapa complementar indispensável.
 
 ### O Cérebro em Modo Padrão (Default Mode Network)
-Quando você para de executar tarefas deliberadas e permite que a mente divague durante um banho, uma caminhada ou um momento de contemplação, uma rede neural específica chamada *Default Mode Network (DMN)* é ativada.
+Quando você para de executar tarefas deliberadas e permite que a mente divague durante um banho, uma caminhada ou um momento de contemplação, uma rede neural específica chamada <em>Default Mode Network (DMN)</em> é ativada.
 
 É nessa rede que ocorrem os processos mentais mais sofisticados:
 - Consolidação de memórias de longo prazo;
-- Associação de ideias aparentemente desconexas (a origem dos famosos *insights* criativos);
+- Associação de ideias aparentemente desconexas (a origem dos famosos <em>insights</em> criativos);
 - Processamento e regulação de experiências emocionais complexas.
 
 Sem descanso, sua mente perde a profundidade analítica e passa a operar apenas no modo reativo e superficial.
 
 ### Os 7 Tipos de Descanso Necessários
 Segundo a pesquisadora Dra. Saundra Dalton-Smith, o ser humano necessita de diferentes formas de repouso:
-1. **Descanso Físico**: Sono, cochilos, alongamentos e massagens;
-2. **Descanso Mental**: Pausas nas decisões e no fluxo de tarefas;
-3. **Descanso Sensorial**: Silêncio, luz baixa e ausência de telas;
-4. **Descanso Criativo**: Contemplar a natureza, arte ou música sem obrigação de produzir nada;
-5. **Descanso Emocional**: Espaço para ser vulnerável e autêntico sem precisar "manter as aparências";
-6. **Descanso Social**: Afastar-se de relações tóxicas e estar consigo mesmo ou com quem traz paz;
-7. **Descanso Espiritual**: Conectar-se com algo maior, propósito e significado de vida.
+1. <strong>Descanso Físico</strong>: Sono, cochilos, alongamentos e massagens;
+2. <strong>Descanso Mental</strong>: Pausas nas decisões e no fluxo de tarefas;
+3. <strong>Descanso Sensorial</strong>: Silêncio, luz baixa e ausência de telas;
+4. <strong>Descanso Criativo</strong>: Contemplar a natureza, arte ou música sem obrigação de produzir nada;
+5. <strong>Descanso Emocional</strong>: Espaço para ser vulnerável e autêntico sem precisar "manter as aparências";
+6. <strong>Descanso Social</strong>: Afastar-se de relações tóxicas e estar consigo mesmo ou com quem traz paz;
+7. <strong>Descanso Espiritual</strong>: Conectar-se com algo maior, propósito e significado de vida.
 
 ### Exercício Prático: O Compromisso da Não Ação (15 Minutos)
 Reserve um bloco de 15 minutos hoje:
 1. Sente-se confortavelmente perto de uma janela ou de uma planta.
 2. Não pegue o celular, não leia livros, não ouça podcasts nem faça planos.
 3. Permita-se simplesmente existir e observar o ambiente ao seu redor.
-4. Quando a culpa do *"deveria estar produzindo"* surgir, diga a si mesmo: *"Meu descanso agora está nutrindo minha saúde de amanhã."*
+4. Quando a culpa do <em>"deveria estar produzindo"</em> surgir, diga a si mesmo: <em>"Meu descanso agora está nutrindo minha saúde de amanhã."</em>
 
 ### Conclusão
 Você não precisa merecer o descanso por ter atingido uma meta; o descanso é um direito biológico fundamental da sua existência.
 
-*Aviso: Este conteúdo é educativo e visa a reflexão sobre autocuidado e saúde.*`,
+<em>Aviso: Este conteúdo é educativo e visa a reflexão sobre autocuidado e saúde.</em>`,
   },
   {
     id: 'art-bem-estar-6',
@@ -253,31 +253,31 @@ Você não precisa merecer o descanso por ter atingido uma meta; o descanso é u
     publishedAt: '2026-08-20T08:00:00Z',
     author: 'Equipe de Psicologia Respira',
     reviewedBy: 'Dra. Camila Nogueira (CRP 06/142980)',
-    content: `Lembrar de pagar a conta de luz, checar se há café na despensa, responder e-mails pendentes, marcar consulta médica, conferir a lição de casa das crianças e planejar a pauta da reunião de amanhã. Esse trabalho constante de gestão e monitoramento mental é conhecido como **carga mental invisível**.
+    content: `Lembrar de pagar a conta de luz, checar se há café na despensa, responder e-mails pendentes, marcar consulta médica, conferir a lição de casa das crianças e planejar a pauta da reunião de amanhã. Esse trabalho constante de gestão e monitoramento mental é conhecido como <strong>carga mental invisível</strong>.
 
 Mesmo quando você está fisicamente sentado sem fazer nada aparente, sua mente continua rodando dezenas de processos em segundo plano, consumindo glicose e gerando uma exaustão profunda.
 
 ### As Consequências da Sobrecarga Não Gerenciada
-- **Névoa mental (Brain Fog)**: Sensação constante de esquecimento, lentidão no raciocínio e perda de palavras simples;
-- **Sensação de irritação e pavio curto**: Reagir com impaciência a perguntas banais de familiares ou colegas;
-- **Insônia por hiperatividade mental**: Deitar e começar a listar tudo o que precisa ser feito nos próximos dias.
+- <strong>Névoa mental (Brain Fog)</strong>: Sensação constante de esquecimento, lentidão no raciocínio e perda de palavras simples;
+- <strong>Sensação de irritação e pavio curto</strong>: Reagir com impaciência a perguntas banais de familiares ou colegas;
+- <strong>Insônia por hiperatividade mental</strong>: Deitar e começar a listar tudo o que precisa ser feito nos próximos dias.
 
 ### 4 Passos para Reduzir a Carga Mental Hoje
-1. **Tire tudo da cabeça (Externalização)**: A memória de trabalho humana não foi feita para guardar listas; use aplicativos de notas ou um caderno físico para centralizar todas as pendências.
-2. **A Regra dos 2 Minutos**: Se uma tarefa leva menos de 2 minutos para ser resolvida (ex: responder uma mensagem curta, guardar um casaco), faça imediatamente em vez de guardá-la na mente.
-3. **Delegue sem microgerenciamento**: Confie tarefas a parceiros, familiares ou colegas e aceite que eles farão do modo deles, e não exatamente do seu.
-4. **Pratique o "Suficientemente Bom"**: Abandone o perfeccionismo em tarefas secundárias.
+1. <strong>Tire tudo da cabeça (Externalização)</strong>: A memória de trabalho humana não foi feita para guardar listas; use aplicativos de notas ou um caderno físico para centralizar todas as pendências.
+2. <strong>A Regra dos 2 Minutos</strong>: Se uma tarefa leva menos de 2 minutos para ser resolvida (ex: responder uma mensagem curta, guardar um casaco), faça imediatamente em vez de guardá-la na mente.
+3. <strong>Delegue sem microgerenciamento</strong>: Confie tarefas a parceiros, familiares ou colegas e aceite que eles farão do modo deles, e não exatamente do seu.
+4. <strong>Pratique o "Suficientemente Bom"</strong>: Abandone o perfeccionismo em tarefas secundárias.
 
 ### Exercício Prático: O Esvaziamento em 3 Gavetas
 Pegue uma folha e liste todas as pendências que estão na sua cabeça agora. Em seguida, marque cada uma com:
-- **Gaveta 1 (Fazer hoje)**: Escolha no máximo 3 prioridades essenciais.
-- **Gaveta 2 (Delegar ou adiar)**: O que pode ser passado a outro ou feito na próxima semana.
-- **Gaveta 3 (Eliminar)**: O que você pode simplesmente desistir de fazer sem consequências graves.
+- <strong>Gaveta 1 (Fazer hoje)</strong>: Escolha no máximo 3 prioridades essenciais.
+- <strong>Gaveta 2 (Delegar ou adiar)</strong>: O que pode ser passado a outro ou feito na próxima semana.
+- <strong>Gaveta 3 (Eliminar)</strong>: O que você pode simplesmente desistir de fazer sem consequências graves.
 
 ### Conclusão
 Sua mente é um espaço sagrado para pensar, criar e sentir afeto, não um armazém de cobranças acumuladas. Descarregue o peso e respire com leveza.
 
-*Aviso: Este conteúdo é educativo e visa a melhoria da qualidade de vida.*`,
+<em>Aviso: Este conteúdo é educativo e visa a melhoria da qualidade de vida.</em>`,
   },
   {
     id: 'art-bem-estar-7',
@@ -302,10 +302,10 @@ Quando movimentamos o corpo, enviamos uma mensagem molecular direta ao sistema n
 
 ### A Farmácia Natural do Cérebro em Movimento
 Apenas 20 minutos de atividade física moderada desencadeiam uma cascata de compostos benéficos:
-- **BDNF (Fator Neurotrófico Derivado do Cérebro)**: Estimula o nascimento de novos neurônios e fortalece a plasticidade cerebral no hipocampo (área da memória e do humor).
-- **Endorfinas e Endocanabinoides**: Promovem alívio de dores físicas, sensação de bem-estar e relaxamento mental prolongado.
-- **Dopamina e Serotonina**: Elevam a motivação, o senso de realização e a estabilidade emocional.
-- **Queima do Cortisol Residual**: Utiliza os estoques de energia estressora acumulada nos músculos, dissipando a agitação interna.
+- <strong>BDNF (Fator Neurotrófico Derivado do Cérebro)</strong>: Estimula o nascimento de novos neurônios e fortalece a plasticidade cerebral no hipocampo (área da memória e do humor).
+- <strong>Endorfinas e Endocanabinoides</strong>: Promovem alívio de dores físicas, sensação de bem-estar e relaxamento mental prolongado.
+- <strong>Dopamina e Serotonina</strong>: Elevam a motivação, o senso de realização e a estabilidade emocional.
+- <strong>Queima do Cortisol Residual</strong>: Utiliza os estoques de energia estressora acumulada nos músculos, dissipando a agitação interna.
 
 ### Como Superar a Barreira do Início
 Se você está passando por um período de tristeza, ansiedade ou cansaço, a ideia de ir para uma academia lotada pode parecer esmagadora. A solução é redefinir o que conta como movimento:
@@ -316,13 +316,13 @@ Se você está passando por um período de tristeza, ansiedade ou cansaço, a id
 
 ### Exercício Prático: O Teste dos 10 Minutos de Caminhada
 Quando a indisposição mental tentar paralisar você:
-1. Vista um calçado confortável e faça um pacto consigo mesmo: *"Vou caminhar por apenas 10 minutos. Se ao final dos 10 minutos eu ainda quiser voltar, eu volto."*
+1. Vista um calçado confortável e faça um pacto consigo mesmo: <em>"Vou caminhar por apenas 10 minutos. Se ao final dos 10 minutos eu ainda quiser voltar, eu volto."</em>
 2. Quase sempre, a mudança na circulação sanguínea quebra a inércia mental e você se sente motivado a continuar por mais tempo.
 
 ### Conclusão
 O corpo e a mente são uma unidade inseparável. Ao cuidar do movimento do seu corpo, você oferece à sua mente o melhor ambiente biológico para florescer em equilíbrio e paz.
 
-*Aviso: Consulte um profissional de educação física e médico antes de iniciar programas intensos de exercícios.*`,
+<em>Aviso: Consulte um profissional de educação física e médico antes de iniciar programas intensos de exercícios.</em>`,
   },
   {
     id: 'art-bem-estar-8',
@@ -341,29 +341,29 @@ O corpo e a mente são uma unidade inseparável. Ao cuidar do movimento do seu c
     publishedAt: '2026-08-20T08:00:00Z',
     author: 'Equipe de Psicologia Respira',
     reviewedBy: 'Dra. Camila Nogueira (CRP 06/142980)',
-    content: `A busca por realização profissional e aprendizado é um desejo legítimo e saudável. O problema surge quando a produtividade se torna **tóxica** — ou seja, quando você passa a condicionar seu valor, dignidade e merecimento de afeto à quantidade de caixas marcadas na lista de afazeres.
+    content: `A busca por realização profissional e aprendizado é um desejo legítimo e saudável. O problema surge quando a produtividade se torna <strong>tóxica</strong> — ou seja, quando você passa a condicionar seu valor, dignidade e merecimento de afeto à quantidade de caixas marcadas na lista de afazeres.
 
 Nesse padrão disfuncional, um dia com tarefas pendentes gera uma sensação desproporcional de fracasso, vergonha e inadequação pessoal.
 
 ### Sinais de que Sua Relação com a Produtividade Está Tóxica
-- **Sensação permanente de débito**: Mesmo após um dia de trabalho intenso, a mente foca exclusivamente no que não deu tempo de fazer.
-- **Incapacidade de desfrutar momentos de lazer**: Sentir angústia ao assistir a um filme ou passar tempo com a família pensando que *"deveria estar adiantando trabalho"*.
-- **Medo paralisante de errar**: Gastar horas revisando detalhes irrelevantes por medo de qualquer imperfeição mínima.
+- <strong>Sensação permanente de débito</strong>: Mesmo após um dia de trabalho intenso, a mente foca exclusivamente no que não deu tempo de fazer.
+- <strong>Incapacidade de desfrutar momentos de lazer</strong>: Sentir angústia ao assistir a um filme ou passar tempo com a família pensando que <em>"deveria estar adiantando trabalho"</em>.
+- <strong>Medo paralisante de errar</strong>: Gastar horas revisando detalhes irrelevantes por medo de qualquer imperfeição mínima.
 
 ### Da Produtividade Tóxica à Produtividade Sustentável
-1. **Foco no Essencial em vez de Quantidade**: Pergunte-se *"Qual é a única tarefa que, se feita hoje com excelência, tornará o meu dia significativo?"*.
-2. **Definição Clara de "Fim de Expediente"**: Estabeleça um horário para fechar o computador e guardar o material de trabalho, marcando uma fronteira nítida entre o trabalhador e a pessoa.
-3. **Celebração das Pequenas Conquistas**: Ao final do dia, reconheça o esforço empregado, e não apenas o resultado perfeito.
+1. <strong>Foco no Essencial em vez de Quantidade</strong>: Pergunte-se <em>"Qual é a única tarefa que, se feita hoje com excelência, tornará o meu dia significativo?"</em>.
+2. <strong>Definição Clara de "Fim de Expediente"</strong>: Estabeleça um horário para fechar o computador e guardar o material de trabalho, marcando uma fronteira nítida entre o trabalhador e a pessoa.
+3. <strong>Celebração das Pequenas Conquistas</strong>: Ao final do dia, reconheça o esforço empregado, e não apenas o resultado perfeito.
 
 ### Exercício Prático: A Lista do "Já Realizado" (Ta-Da List)
 Em vez de focar apenas naquilo que falta fazer:
 1. No fim da tarde, pegue uma folha e liste tudo o que você fez hoje (inclusive manter a calma em uma conversa difícil, preparar um almoço ou ajudar um colega).
-2. Olhe para a lista e diga com sinceridade: *"Eu fiz o melhor que pude com a energia e os recursos que tinha hoje."*
+2. Olhe para a lista e diga com sinceridade: <em>"Eu fiz o melhor que pude com a energia e os recursos que tinha hoje."</em>
 
 ### Conclusão
 Você é um ser humano completo dotado de sentimentos, sonhos e afetos, e não uma máquina de processamento contínuo. Produza com propósito, mas viva com presença e compaixão.
 
-*Aviso: Este conteúdo é educativo e visa à promoção da saúde emocional no trabalho.*`,
+<em>Aviso: Este conteúdo é educativo e visa à promoção da saúde emocional no trabalho.</em>`,
   },
   {
     id: 'art-bem-estar-9',
@@ -382,13 +382,13 @@ Você é um ser humano completo dotado de sentimentos, sonhos e afetos, e não u
     publishedAt: '2026-08-20T08:00:00Z',
     author: 'Equipe de Psicologia Respira',
     reviewedBy: 'Dra. Camila Nogueira (CRP 06/142980)',
-    content: `A prática da gratidão ganhou enorme destaque nos últimos anos devido aos seus benefícios comprovados na redução do estresse e no fortalecimento das relações. No entanto, quando mal compreendida, ela pode se transformar em **positividade tóxica** — a imposição forçada de um sorriso constante e a rejeição de emoções legítimas como tristeza, frustração ou medo.
+    content: `A prática da gratidão ganhou enorme destaque nos últimos anos devido aos seus benefícios comprovados na redução do estresse e no fortalecimento das relações. No entanto, quando mal compreendida, ela pode se transformar em <strong>positividade tóxica</strong> — a imposição forçada de um sorriso constante e a rejeição de emoções legítimas como tristeza, frustração ou medo.
 
 A verdadeira gratidão não exige que você finja que está tudo bem quando não está; ela permite que a dor e a apreciação pelas coisas boas coexistam no mesmo coração.
 
 ### O Que É Positividade Tóxica?
-- *"Pense positivo e tudo se resolverá"* diante de uma perda real ou doença;
-- Sentir culpa por estar triste quando *"tantas pessoas estão em situação pior"*;
+- <em>"Pense positivo e tudo se resolverá"</em> diante de uma perda real ou doença;
+- Sentir culpa por estar triste quando <em>"tantas pessoas estão em situação pior"</em>;
 - Silenciar o desabafo de amigos com frases feitas e clichês motivacionais.
 
 Negar emoções difíceis não as faz desaparecer; apenas as empurra para o subconsciente, onde fermentam na forma de ansiedade ou queixas físicas.
@@ -399,14 +399,14 @@ Você pode estar legitimamente chateado com um problema no trabalho e, ao mesmo 
 
 ### Exercício Prático: O Exercício do "E Também"
 Sempre que estiver vivenciando uma situação desafiadora:
-1. Nomeie a dor sem atenuar: *"Estou sentindo tristeza e insegurança por causa desse projeto difícil..."*
-2. Adicione a conjunção integradora: *"... e também sou grato(a) por ter a saúde e o apoio de amigos para enfrentar esse momento."*
+1. Nomeie a dor sem atenuar: <em>"Estou sentindo tristeza e insegurança por causa desse projeto difícil..."</em>
+2. Adicione a conjunção integradora: <em>"... e também sou grato(a) por ter a saúde e o apoio de amigos para enfrentar esse momento."</em>
 3. Perceba como essa frase honra sua dor sem deixar que ela apague os outros aspectos da sua vida.
 
 ### Conclusão
 Você não precisa escolher entre ser realista e ser grato. Ao dar espaço para todas as suas cores emocionais, sua vida ganha profundidade, maturidade e beleza autêntica.
 
-*Aviso: Este conteúdo é educativo e voltado para a saúde emocional.*`,
+<em>Aviso: Este conteúdo é educativo e voltado para a saúde emocional.</em>`,
   },
   {
     id: 'art-bem-estar-10',
@@ -431,27 +431,27 @@ Essa quebra não acontece por falta de força de vontade, mas porque tentar muda
 
 ### A Anatomia do Hábito (Gatilho, Rotina e Recompensa)
 Todo comportamento automático segue um circuito de 3 etapas no cérebro (especificamente nos gânglios da base):
-1. **Gatilho (Deixa)**: O estímulo ambiental que avisa ao cérebro para entrar no piloto automático (ex: colocar o sapato de caminhada ao lado da cama).
-2. **Rotina**: O comportamento em si (ex: caminhar por 15 minutos).
-3. **Recompensa**: A sensação imediata de alívio, frescor ou satisfação que fixa o circuito neural.
+1. <strong>Gatilho (Deixa)</strong>: O estímulo ambiental que avisa ao cérebro para entrar no piloto automático (ex: colocar o sapato de caminhada ao lado da cama).
+2. <strong>Rotina</strong>: O comportamento em si (ex: caminhar por 15 minutos).
+3. <strong>Recompensa</strong>: A sensação imediata de alívio, frescor ou satisfação que fixa o circuito neural.
 
 ### O Poder dos Mini-Hábitos (Micro-Passos)
 Se uma ação for tão pequena que seja impossível falhar, o cérebro não oferece resistência:
-- Em vez de meditar 30 minutos: faça **2 minutos de respiração consciente** no Respira;
-- Em vez de ler 1 hora: leia **2 páginas** de um livro antes de apagar a luz;
-- Em vez de uma hora de treino: faça **5 minutos de alongamento** na sala.
+- Em vez de meditar 30 minutos: faça <strong>2 minutos de respiração consciente</strong> no Respira;
+- Em vez de ler 1 hora: leia <strong>2 páginas</strong> de um livro antes de apagar a luz;
+- Em vez de uma hora de treino: faça <strong>5 minutos de alongamento</strong> na sala.
 
 A consistência diária de um hábito pequeno gera raízes neurais infinitamente mais sólidas do que o esforço heróico e esporádico.
 
 ### Exercício Prático: O Empilhamento de Hábitos (Habit Stacking)
 Conecte seu novo hábito a um comportamento automático que você já realiza todos os dias:
-- *"Depois que eu escovar os dentes pela manhã, farei 1 minuto de respiração profunda."*
-- *"Depois que eu fechar o computador do trabalho, beberei 1 copo grande de água."*
-- *"Depois que eu me deitar na cama, abrirei o Diário do Respira para registrar meu humor."*
+- <em>"Depois que eu escovar os dentes pela manhã, farei 1 minuto de respiração profunda."</em>
+- <em>"Depois que eu fechar o computador do trabalho, beberei 1 copo grande de água."</em>
+- <em>"Depois que eu me deitar na cama, abrirei o Diário do Respira para registrar meu humor."</em>
 
 ### Conclusão
-Grandes transformações na sua saúde mental não nascem de revoluções dramáticas, mas da repetição gentil de pequenos gestos diários que dizem a você: *"Eu me importo comigo."*
+Grandes transformações na sua saúde mental não nascem de revoluções dramáticas, mas da repetição gentil de pequenos gestos diários que dizem a você: <em>"Eu me importo comigo."</em>
 
-*Aviso: Este conteúdo é informativo e visa ao aprimoramento dos hábitos de vida.*`,
+<em>Aviso: Este conteúdo é informativo e visa ao aprimoramento dos hábitos de vida.</em>`,
   },
 ];

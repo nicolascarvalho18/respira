@@ -29,9 +29,9 @@ No cotidiano, isso se manifesta como uma constante sensação de urgência, preo
 
 ### Os três pilares da resposta ansiosa
 Para lidar com a ansiedade com clareza, é fundamental reconhecer como ela se desdobra em três dimensões interligadas:
-1. **Dimensão Fisiológica**: Taquicardia, respiração superficial pelo peito, tensão nos ombros e na mandíbula, mãos frias ou suor repentino.
-2. **Dimensão Cognitiva**: Pensamentos acelerados em cadeia ("E se der tudo errado?", "Não vou dar conta"), dificuldade de concentração e hipervigilância.
-3. **Dimensão Comportamental**: Evitação de tarefas importantes, checagem compulsiva de mensagens, inquietação motora e isolamento social.
+1. <strong>Dimensão Fisiológica</strong>: Taquicardia, respiração superficial pelo peito, tensão nos ombros e na mandíbula, mãos frias ou suor repentino.
+2. <strong>Dimensão Cognitiva</strong>: Pensamentos acelerados em cadeia ("E se der tudo errado?", "Não vou dar conta"), dificuldade de concentração e hipervigilância.
+3. <strong>Dimensão Comportamental</strong>: Evitação de tarefas importantes, checagem compulsiva de mensagens, inquietação motora e isolamento social.
 
 ### Quando o alarme vira um obstáculo
 Sentir ansiedade antes de uma entrevista ou de uma viagem é natural e pode até melhorar o foco temporariamente. O problema surge quando esse estado de prontidão se torna crônico, permanecendo ligado por dias ou semanas sem intervalo de recuperação, desgastando a imunidade, o sono e as relações afetivas.
@@ -39,7 +39,7 @@ Sentir ansiedade antes de uma entrevista ou de uma viagem é natural e pode até
 ### Exercício Prático: O Reconhecimento Consciente (3 Minutos)
 Quando perceber que o alarme da ansiedade disparou sem motivo real:
 1. Coloque uma das mãos sobre o peito e a outra sobre o abdômen.
-2. Diga mentalmente com gentileza: *"Meu corpo está tentando me proteger, mas neste exato momento estou em segurança."*
+2. Diga mentalmente com gentileza: <em>"Meu corpo está tentando me proteger, mas neste exato momento estou em segurança."</em>
 3. Inspire lentamente pelo nariz contando até 4, sentindo o abdômen expandir.
 4. Solte o ar suavemente pela boca em 6 tempos, esvaziando os ombros.
 5. Repita 5 vezes até que o ritmo cardíaco comece a desacelerar.
@@ -47,7 +47,7 @@ Quando perceber que o alarme da ansiedade disparou sem motivo real:
 ### Conclusão e Próximos Passos
 A ansiedade não é uma fraqueza de caráter, mas um mecanismo fisiológico que precisa de aprendizado e regulação. Aprender a escutar seus sinais sem pânico é o primeiro passo para retomar o comando da sua rotina.
 
-*Aviso: Este conteúdo é educativo. Se a ansiedade estiver prejudicando suas atividades cotidianas, consulte um psicólogo ou médico de sua confiança.*`,
+<em>Aviso: Este conteúdo é educativo. Se a ansiedade estiver prejudicando suas atividades cotidianas, consulte um psicólogo ou médico de sua confiança.</em>`,
   },
   {
     id: 'art-ansiedade-2',
@@ -72,35 +72,35 @@ Aprender a escutar esses sinais logo no início permite intervir antes que a sen
 
 ### Sinais Físicos Silenciosos
 O corpo costuma ser o primeiro a manifestar o acúmulo de tensão:
-- **Mandíbula travada**: Apertar os dentes durante o dia ou acordar com dor na articulação têmporo-mandibular (bruxismo).
-- **Elevação involuntária dos ombros**: Manter os ombros contraídos perto das orelhas sem perceber.
-- **Alterações digestivas**: Sensação de "nó no estômago", digestão lenta ou queimação após pequenos desafios.
-- **Respiração curta**: Respirar apenas com o terço superior do tórax, gerando sensação de falta de ar crônica.
+- <strong>Mandíbula travada</strong>: Apertar os dentes durante o dia ou acordar com dor na articulação têmporo-mandibular (bruxismo).
+- <strong>Elevação involuntária dos ombros</strong>: Manter os ombros contraídos perto das orelhas sem perceber.
+- <strong>Alterações digestivas</strong>: Sensação de "nó no estômago", digestão lenta ou queimação após pequenos desafios.
+- <strong>Respiração curta</strong>: Respirar apenas com o terço superior do tórax, gerando sensação de falta de ar crônica.
 
 ### Sinais Emocionais e Psicológicos
 Na esfera dos sentimentos, a ansiedade altera o filtro pelo qual enxergamos a realidade:
-- **Irritabilidade desproporcional**: Perder a paciência com pequenos ruídos, atrasos ou imprevistos comuns.
-- **Sensação constante de urgência**: Sentir que precisa correr mesmo quando não há nenhum prazo pendente.
-- **Dificuldade de relaxar**: Sentir culpa ou inquietação ao tentar descansar no final do dia.
-- **Pensamento em espiral**: Imaginar repetidamente o pior desfecho para situações banais.
+- <strong>Irritabilidade desproporcional</strong>: Perder a paciência com pequenos ruídos, atrasos ou imprevistos comuns.
+- <strong>Sensação constante de urgência</strong>: Sentir que precisa correr mesmo quando não há nenhum prazo pendente.
+- <strong>Dificuldade de relaxar</strong>: Sentir culpa ou inquietação ao tentar descansar no final do dia.
+- <strong>Pensamento em espiral</strong>: Imaginar repetidamente o pior desfecho para situações banais.
 
 ### Sinais Comportamentais no Dia a Dia
 No cotidiano prático, a ansiedade molda nossos hábitos:
-- **Checagem compulsiva**: Olhar notificações do celular, e-mails ou aplicativos repetidamente sem real necessidade.
-- **Procrastinação ansiosa**: Adiar o início de uma tarefa por medo implícito de não conseguir fazê-la com perfeição.
-- **Uso excessivo de estimulantes**: Consumir mais café ou açúcar na tentativa de compensar a fadiga causada pela tensão interna.
+- <strong>Checagem compulsiva</strong>: Olhar notificações do celular, e-mails ou aplicativos repetidamente sem real necessidade.
+- <strong>Procrastinação ansiosa</strong>: Adiar o início de uma tarefa por medo implícito de não conseguir fazê-la com perfeição.
+- <strong>Uso excessivo de estimulantes</strong>: Consumir mais café ou açúcar na tentativa de compensar a fadiga causada pela tensão interna.
 
 ### Exercício Prático: O Escaneamento dos 4 Pontos
 Reserve 2 minutos no meio do seu dia para este mapeamento rápido:
-1. **Ponto 1 (Mandíbula)**: Abra ligeiramente a boca, solte a língua do céu da boca e relaxe o maxilar.
-2. **Ponto 2 (Ombros)**: Inspire profundamente e, ao expirar, deixe os ombros caírem 2 centímetros para baixo.
-3. **Ponto 3 (Abdômen)**: Solte a barriga, permitindo que ela se expanda livremente com o ar.
-4. **Ponto 4 (Pés)**: Sinta o contato firme dos pés com o chão e perceba a estabilidade da superfície.
+1. <strong>Ponto 1 (Mandíbula)</strong>: Abra ligeiramente a boca, solte a língua do céu da boca e relaxe o maxilar.
+2. <strong>Ponto 2 (Ombros)</strong>: Inspire profundamente e, ao expirar, deixe os ombros caírem 2 centímetros para baixo.
+3. <strong>Ponto 3 (Abdômen)</strong>: Solte a barriga, permitindo que ela se expanda livremente com o ar.
+4. <strong>Ponto 4 (Pés)</strong>: Sinta o contato firme dos pés com o chão e perceba a estabilidade da superfície.
 
 ### Conclusão
 Identificar os sinais da ansiedade não serve para se julgar, mas para criar momentos intencionais de pausa e acolhimento. Seu corpo está apenas pedindo um instante de respiro.
 
-*Aviso: Este conteúdo é educativo e não substitui diagnóstico clínico.*`,
+<em>Aviso: Este conteúdo é educativo e não substitui diagnóstico clínico.</em>`,
   },
   {
     id: 'art-ansiedade-3',
@@ -125,36 +125,36 @@ O estresse é tipicamente uma reação a um estímulo externo claro, enquanto a 
 
 ### O Estresse: A Resposta ao Presente
 O estresse ocorre em resposta a uma demanda identificável do ambiente: uma entrega de projeto com prazo apertado, um desentendimento familiar ou uma mudança de residência.
-- **Gatilho conhecido**: Você sabe exatamente de onde vem a pressão.
-- **Temporalidade**: Tende a diminuir significativamente assim que o problema é resolvido ou o evento estressor passa.
-- **Função**: Mobiliza energia e foco para superar um obstáculo concreto no presente.
+- <strong>Gatilho conhecido</strong>: Você sabe exatamente de onde vem a pressão.
+- <strong>Temporalidade</strong>: Tende a diminuir significativamente assim que o problema é resolvido ou o evento estressor passa.
+- <strong>Função</strong>: Mobiliza energia e foco para superar um obstáculo concreto no presente.
 
 ### A Ansiedade: A Antecipação do Futuro
 A ansiedade, por sua vez, é caracterizada por um estado de apreensão constante sobre o que ainda não aconteceu:
-- **Gatilho difuso ou imaginário**: Ocorre mesmo quando tudo está aparentemente bem no ambiente.
-- **Foco temporal**: Está sempre centrada no futuro ("E se...", "E quando...").
-- **Persistência**: Continua ativa mesmo após a resolução dos problemas externos imediatos.
+- <strong>Gatilho difuso ou imaginário</strong>: Ocorre mesmo quando tudo está aparentemente bem no ambiente.
+- <strong>Foco temporal</strong>: Está sempre centrada no futuro ("E se...", "E quando...").
+- <strong>Persistência</strong>: Continua ativa mesmo após a resolução dos problemas externos imediatos.
 
 ### Como eles interagem no cotidiano
 Uma pessoa pode viver um período estressante de trabalho (estressor externo) e, a partir dele, desenvolver um padrão ansioso crônico, no qual passa a temer qualquer nova notificação ou e-mail, mesmo aos fins de semana. O estresse foi o gatilho inicial, mas a ansiedade é o padrão que permaneceu instalado no sistema nervoso.
 
 ### Tabela de Comparação Rápida
-- **Origem**: Estresse = Externo / Ansiedade = Interno e cognitivo
-- **Sensação principal**: Estresse = Sobrecarga e cansaço / Ansiedade = Insegurança e medo difuso
-- **Alívio**: Estresse = Descanso e resolução do evento / Ansiedade = Regulação emocional e reestruturação de pensamentos
+- <strong>Origem</strong>: Estresse = Externo / Ansiedade = Interno e cognitivo
+- <strong>Sensação principal</strong>: Estresse = Sobrecarga e cansaço / Ansiedade = Insegurança e medo difuso
+- <strong>Alívio</strong>: Estresse = Descanso e resolução do evento / Ansiedade = Regulação emocional e reestruturação de pensamentos
 
 ### Exercício Prático: O Filtro do Gatilho (2 Minutos)
 Sempre que sentir aperto no peito, faça a si mesmo duas perguntas simples:
-1. *"Existe um problema concreto acontecendo neste momento presente?"*
-   - Se a resposta for **sim**: é estresse. Divida a ação em etapas práticas e resolva o próximo passo possível.
-   - Se a resposta for **não**: é ansiedade antecipatória.
-2. *"Essa preocupação se refere a algo que posso controlar hoje?"*
+1. <em>"Existe um problema concreto acontecendo neste momento presente?"</em>
+   - Se a resposta for <strong>sim</strong>: é estresse. Divida a ação em etapas práticas e resolva o próximo passo possível.
+   - Se a resposta for <strong>não</strong>: é ansiedade antecipatória.
+2. <em>"Essa preocupação se refere a algo que posso controlar hoje?"</em>
    - Se não puder controlar agora, anote em um papel e permita-se focar na tarefa que está à sua frente.
 
 ### Conclusão
 Compreender se você está enfrentando estresse circunstancial ou ansiedade antecipatória evita o gasto desnecessário de energia mental e orienta o cuidado adequado para cada situação.
 
-*Aviso: Este conteúdo é educativo e não substitui consulta profissional.*`,
+<em>Aviso: Este conteúdo é educativo e não substitui consulta profissional.</em>`,
   },
   {
     id: 'art-ansiedade-4',
@@ -179,10 +179,10 @@ Durante um pico de ansiedade, o seu corpo não está quebrado nem em perigo fata
 
 ### A Cascata de Adrenalina
 Em frações de segundo, o sistema nervoso simpático descarrega uma onda de adrenalina na corrente sanguínea. Isso produz efeitos imediatos:
-- **Coração acelerado**: O músculo cardíaco bombeia sangue vigorosamente para os membros para permitir corrida ou defesa rápida.
-- **Hiperventilação e falta de ar**: A respiração rápida e rasa tenta captar mais oxigênio, mas altera o equilíbrio de gás carbônico, provocando formigamento nas mãos e tontura.
-- **Visão em túnel e boca seca**: O sangue é retirado dos órgãos digestivos e da saliva, focando toda a energia na percepção do perigo.
-- **Sensação de calor ou calafrios**: A regulação térmica é alterada pela contração dos vasos periféricos.
+- <strong>Coração acelerado</strong>: O músculo cardíaco bombeia sangue vigorosamente para os membros para permitir corrida ou defesa rápida.
+- <strong>Hiperventilação e falta de ar</strong>: A respiração rápida e rasa tenta captar mais oxigênio, mas altera o equilíbrio de gás carbônico, provocando formigamento nas mãos e tontura.
+- <strong>Visão em túnel e boca seca</strong>: O sangue é retirado dos órgãos digestivos e da saliva, focando toda a energia na percepção do perigo.
+- <strong>Sensação de calor ou calafrios</strong>: A regulação térmica é alterada pela contração dos vasos periféricos.
 
 ### Por que a crise sempre atinge um pico e depois passa?
 O organismo humano possui um limite biológico para a liberação contínua de adrenalina. Uma crise de ansiedade atinge seu ápice geralmente entre 5 e 15 minutos, após os quais o sistema nervoso parassimpático entra em ação naturalmente para restaurar a homeostase e diminuir o ritmo cardíaco.
@@ -190,23 +190,23 @@ O organismo humano possui um limite biológico para a liberação contínua de a
 A crise nunca dura para sempre; saber que ela tem começo, pico e declínio fisiológico reduz o desespero e ajuda a esperar o corpo se acalmar.
 
 ### O que NÃO fazer durante uma crise
-- **Não lute contra a sensação**: Tentar forçar o coração a bater devagar gera mais medo e mais adrenalina.
-- **Não respire desesperadamente pelo peito**: Respirações rápidas aumentam a hiperventilação.
-- **Não se culpe**: A crise é uma reação neuroquímica involuntária, não uma escolha ou sinal de fraqueza.
+- <strong>Não lute contra a sensação</strong>: Tentar forçar o coração a bater devagar gera mais medo e mais adrenalina.
+- <strong>Não respire desesperadamente pelo peito</strong>: Respirações rápidas aumentam a hiperventilação.
+- <strong>Não se culpe</strong>: A crise é uma reação neuroquímica involuntária, não uma escolha ou sinal de fraqueza.
 
 ### Exercício Prático de Aterramento e Respiração Durante a Crise
 Quando sentir o início de um pico:
-1. **Sente-se com as costas apoiadas** e coloque os dois pés totalmente firmes no chão.
-2. **Afirmação segura**: Repita mentalmente: *"Isso é uma descarga de adrenalina. Meu corpo sabe se regular e essa sensação vai passar em poucos minutos."*
-3. **Respiração com expiração prolongada**:
+1. <strong>Sente-se com as costas apoiadas</strong> e coloque os dois pés totalmente firmes no chão.
+2. <strong>Afirmação segura</strong>: Repita mentalmente: <em>"Isso é uma descarga de adrenalina. Meu corpo sabe se regular e essa sensação vai passar em poucos minutos."</em>
+3. <strong>Respiração com expiração prolongada</strong>:
    - Puxe o ar pelo nariz em 4 segundos;
    - Solte o ar lentamente pela boca com os lábios semicerrados (como se soprasse uma vela sem apagá-la) em 7 ou 8 segundos.
-4. **Ancoragem física**: Toque uma superfície firme (o braço da cadeira, a parede fria) e concentre-se na textura do objeto.
+4. <strong>Ancoragem física</strong>: Toque uma superfície firme (o braço da cadeira, a parede fria) e concentre-se na textura do objeto.
 
 ### Conclusão
 A crise de ansiedade é desconfortável e desgastante, mas não é fatal. Com acolhimento, respiração com foco na expiração e informação correta, você aprende a atravessá-la com muito mais segurança.
 
-*Aviso: Este conteúdo é educativo. Dores no peito inéditas ou acompanhadas de irradiação para o braço devem ser avaliadas por um serviço médico para descartar causas orgânicas.*`,
+<em>Aviso: Este conteúdo é educativo. Dores no peito inéditas ou acompanhadas de irradiação para o braço devem ser avaliadas por um serviço médico para descartar causas orgânicas.</em>`,
   },
   {
     id: 'art-ansiedade-5',
@@ -235,27 +235,27 @@ Quando a ansiedade ativa o estado de alerta, o cérebro tenta freneticamente enc
 O resultado, porém, não é a resolução de problemas, mas a paralisia mental e o esgotamento físico.
 
 ### A ilusão de que pensar mais resolve
-É crucial distinguir entre **reflexão produtiva** e **ruminação acelerada**:
+É crucial distinguir entre <strong>reflexão produtiva</strong> e <strong>ruminação acelerada</strong>:
 - A reflexão produtiva gera planos concretos, decisões práticas e termina em ação.
 - A ruminação acelerada gira em círculos, gera angústia, não resolve nada e drena sua energia vital.
 
 ### Três Estratégias Práticas para Desacelerar
-1. **O Despejo Mental no Papel (Brain Dump)**: Escrever à mão tudo o que está passando pela cabeça retira a carga de processamento da memória de trabalho. Ver as ideias escritas diminui o poder assustador que elas têm na imaginação.
-2. **Rotulação Cognitiva**: Em vez de se fundir com o pensamento (*"Vou arruinar a apresentação de amanhã"*), pratique o distanciamento linguístico (*"Estou tendo o pensamento de que a apresentação será difícil"*).
-3. **Mudança de Foco Sensorial**: O cérebro não consegue processar plenamente sensações físicas intensas e pensamentos abstratos complexos ao mesmo tempo. Lavar o rosto com água fria ou caminhar sentindo o impacto dos passos quebra o ciclo.
+1. <strong>O Despejo Mental no Papel (Brain Dump)</strong>: Escrever à mão tudo o que está passando pela cabeça retira a carga de processamento da memória de trabalho. Ver as ideias escritas diminui o poder assustador que elas têm na imaginação.
+2. <strong>Rotulação Cognitiva</strong>: Em vez de se fundir com o pensamento (<em>"Vou arruinar a apresentação de amanhã"</em>), pratique o distanciamento linguístico (<em>"Estou tendo o pensamento de que a apresentação será difícil"</em>).
+3. <strong>Mudança de Foco Sensorial</strong>: O cérebro não consegue processar plenamente sensações físicas intensas e pensamentos abstratos complexos ao mesmo tempo. Lavar o rosto com água fria ou caminhar sentindo o impacto dos passos quebra o ciclo.
 
 ### Exercício Prático: A Técnica da "Vaga de Estacionamento" (3 Minutos)
 Quando os pensamentos estiverem velozes demais:
 1. Pegue um bloco de notas ou papel em branco.
-2. Desenhe um quadrado e escreva no centro: *"Estacionamento de Preocupações"*.
+2. Desenhe um quadrado e escreva no centro: <em>"Estacionamento de Preocupações"</em>.
 3. Liste brevemente as 3 ideias que estão mais pressionando sua mente.
-4. Escreva abaixo: *"Estas ideias estão guardadas aqui e serão revisadas hoje às 17h. Agora posso focar no meu próximo passo."*
+4. Escreva abaixo: <em>"Estas ideias estão guardadas aqui e serão revisadas hoje às 17h. Agora posso focar no meu próximo passo."</em>
 5. Guarde o papel fora do seu campo visual e volte à sua atividade atual.
 
 ### Conclusão
 Você não precisa controlar todos os pensamentos que surgem, mas pode escolher como se relacionar com eles. Desacelerar a mente é um treino diário de gentileza e paciência consigo mesmo.
 
-*Aviso: Este conteúdo é educativo e não substitui psicoterapia.*`,
+<em>Aviso: Este conteúdo é educativo e não substitui psicoterapia.</em>`,
   },
   {
     id: 'art-ansiedade-6',
@@ -282,14 +282,14 @@ Sentir nervosismo antes de ser avaliado não significa incompetência ou desprep
 Na psicologia, a Lei de Yerkes-Dodson demonstra que um nível moderado de ativação fisiológica melhora a atenção, a velocidade de reação e a retenção de memória. O objetivo nunca deve ser "zerar" a ansiedade antes de uma apresentação, mas sim mantê-la dentro da faixa ideal onde ela funciona como entusiasmo e prontidão, e não como travamento.
 
 ### Principais Armadilhas Mentais Pré-Apresentação
-- **Catastrofização**: Imaginar que um pequeno gaguejo ou esquecimento de palavra arruinará completamente sua credibilidade profissional ou acadêmica.
-- **Leitura mental**: Acreditar que a expressão séria de um avaliador ou colega significa desaprovação e julgamento negativo.
-- **Perfeccionismo paralisante**: Achar que a apresentação só terá valor se for executada de forma 100% impecável e sem nenhuma falha humana.
+- <strong>Catastrofização</strong>: Imaginar que um pequeno gaguejo ou esquecimento de palavra arruinará completamente sua credibilidade profissional ou acadêmica.
+- <strong>Leitura mental</strong>: Acreditar que a expressão séria de um avaliador ou colega significa desaprovação e julgamento negativo.
+- <strong>Perfeccionismo paralisante</strong>: Achar que a apresentação só terá valor se for executada de forma 100% impecável e sem nenhuma falha humana.
 
 ### Preparação Prática: O Que Fazer nas Horas Anteriores
-1. **Evite excesso de cafeína**: Café e energéticos nos momentos prévios potencializam tremores nas mãos e taquicardia.
-2. **Aquecimento vocal e corporal**: Solte a mandíbula, boceje intencionalmente para relaxar as cordas vocais e alongue a musculatura do pescoço.
-3. **Troque a autocrítica pela curiosidade**: Em vez de pensar *"Eles vão me julgar"*, experimente pensar *"Estou aqui para compartilhar uma informação útil com essas pessoas"*.
+1. <strong>Evite excesso de cafeína</strong>: Café e energéticos nos momentos prévios potencializam tremores nas mãos e taquicardia.
+2. <strong>Aquecimento vocal e corporal</strong>: Solte a mandíbula, boceje intencionalmente para relaxar as cordas vocais e alongue a musculatura do pescoço.
+3. <strong>Troque a autocrítica pela curiosidade</strong>: Em vez de pensar <em>"Eles vão me julgar"</em>, experimente pensar <em>"Estou aqui para compartilhar uma informação útil com essas pessoas"</em>.
 
 ### Exercício Prático: A Respiração do Suspiro Fisiológico (1 Minuto)
 Imediatamente antes de entrar na sala ou iniciar a apresentação:
@@ -301,7 +301,7 @@ Imediatamente antes de entrar na sala ou iniciar a apresentação:
 ### Conclusão
 O público raramente percebe o nervosismo interno na mesma intensidade em que você o sente. Aceitar a presença da ansiedade e focar na mensagem a ser transmitida liberta sua voz e seu potencial.
 
-*Aviso: Este conteúdo é educativo e não substitui orientação clínica.*`,
+<em>Aviso: Este conteúdo é educativo e não substitui orientação clínica.</em>`,
   },
   {
     id: 'art-ansiedade-7',
@@ -322,31 +322,31 @@ O público raramente percebe o nervosismo interno na mesma intensidade em que vo
     reviewedBy: 'Dra. Camila Nogueira (CRP 06/142980)',
     content: `Preocupar-se faz parte da capacidade humana de planejar e antecipar perigos. No entanto, quando a preocupação se torna um hábito automático e incontrolável — ocupando horas do dia com cenários improváveis —, ela deixa de proteger e passa a drenar sua vitalidade.
 
-A mente ansiosa acredita secretamente que preocupar-se é uma forma de controle: *"Se eu me preocupar bastante com isso, estarei preparado e nada de ruim vai acontecer."* Essa é uma armadilha cognitiva clássica.
+A mente ansiosa acredita secretamente que preocupar-se é uma forma de controle: <em>"Se eu me preocupar bastante com isso, estarei preparado e nada de ruim vai acontecer."</em> Essa é uma armadilha cognitiva clássica.
 
 ### A Diferença entre Preocupações Reais e Hipotéticas
 Para recuperar a serenidade, é fundamental classificar qualquer pensamento que gere aflição:
-1. **Problemas Reais e Imediatos**: Situações que estão acontecendo no presente e sobre as quais você pode agir agora (ex: uma conta que vence hoje, um pneu furado).
-2. **Cenários Hipotéticos Futuros**: Situações no formato *"E se..."* que dependem de variáveis fora do seu controle ou que sequer aconteceram (ex: *"E se daqui a três anos a empresa fechar?"*).
+1. <strong>Problemas Reais e Imediatos</strong>: Situações que estão acontecendo no presente e sobre as quais você pode agir agora (ex: uma conta que vence hoje, um pneu furado).
+2. <strong>Cenários Hipotéticos Futuros</strong>: Situações no formato <em>"E se..."</em> que dependem de variáveis fora do seu controle ou que sequer aconteceram (ex: <em>"E se daqui a três anos a empresa fechar?"</em>).
 
 ### O Custo Invisível da Preocupação Crônica
 Viver preocupado mantém o corpo em estado constante de alerta submáximo. Isso se traduz em fadiga crônica, tensão muscular, alterações no trânsito intestinal e dificuldade de desfrutar momentos de lazer com pessoas queridas. Você está fisicamente no presente, mas mentalmente exilado em um futuro ameaçador.
 
 ### 4 Passos para Interromper o Ciclo de Ruminação
-- **Passo 1**: Nomeie o processo: *"Minha mente está preocupando agora."*
-- **Passo 2**: Questione a utilidade: *"Ficar remoendo isso pelos próximos 30 minutos vai mudar o resultado prático?"*
-- **Passo 3**: Foque na ação mínima viável: se há algo que pode ser feito hoje, execute em 5 minutos.
-- **Passo 4**: Aceite a incerteza: a vida é intrinsecamente dinâmica, e nenhuma quantidade de preocupação elimina o imprevisível.
+- <strong>Passo 1</strong>: Nomeie o processo: <em>"Minha mente está preocupando agora."</em>
+- <strong>Passo 2</strong>: Questione a utilidade: <em>"Ficar remoendo isso pelos próximos 30 minutos vai mudar o resultado prático?"</em>
+- <strong>Passo 3</strong>: Foque na ação mínima viável: se há algo que pode ser feito hoje, execute em 5 minutos.
+- <strong>Passo 4</strong>: Aceite a incerteza: a vida é intrinsecamente dinâmica, e nenhuma quantidade de preocupação elimina o imprevisível.
 
 ### Exercício Prático: O "Horário da Preocupação" (Técnica TCC)
-1. Escolha um horário fixo do dia (por exemplo, das 17h30 às 17h45) e chame-o de *Horário da Preocupação*.
-2. Quando uma preocupação hipotética surgir durante o dia, anote-a e diga a si mesmo: *"Vou pensar nisso exclusivamente às 17h30"*.
+1. Escolha um horário fixo do dia (por exemplo, das 17h30 às 17h45) e chame-o de <em>Horário da Preocupação</em>.
+2. Quando uma preocupação hipotética surgir durante o dia, anote-a e diga a si mesmo: <em>"Vou pensar nisso exclusivamente às 17h30"</em>.
 3. Ao chegar no horário marcado, leia a lista. Você perceberá que mais da metade das aflições já perdeu a urgência ou deixou de fazer sentido.
 
 ### Conclusão
 Preocupação não é prevenção; é apenas sofrimento antecipado. Ao treinar sua mente para soltar o que não está sob seu controle direto, você abre espaço para a paz no momento presente.
 
-*Aviso: Este conteúdo é educativo e não substitui psicoterapia.*`,
+<em>Aviso: Este conteúdo é educativo e não substitui psicoterapia.</em>`,
   },
   {
     id: 'art-ansiedade-8',
@@ -383,14 +383,14 @@ O corpo humano foi feito para se mover. Quando os hormônios do estresse são li
 
 ### Exercício Prático: O Inventário dos 3 Ajustes Simples
 Escolha apenas um destes hábitos para implementar hoje:
-1. **Regra dos 30 minutos matinais**: Não olhar redes sociais ou e-mails nos primeiros 30 minutos após acordar.
-2. **Corte da cafeína após o almoço**: Substituir o café da tarde por água com gás ou chá de camomila/hortelã.
-3. **Pausa de movimento**: Levantar-se a cada 90 minutos de trabalho para beber um copo d'água e esticar as pernas por 2 minutos.
+1. <strong>Regra dos 30 minutos matinais</strong>: Não olhar redes sociais ou e-mails nos primeiros 30 minutos após acordar.
+2. <strong>Corte da cafeína após o almoço</strong>: Substituir o café da tarde por água com gás ou chá de camomila/hortelã.
+3. <strong>Pausa de movimento</strong>: Levantar-se a cada 90 minutos de trabalho para beber um copo d'água e esticar as pernas por 2 minutos.
 
 ### Conclusão
 Cuidar do sistema nervoso começa pelas escolhas simples do dia a dia. Pequenas mudanças de hábitos geram impactos profundos na sua sensação de calma e estabilidade.
 
-*Aviso: Este conteúdo é educativo e não substitui orientação médica ou nutricional.*`,
+<em>Aviso: Este conteúdo é educativo e não substitui orientação médica ou nutricional.</em>`,
   },
   {
     id: 'art-ansiedade-9',
@@ -415,33 +415,33 @@ Apoiar alguém ansioso não exige soluções mágicas, mas sim uma presença seg
 
 ### O Que Evitar Dizer
 Mesmo com boas intenções, evite frases como:
-- *"Calma, isso não é nada"* (Invalida a experiência física e real que a pessoa está sentindo).
-- *"Você está exagerando, é tudo coisa da sua cabeça"* (Gera vergonha e isolamento).
-- *"Basta pensar positivo"* (Ignora a complexidade neurobiológica da resposta ansiosa).
-- *"Olha tanta coisa boa que você tem na vida"* (Provoca culpa desnecessária).
+- <em>"Calma, isso não é nada"</em> (Invalida a experiência física e real que a pessoa está sentindo).
+- <em>"Você está exagerando, é tudo coisa da sua cabeça"</em> (Gera vergonha e isolamento).
+- <em>"Basta pensar positivo"</em> (Ignora a complexidade neurobiológica da resposta ansiosa).
+- <em>"Olha tanta coisa boa que você tem na vida"</em> (Provoca culpa desnecessária).
 
 ### O Que Falar: Frases de Acolhimento e Segurança
 Em vez de tentar convencer a pessoa de que o medo é irracional, ofereça estabilidade:
-- *"Estou aqui com você. Você não precisa passar por isso sozinho(a)."*
-- *"Eu vejo que está difícil agora, mas essa sensação vai passar e estou ao seu lado."*
-- *"Quer conversar sobre o que está sentindo ou prefere apenas que eu fique em silêncio ao seu lado?"*
-- *"Quer segurar minha mão e respirar devagar comigo?"*
+- <em>"Estou aqui com você. Você não precisa passar por isso sozinho(a)."<em>
+- </em>"Eu vejo que está difícil agora, mas essa sensação vai passar e estou ao seu lado."<em>
+- </em>"Quer conversar sobre o que está sentindo ou prefere apenas que eu fique em silêncio ao seu lado?"<em>
+- </em>"Quer segurar minha mão e respirar devagar comigo?"</em>
 
 ### Como Agir Durante uma Crise
-1. **Mantenha seu próprio tom de voz calmo e sereno**: A calma é tão contagiosa quanto o nervosismo.
-2. **Reduza os estímulos ao redor**: Diminua luzes fortes, afaste multidões e ofereça um copo de água fresca.
-3. **Não pressione por explicações imediatas**: Durante uma crise, a área racional do cérebro está com funcionamento reduzido; não exija que a pessoa justifique o motivo do medo naquele instante.
+1. <strong>Mantenha seu próprio tom de voz calmo e sereno</strong>: A calma é tão contagiosa quanto o nervosismo.
+2. <strong>Reduza os estímulos ao redor</strong>: Diminua luzes fortes, afaste multidões e ofereça um copo de água fresca.
+3. <strong>Não pressione por explicações imediatas</strong>: Durante uma crise, a área racional do cérebro está com funcionamento reduzido; não exija que a pessoa justifique o motivo do medo naquele instante.
 
 ### Exercício Prático: O Guia de Co-regulação Respiratória
 Se a pessoa consentir, sente-se ao lado dela e proponha:
-1. *"Vamos respirar juntos no meu ritmo por um instante?"*
+1. <em>"Vamos respirar juntos no meu ritmo por um instante?"</em>
 2. Respire de forma audível e compassada: inspire em 4 segundos e expire suavemente em 6 segundos.
 3. Deixe que o sistema nervoso da outra pessoa espelhe naturalmente o seu ritmo equilibrado.
 
 ### Conclusão
 O maior presente que você pode oferecer a alguém em sofrimento ansioso não são conselhos imediatos, mas a certeza de que a presença e o afeto de vocês permanecem inabaláveis.
 
-*Aviso: Este conteúdo é educativo e não substitui atendimento profissional especializado.*`,
+<em>Aviso: Este conteúdo é educativo e não substitui atendimento profissional especializado.</em>`,
   },
   {
     id: 'art-ansiedade-10',
@@ -466,10 +466,10 @@ Saber identificar quando a ansiedade ultrapassou o limite saudável é fundament
 
 ### Sinais Claros de que é Hora de Buscar Ajuda
 Recomenda-se procurar um psicólogo ou médico psiquiatra quando a ansiedade apresentar uma ou mais destas características:
-- **Prejuízo funcional**: Dificuldade consistente para trabalhar, estudar, manter relacionamentos ou cuidar da própria rotina básica.
-- **Esquiva progressiva**: Deixar de ir a lugares, evitar conversas importantes ou abrir mão de oportunidades por medo constante.
-- **Sintomas físicos frequentes**: Crises de pânico recorrentes, insônia persistente há mais de 3 semanas, problemas digestivos crônicos sem causa orgânica identificada.
-- **Sensação de esgotamento e desamparo**: Sentir que os próprios recursos de enfrentamento não são mais suficientes para restaurar a calma.
+- <strong>Prejuízo funcional</strong>: Dificuldade consistente para trabalhar, estudar, manter relacionamentos ou cuidar da própria rotina básica.
+- <strong>Esquiva progressiva</strong>: Deixar de ir a lugares, evitar conversas importantes ou abrir mão de oportunidades por medo constante.
+- <strong>Sintomas físicos frequentes</strong>: Crises de pânico recorrentes, insônia persistente há mais de 3 semanas, problemas digestivos crônicos sem causa orgânica identificada.
+- <strong>Sensação de esgotamento e desamparo</strong>: Sentir que os próprios recursos de enfrentamento não são mais suficientes para restaurar a calma.
 
 ### Como Funciona a Psicoterapia?
 A psicoterapia (como a Terapia Cognitivo-Comportamental — TCC, a Terapia de Aceitação e Compromisso — ACT, entre outras abordagens baseadas em evidências) oferece um espaço seguro e confidencial para:
@@ -483,13 +483,13 @@ Em alguns casos de ansiedade moderada a grave, o acompanhamento psiquiátrico po
 
 ### Exercício Prático: O Roteiro de Autoavaliação Honesta
 Responda mentalmente com gentileza:
-1. *"Minha ansiedade está limitando minhas escolhas e sonhos nos últimos meses?"*
-2. *"Tenho sentido um cansaço profundo por carregar esse peso sozinho(a)?"*
-3. *"O que me impede de agendar uma primeira sessão de conversa com um profissional?"*
+1. <em>"Minha ansiedade está limitando minhas escolhas e sonhos nos últimos meses?"</em>
+2. <em>"Tenho sentido um cansaço profundo por carregar esse peso sozinho(a)?"<em>
+3. </em>"O que me impede de agendar uma primeira sessão de conversa com um profissional?"</em>
 
 ### Conclusão e Recursos de Apoio
 Procurar ajuda profissional não é sinal de incapacidade, mas sim o primeiro passo corajoso em direção a uma vida com mais liberdade, espaço interno e serenidade.
 
-*Aviso Obrigatório: O Respira é uma ferramenta de apoio ao bem-estar e não substitui diagnóstico ou tratamento médico/psicológico. Em momentos de crise severa, ligue para o CVV no número 188 (ligação gratuita em todo o Brasil) ou procure a unidade de saúde mais próxima.*`,
+<em>Aviso Obrigatório: O Respira é uma ferramenta de apoio ao bem-estar e não substitui diagnóstico ou tratamento médico/psicológico. Em momentos de crise severa, ligue para o CVV no número 188 (ligação gratuita em todo o Brasil) ou procure a unidade de saúde mais próxima.</em>`,
   },
 ];

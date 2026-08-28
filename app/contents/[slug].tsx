@@ -14,13 +14,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Bookmark,
   Clock,
-  ArrowRight,
-  ShieldCheck,
-  CheckCircle2,
-  Share2,
   ArrowLeft,
-  ThumbsUp,
-  ThumbsDown,
+  Share2,
   BookOpen,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
@@ -32,6 +27,7 @@ import { SafeMarkdown } from '../../src/components/ui/SafeMarkdown';
 import { Article } from '../../src/types';
 import { normalizeText } from '../../src/data/articles';
 import { ArticleCoverImage } from '../../src/components/illustrations/ArticleCovers';
+import { ArticleFooter } from '../../src/components/content/ArticleFooter';
 
 export default function ArticleDetailSlugScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -158,13 +154,18 @@ export default function ArticleDetailSlugScreen() {
     })
     .slice(0, 3);
 
+  // Clean trailing notice from markdown body so ArticleFooter handles it
+  const bodyMarkdown = (article.content || '')
+    .replace(/\n\n(\*|<em>|<strong>)?Aviso[\s\S]*$/i, '')
+    .trim();
+
   // Artwork
   const renderCoverIllustration = () => {
     return (
       <ArticleCoverImage
         slug={article.slug || article.id}
         category={article.category}
-        height={160}
+        height={220}
         borderRadius={16}
       />
     );
@@ -186,331 +187,214 @@ export default function ArticleDetailSlugScreen() {
         ref={scrollViewRef}
         onScroll={handleScroll}
         scrollEventThrottle={16}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { backgroundColor: isDark ? colors.background : '#FAFAF7' },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* 1. Barra de Ações Superior */}
-        <View style={styles.navBarRow}>
-          <TouchableOpacity
-            onPress={() => router.push('/(tabs)/content' as any)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="link"
-            accessibilityLabel="Voltar para a biblioteca de conteúdos"
-            style={[
-              styles.iconCircleBtn,
-              {
-                backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5',
-                borderColor: isDark ? colors.border : '#DCE5E2',
-              },
-            ]}
-          >
-            <ArrowLeft size={18} color={isDark ? colors.text : '#173D3B'} />
-          </TouchableOpacity>
+        <View style={styles.pageInnerContainer}>
+          {/* 1. Barra de Ações Superior */}
+          <View style={styles.navBarRow}>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/content' as any)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="link"
+              accessibilityLabel="Voltar para a biblioteca de conteúdos"
+              style={[
+                styles.iconCircleBtn,
+                {
+                  backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5',
+                  borderColor: isDark ? colors.border : '#DCE5E2',
+                },
+              ]}
+            >
+              <ArrowLeft size={18} color={isDark ? colors.text : '#163F3A'} />
+            </TouchableOpacity>
 
-          <View style={styles.topActionsGroup}>
-            {/* Ajuste de Tamanho de Fonte */}
-            <View style={styles.fontControlsRow}>
+            <View style={styles.topActionsGroup}>
+              {/* Ajuste de Tamanho de Fonte */}
+              <View style={styles.fontControlsRow}>
+                <TouchableOpacity
+                  onPress={() =>
+                    setFontSizeMultiplier((prev) => Math.max(0.85, prev - 0.1))
+                  }
+                  style={[
+                    styles.fontBtn,
+                    {
+                      backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5',
+                      borderColor: isDark ? colors.border : '#DCE5E2',
+                    },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Diminuir tamanho do texto"
+                >
+                  <Text style={[styles.fontBtnText, { color: isDark ? colors.text : '#163F3A' }]}>
+                    A-
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() =>
+                    setFontSizeMultiplier((prev) => Math.min(1.35, prev + 0.1))
+                  }
+                  style={[
+                    styles.fontBtn,
+                    {
+                      backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5',
+                      borderColor: isDark ? colors.border : '#DCE5E2',
+                    },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Aumentar tamanho do texto"
+                >
+                  <Text style={[styles.fontBtnText, { color: isDark ? colors.text : '#163F3A' }]}>
+                    A+
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Favoritar */}
               <TouchableOpacity
-                onPress={() =>
-                  setFontSizeMultiplier((prev) => Math.max(0.85, prev - 0.1))
+                onPress={() => toggleFavorite(article.id)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: !!article.isFavorite }}
+                accessibilityLabel={
+                  article.isFavorite
+                    ? `Remover artigo ${article.title} dos favoritos`
+                    : `Favoritar artigo: ${article.title}`
                 }
                 style={[
-                  styles.fontBtn,
+                  styles.iconCircleBtn,
                   {
                     backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5',
                     borderColor: isDark ? colors.border : '#DCE5E2',
                   },
                 ]}
-                accessibilityRole="button"
-                accessibilityLabel="Diminuir tamanho do texto"
               >
-                <Text style={[styles.fontBtnText, { color: isDark ? colors.text : '#173D3B' }]}>
-                  A-
-                </Text>
+                <Bookmark
+                  size={18}
+                  color="#1F766E"
+                  fill={article.isFavorite ? '#1F766E' : 'transparent'}
+                />
               </TouchableOpacity>
 
+              {/* Compartilhar */}
               <TouchableOpacity
-                onPress={() =>
-                  setFontSizeMultiplier((prev) => Math.min(1.35, prev + 0.1))
-                }
+                onPress={handleShare}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel="Compartilhar artigo"
                 style={[
-                  styles.fontBtn,
+                  styles.iconCircleBtn,
                   {
                     backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5',
                     borderColor: isDark ? colors.border : '#DCE5E2',
                   },
                 ]}
-                accessibilityRole="button"
-                accessibilityLabel="Aumentar tamanho do texto"
               >
-                <Text style={[styles.fontBtnText, { color: isDark ? colors.text : '#173D3B' }]}>
-                  A+
-                </Text>
+                <Share2 size={18} color={isDark ? colors.text : '#163F3A'} />
               </TouchableOpacity>
             </View>
-
-            {/* Favoritar */}
-            <TouchableOpacity
-              onPress={() => toggleFavorite(article.id)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityRole="button"
-              accessibilityState={{ selected: !!article.isFavorite }}
-              accessibilityLabel={
-                article.isFavorite
-                  ? `Remover artigo ${article.title} dos favoritos`
-                  : `Favoritar artigo: ${article.title}`
-              }
-              style={[
-                styles.iconCircleBtn,
-                {
-                  backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5',
-                  borderColor: isDark ? colors.border : '#DCE5E2',
-                },
-              ]}
-            >
-              <Bookmark
-                size={18}
-                color="#2F7F7C"
-                fill={article.isFavorite ? '#2F7F7C' : 'transparent'}
-              />
-            </TouchableOpacity>
-
-            {/* Compartilhar */}
-            <TouchableOpacity
-              onPress={handleShare}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityRole="button"
-              accessibilityLabel="Compartilhar artigo"
-              style={[
-                styles.iconCircleBtn,
-                {
-                  backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5',
-                  borderColor: isDark ? colors.border : '#DCE5E2',
-                },
-              ]}
-            >
-              <Share2 size={18} color={isDark ? colors.text : '#173D3B'} />
-            </TouchableOpacity>
           </View>
-        </View>
 
-        {/* Banner "Continuar de onde parou" */}
-        {showResumeBanner && (
-          <View
-            style={[
-              styles.resumeBanner,
-              {
-                backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
-                borderColor: isDark ? colors.border : '#C7E5DC',
-              },
-            ]}
-          >
-            <BookOpen size={16} color="#2F7F7C" style={{ marginRight: 8 }} />
-            <Text style={[styles.resumeBannerText, { color: isDark ? colors.text : '#173D3B' }]}>
-              Você já leu {scrollProgress}% deste artigo.
+          {/* Banner "Continuar de onde parou" */}
+          {showResumeBanner && (
+            <View
+              style={[
+                styles.resumeBanner,
+                {
+                  backgroundColor: isDark ? colors.surfaceSecondary : '#EFF6F3',
+                  borderColor: isDark ? colors.border : '#D0E5DF',
+                },
+              ]}
+            >
+              <BookOpen size={16} color="#1F766E" style={{ marginRight: 8 }} />
+              <Text style={[styles.resumeBannerText, { color: isDark ? colors.text : '#163F3A' }]}>
+                Você já leu {scrollProgress}% deste artigo.
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowResumeBanner(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Fechar aviso de continuação de leitura"
+                style={styles.resumeCloseBtn}
+              >
+                <Text style={styles.resumeCloseBtnText}>Entendi</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* 2. Cabeçalho do Artigo */}
+          <View style={styles.articleHeaderBlock}>
+            <View style={styles.headerMetaRow}>
+              <View style={styles.catBadge}>
+                <Text style={styles.catBadgeText}>
+                  {(article.category || '').toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.readTimeMeta}>
+                <Clock size={13} color="#8C9E9B" style={{ marginRight: 4 }} />
+                <Text style={styles.readTimeMetaText}>
+                  {article.readingTimeMinutes || article.readTimeMinutes || 5} min de leitura
+                </Text>
+              </View>
+            </View>
+
+            {/* H1 Semântico */}
+            <Text
+              accessibilityRole="header"
+              aria-level={1}
+              style={[
+                styles.mainTitle,
+                {
+                  color: isDark ? colors.text : '#163F3A',
+                  fontSize: 26 * fontSizeMultiplier,
+                  lineHeight: 34 * fontSizeMultiplier,
+                },
+              ]}
+            >
+              {article.title}
             </Text>
-            <TouchableOpacity
-              onPress={() => setShowResumeBanner(false)}
-              accessibilityRole="button"
-              accessibilityLabel="Fechar aviso de continuação de leitura"
-              style={styles.resumeCloseBtn}
+
+            <Text
+              style={[
+                styles.summaryText,
+                {
+                  color: isDark ? colors.textMuted : '#596B68',
+                  fontSize: 15 * fontSizeMultiplier,
+                  lineHeight: 23 * fontSizeMultiplier,
+                },
+              ]}
             >
-              <Text style={styles.resumeCloseBtnText}>Entendi</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+              {article.summary}
+            </Text>
 
-        {/* 2. Cabeçalho do Artigo com H1 Semântico */}
-        <View style={styles.articleHeaderBlock}>
-          <View style={styles.headerMetaRow}>
-            <View style={styles.catBadge}>
-              <Text style={styles.catBadgeText}>
-                {article.category.toUpperCase()}
-              </Text>
-            </View>
-            <View style={styles.readTimeMeta}>
-              <Clock size={12} color="#8C9E9B" style={{ marginRight: 4 }} />
-              <Text style={styles.readTimeMetaText}>
-                {article.readingTimeMinutes || 5} min de leitura
-              </Text>
+            {/* Ilustração Temática de Capa */}
+            <View style={styles.coverIllustrationWrap}>
+              {renderCoverIllustration()}
             </View>
           </View>
 
-          {/* Único H1 semântico da página */}
-          <Text
-            accessibilityRole="header"
-            aria-level={1}
-            style={[
-              styles.mainTitle,
-              { color: isDark ? colors.text : '#173D3B', fontSize: 24 * fontSizeMultiplier },
-            ]}
-          >
-            {article.title}
-          </Text>
-
-          <Text
-            style={[
-              styles.summaryText,
-              { color: isDark ? colors.textMuted : '#667775', fontSize: 14 * fontSizeMultiplier },
-            ]}
-          >
-            {article.summary}
-          </Text>
-
-          {/* Ilustração Temática de Capa */}
-          <View style={styles.coverIllustrationWrap}>
-            {renderCoverIllustration()}
+          {/* 3. Corpo do Artigo Renderizado com SafeMarkdown */}
+          <View style={styles.bodyWrapper}>
+            <SafeMarkdown
+              content={bodyMarkdown}
+              fontSizeMultiplier={fontSizeMultiplier}
+            />
           </View>
-        </View>
 
-        {/* 3. Corpo do Artigo Renderizado com SafeMarkdown */}
-        <View style={styles.bodyWrapper}>
-          <SafeMarkdown
-            content={article.content || ''}
+          {/* 4. Parte Final do Artigo: Novo Footer Padronizado */}
+          <ArticleFooter
+            article={article}
+            isRead={isRead}
+            onToggleRead={handleToggleRead}
+            feedback={feedback}
+            onFeedback={handleFeedback}
+            relatedArticles={relatedArticles}
             fontSizeMultiplier={fontSizeMultiplier}
           />
         </View>
-
-        {/* 4. Ações de Finalização: Marcar como Lido e Avaliação */}
-        <View
-          style={[
-            styles.footerActionCard,
-            {
-              backgroundColor: isDark ? colors.surface : '#FFFFFF',
-              borderColor: isDark ? colors.border : '#DCE5E2',
-            },
-          ]}
-        >
-          <TouchableOpacity
-            onPress={handleToggleRead}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityState={{ selected: isRead }}
-            accessibilityLabel={isRead ? 'Artigo concluído. Clique para desmarcar.' : 'Marcar artigo como lido'}
-            style={[
-              styles.markReadBtn,
-              isRead && { backgroundColor: '#E7F3EF', borderColor: '#2F7F7C' },
-            ]}
-          >
-            <CheckCircle2
-              size={18}
-              color={isRead ? '#2F7F7C' : '#FFFFFF'}
-              style={{ marginRight: 6 }}
-            />
-            <Text
-              style={[
-                styles.markReadBtnText,
-                isRead && { color: '#2F7F7C' },
-              ]}
-            >
-              {isRead ? 'Artigo concluído' : 'Marcar como lido'}
-            </Text>
-          </TouchableOpacity>
-
-          {/* Feedback */}
-          <View style={styles.feedbackRow}>
-            <Text style={[styles.feedbackLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
-              Este artigo foi útil para você?
-            </Text>
-            <View style={styles.thumbsGroup}>
-              <TouchableOpacity
-                onPress={() => handleFeedback('yes')}
-                accessibilityRole="button"
-                accessibilityState={{ selected: feedback === 'yes' }}
-                accessibilityLabel="Sim, este artigo foi útil"
-                style={[
-                  styles.thumbBtn,
-                  feedback === 'yes' && { backgroundColor: '#E7F3EF' },
-                ]}
-              >
-                <ThumbsUp
-                  size={16}
-                  color={feedback === 'yes' ? '#2F7F7C' : '#8C9E9B'}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleFeedback('no')}
-                accessibilityRole="button"
-                accessibilityState={{ selected: feedback === 'no' }}
-                accessibilityLabel="Não, este artigo não foi útil"
-                style={[
-                  styles.thumbBtn,
-                  feedback === 'no' && { backgroundColor: '#FDECE5' },
-                ]}
-              >
-                <ThumbsDown
-                  size={16}
-                  color={feedback === 'no' ? '#D98968' : '#8C9E9B'}
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        {/* 5. Artigos Relacionados */}
-        {relatedArticles.length > 0 && (
-          <View style={styles.relatedSection}>
-            <Text
-              accessibilityRole="header"
-              aria-level={2}
-              style={[styles.relatedTitle, { color: isDark ? colors.text : '#173D3B' }]}
-            >
-              Conteúdos Relacionados
-            </Text>
-            <View style={styles.relatedCardsList}>
-              {relatedArticles.map((rel) => (
-                <TouchableOpacity
-                  key={rel.id}
-                  onPress={() => router.push(`/contents/${rel.slug || rel.id}` as any)}
-                  activeOpacity={0.8}
-                  accessibilityRole="link"
-                  accessibilityLabel={`Ler artigo relacionado: ${rel.title}, ${rel.readingTimeMinutes || 5} minutos`}
-                  style={[
-                    styles.relatedCard,
-                    {
-                      backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                      borderColor: isDark ? colors.border : '#EBF1EF',
-                    },
-                  ]}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.relatedCardCat}>{rel.category.toUpperCase()}</Text>
-                    <Text
-                      style={[styles.relatedCardTitle, { color: isDark ? colors.text : '#173D3B' }]}
-                      numberOfLines={2}
-                    >
-                      {rel.title}
-                    </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                      <Clock size={10} color="#8C9E9B" style={{ marginRight: 3 }} />
-                      <Text style={styles.relatedCardTime}>
-                        {rel.readingTimeMinutes || 5} min
-                      </Text>
-                    </View>
-                  </View>
-                  <ArrowRight size={16} color="#2F7F7C" />
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Botão Final: Voltar à Biblioteca */}
-        <TouchableOpacity
-          onPress={() => router.push('/(tabs)/content' as any)}
-          accessibilityRole="link"
-          accessibilityLabel="Voltar para todos os conteúdos da biblioteca"
-          style={[
-            styles.backToLibraryBtn,
-            {
-              backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5',
-              borderColor: isDark ? colors.border : '#DCE5E2',
-            },
-          ]}
-        >
-          <ArrowLeft size={16} color="#2F7F7C" style={{ marginRight: 6 }} />
-          <Text style={styles.backToLibraryBtnText}>Voltar para todos os conteúdos</Text>
-        </TouchableOpacity>
       </ScrollView>
     </AppShell>
   );
@@ -524,22 +408,29 @@ const styles = StyleSheet.create({
   },
   topProgressBar: {
     height: '100%',
-    backgroundColor: '#2F7F7C',
+    backgroundColor: '#1F766E',
   },
   scrollContent: {
     paddingBottom: 60,
+    minHeight: '100%',
+    alignItems: 'center',
+  },
+  pageInnerContainer: {
+    width: '100%',
+    maxWidth: 1000,
+    paddingHorizontal: 20,
+    paddingTop: 12,
   },
   navBarRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 16,
-    paddingTop: 8,
   },
   iconCircleBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -554,13 +445,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   fontBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
     borderRadius: 8,
     borderWidth: 1,
   },
   fontBtnText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
   },
   resumeBanner: {
@@ -568,18 +459,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 12,
     borderWidth: 1,
-    padding: 10,
+    padding: 12,
     marginBottom: 16,
   },
   resumeBannerText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     flex: 1,
   },
   resumeCloseBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#2F7F7C',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#1F766E',
     borderRadius: 6,
   },
   resumeCloseBtnText: {
@@ -588,24 +479,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   articleHeaderBlock: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   headerMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   catBadge: {
-    backgroundColor: '#E7F3EF',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    backgroundColor: '#EFF6F3',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: 6,
   },
   catBadgeText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
-    color: '#2F7F7C',
+    color: '#1F766E',
     letterSpacing: 0.5,
   },
   readTimeMeta: {
@@ -613,118 +504,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   readTimeMetaText: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#8C9E9B',
+    fontWeight: '500',
   },
   mainTitle: {
     fontWeight: '800',
     letterSpacing: -0.4,
-    lineHeight: 32,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   summaryText: {
-    lineHeight: 22,
-    marginBottom: 16,
+    marginBottom: 18,
   },
   coverIllustrationWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 8,
+    marginVertical: 10,
+    width: '100%',
   },
   bodyWrapper: {
-    marginBottom: 24,
-  },
-  footerActionCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 24,
-    alignItems: 'center',
-  },
-  markReadBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#2F7F7C',
-    borderWidth: 1,
-    borderColor: '#2F7F7C',
-    width: '100%',
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginBottom: 14,
-  },
-  markReadBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  feedbackRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    paddingTop: 8,
-  },
-  feedbackLabel: {
-    fontSize: 12,
-  },
-  thumbsGroup: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  thumbBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  relatedSection: {
-    marginBottom: 20,
-  },
-  relatedTitle: {
-    fontSize: 16,
-    fontWeight: '800',
     marginBottom: 10,
-  },
-  relatedCardsList: {
-    gap: 8,
-  },
-  relatedCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 12,
-  },
-  relatedCardCat: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#2F7F7C',
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  relatedCardTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 18,
-  },
-  relatedCardTime: {
-    fontSize: 11,
-    color: '#8C9E9B',
-  },
-  backToLibraryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginTop: 8,
-  },
-  backToLibraryBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#2F7F7C',
   },
 });
