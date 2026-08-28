@@ -963,9 +963,10 @@ const styles = StyleSheet.create({
 
   // Card Resumo Analítico Único
   summaryCard: {
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
     marginBottom: 28,
   },
   periodTabsRow: {

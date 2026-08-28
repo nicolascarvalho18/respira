@@ -1,10 +1,11 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Platform,
+  LayoutChangeEvent,
 } from 'react-native';
 import Svg, {
   Path,
@@ -45,6 +46,14 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
 }) => {
   const { colors, isDark } = useTheme();
   const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
+  const [containerWidth, setContainerWidth] = useState(360);
+
+  const handleLayout = (e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width;
+    if (w > 50 && Math.abs(w - containerWidth) > 2) {
+      setContainerWidth(w);
+    }
+  };
 
   // 1. Filtrar registros dentro do período selecionado (7, 30 ou 90 dias)
   const now = new Date();
@@ -138,13 +147,13 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
     );
   }
 
-  // Dimensões do Gráfico
-  const chartWidth = 340;
-  const chartHeight = 180;
-  const paddingLeft = 28;
-  const paddingRight = 20;
-  const paddingTop = 20;
-  const paddingBottom = 30;
+  // Dimensões do Gráfico Mais Amplo e Aberto nas Laterais
+  const chartWidth = Math.max(280, containerWidth);
+  const chartHeight = 185;
+  const paddingLeft = 20; // Espaço compacto para os números 5, 4, 3, 2, 1
+  const paddingRight = 6;  // Linha estende até a extremidade direita
+  const paddingTop = 16;
+  const paddingBottom = 24;
 
   const usableWidth = chartWidth - paddingLeft - paddingRight;
   const usableHeight = chartHeight - paddingTop - paddingBottom;
@@ -218,6 +227,7 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
 
   return (
     <View
+      onLayout={handleLayout}
       style={styles.chartWrapper}
       {...(Platform.OS === 'web'
         ? ({
@@ -249,7 +259,7 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
         </table>
       )}
 
-      {/* SVG Canvas do Gráfico */}
+      {/* SVG Canvas do Gráfico (Expandido de ponta a ponta) */}
       <View style={styles.svgContainer}>
         <Svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
           {/* 1. Grade Horizontal Discreta */}
@@ -280,7 +290,7 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
               d={pathLine}
               fill="none"
               stroke={lineColor}
-              strokeWidth="2"
+              strokeWidth="2.2"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -294,10 +304,10 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
                 <Circle
                   cx={pt.x}
                   cy={pt.y}
-                  r={isSelected ? 6 : 4}
+                  r={isSelected ? 6.5 : 4.5}
                   fill={lineColor}
                   stroke={isDark ? '#1F2927' : '#FFFFFF'}
-                  strokeWidth={isSelected ? 2.5 : 1.5}
+                  strokeWidth={isSelected ? 2.5 : 1.8}
                 />
               </G>
             );
@@ -348,38 +358,40 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
             style={[
               styles.tooltipCard,
               {
-                backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                borderColor: isDark ? colors.border : '#E0E5E2',
-                left: Math.max(
-                  10,
-                  Math.min(
-                    usableWidth - 60,
-                    scaleX(selectedPointIndex) - 55
-                  )
+                backgroundColor: isDark ? '#172033' : '#FFFFFF',
+                borderColor: isDark ? '#334155' : '#DDE6E3',
+                left: Math.min(
+                  chartWidth - 120,
+                  Math.max(10, scaleX(selectedPointIndex) - 55)
                 ),
-                top: Math.max(0, scaleY(selectedPoint.value) - 64),
+                top: Math.max(5, scaleY(selectedPoint.value) - 60),
               },
             ]}
           >
-            <Text style={[styles.tooltipDate, { color: isDark ? colors.textMuted : '#68736F' }]}>
-              {selectedPoint.dayLabel}
+            <Text style={[styles.tooltipDate, { color: isDark ? colors.text : '#1F2927' }]}>
+              {selectedPoint.fullDateLabel}
             </Text>
-            <Text style={[styles.tooltipValue, { color: isDark ? colors.text : '#1F2927' }]}>
-              {metric === 'mood' ? 'Humor: ' : 'Ansiedade: '}
-              <Text style={{ fontWeight: '700', color: lineColor }}>
-                {selectedPoint.value.toFixed(1).replace('.', ',')}
-              </Text>{' '}
-              de {metric === 'mood' ? '5' : '10'}
+            <Text style={[styles.tooltipValue, { color: lineColor, fontWeight: '700' }]}>
+              {metric === 'mood' ? 'Humor' : 'Ansiedade'}: {selectedPoint.value.toString().replace('.', ',')}
+              {metric === 'mood' ? '/5' : '/10'}
             </Text>
-            <Text style={[styles.tooltipCount, { color: isDark ? colors.textMuted : '#8F9B97' }]}>
+            <Text style={[styles.tooltipCount, { color: isDark ? colors.textMuted : '#68736F' }]}>
               {selectedPoint.count} {selectedPoint.count === 1 ? 'registro' : 'registros'}
             </Text>
           </View>
         )}
       </View>
 
-      {/* 8. Rótulos do Eixo X */}
-      <View style={styles.xAxisLabelsRow}>
+      {/* 8. Rótulos do Eixo X Alinhados com a Largura Total */}
+      <View
+        style={[
+          styles.xAxisLabelsRow,
+          {
+            paddingLeft: paddingLeft,
+            paddingRight: paddingRight,
+          },
+        ]}
+      >
         {xLabels.map((lbl, idx) => (
           <Text
             key={`xlbl-${idx}`}
@@ -407,24 +419,24 @@ const styles = StyleSheet.create({
   },
   svgContainer: {
     width: '100%',
-    height: 180,
+    height: 185,
     position: 'relative',
   },
   yAxisLabels: {
     position: 'absolute',
-    left: 4,
+    left: 0,
+    width: 16,
     justifyContent: 'space-between',
     pointerEvents: 'none',
   },
   axisText: {
     fontSize: 11,
     fontWeight: '400',
+    textAlign: 'center',
   },
   xAxisLabelsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingLeft: 26,
-    paddingRight: 18,
     marginTop: 4,
   },
   xAxisText: {
