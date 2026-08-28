@@ -24,6 +24,12 @@ const EDITORIAL_IMAGE_COVERS: Record<string, any> = {
   'habitos-que-podem-aumentar-a-ansiedade': require('../../../assets/images/habitos-que-podem-aumentar-a-ansiedade.jpg'),
   'como-apoiar-alguem-que-esta-ansioso': require('../../../assets/images/como-apoiar-alguem-que-esta-ansioso.jpg'),
   'quando-procurar-ajuda-profissional': require('../../../assets/images/quando-procurar-ajuda-profissional.jpg'),
+  // Sono (1 a 5)
+  'como-desacelerar-a-mente-antes-de-dormir': require('../../../assets/images/como-desacelerar-a-mente-antes-de-dormir.jpg'),
+  'como-criar-uma-rotina-noturna-saudavel': require('../../../assets/images/como-criar-uma-rotina-noturna-saudavel.jpg'),
+  'a-relacao-entre-ansiedade-e-dificuldade-para-dormir': require('../../../assets/images/a-relacao-entre-ansiedade-e-dificuldade-para-dormir.jpg'),
+  'como-as-telas-afetam-a-qualidade-do-sono': require('../../../assets/images/como-as-telas-afetam-a-qualidade-do-sono.jpg'),
+  'como-preparar-o-quarto-para-descansar-melhor': require('../../../assets/images/como-preparar-o-quarto-para-descansar-melhor.jpg'),
 };
 
 export interface ArticleCoverProps {
