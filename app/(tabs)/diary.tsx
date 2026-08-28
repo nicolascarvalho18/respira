@@ -16,7 +16,6 @@ import {
   Smile,
   Meh,
   Frown,
-  TrendingUp,
   X,
   Trash2,
 } from 'lucide-react-native';
@@ -99,7 +98,49 @@ export default function DiaryScreen() {
     };
   }, [periodRecords]);
 
-  // 2. Filtro dos registros recentes
+  // 2. Resumo Analítico Real
+  const dynamicSummaryInsight = useMemo(() => {
+    if (periodRecords.length === 0) {
+      return {
+        statusText: 'Ainda não há registros neste período.',
+        detailText: 'Adicione check-ins diários para acompanhar suas mudanças de humor.',
+      };
+    }
+
+    if (periodRecords.length === 1) {
+      return {
+        statusText: 'Você possui 1 registro neste período.',
+        detailText: '1 registro em 1 dia.',
+      };
+    }
+
+    // Calcular variância real dos registros
+    const sum = periodRecords.reduce((acc, r) => acc + r.mood, 0);
+    const mean = sum / periodRecords.length;
+    const variance =
+      periodRecords.reduce((acc, r) => acc + Math.pow(r.mood - mean, 2), 0) /
+      periodRecords.length;
+    const stdDev = Math.sqrt(variance);
+
+    let statusText = 'Seu humor ficou estável neste período.';
+    if (stdDev > 1.25) {
+      statusText = 'Seu humor oscilou ao longo deste período.';
+    } else if (stdDev >= 0.75) {
+      statusText = 'Seu humor apresentou variações moderadas neste período.';
+    } else {
+      statusText = 'Seu humor ficou estável neste período.';
+    }
+
+    const detailText = `${periodMetrics.totalRecords} ${
+      periodMetrics.totalRecords === 1 ? 'registro' : 'registros'
+    } em ${periodMetrics.uniqueDays} ${
+      periodMetrics.uniqueDays === 1 ? 'dia' : 'dias'
+    }.`;
+
+    return { statusText, detailText };
+  }, [periodRecords, periodMetrics]);
+
+  // 3. Filtro dos registros recentes
   const filteredRecentRecords = useMemo(() => {
     return records.filter((r) => {
       if (appliedMoodFilter !== null && r.mood !== appliedMoodFilter) {
@@ -129,7 +170,7 @@ export default function DiaryScreen() {
     appliedEmotions.length +
     appliedActivities.length;
 
-  // 3. Agrupar registros por data (ex: "27 ago 2026")
+  // 4. Agrupar registros por data (ex: "27 ago 2026")
   const groupedRecords = useMemo(() => {
     const groups: { dateLabel: string; items: MoodRecord[] }[] = [];
     const map: Record<string, MoodRecord[]> = {};
@@ -149,46 +190,38 @@ export default function DiaryScreen() {
     sortedDates.forEach((dateKey) => {
       const d = new Date(dateKey + 'T12:00:00');
       const day = d.getDate();
-      const month = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+      const monthStr = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
       const year = d.getFullYear();
-      const dateLabel = `${day} ${month} ${year}`;
+      const dateLabel = `${day} ${monthStr} ${year}`;
 
       groups.push({
         dateLabel,
-        items: map[dateKey].sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        ),
+        items: map[dateKey],
       });
     });
 
     return groups;
   }, [filteredRecentRecords]);
 
-  const getMoodInfo = (score: number) => {
+  // Helpers Visuais de Humor
+  const getMoodVisual = (score: number) => {
     switch (score) {
       case 5:
-        return { label: 'Muito bem', Icon: Smile, color: '#247B74' };
+        return { label: 'Muito bem', color: '#238C82', bg: isDark ? '#1C3833' : '#EAF5F2', Icon: Smile };
       case 4:
-        return { label: 'Bem', Icon: Smile, color: '#247B74' };
+        return { label: 'Bem', color: '#238C82', bg: isDark ? '#1C3833' : '#EAF5F2', Icon: Smile };
       case 3:
-        return { label: 'Neutro', Icon: Meh, color: '#247B74' };
+        return { label: 'Neutro', color: '#D98968', bg: isDark ? '#3D2820' : '#FDF3EE', Icon: Meh };
       case 2:
-        return { label: 'Difícil', Icon: Frown, color: '#D87556' };
+        return { label: 'Mal', color: '#C86242', bg: isDark ? '#3D201A' : '#FCECE8', Icon: Frown };
+      case 1:
+        return { label: 'Muito mal', color: '#BA4328', bg: isDark ? '#3A1914' : '#FAE7E3', Icon: Frown };
       default:
-        return { label: 'Muito difícil', Icon: Frown, color: '#D87556' };
+        return { label: 'Neutro', color: '#66726F', bg: isDark ? '#2D3835' : '#F0F3F2', Icon: Meh };
     }
   };
 
-  const formatTime = (isoString: string) => {
-    try {
-      const d = new Date(isoString);
-      return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return '';
-    }
-  };
-
-  const handleOpenFilterModal = () => {
+  const openFilterModal = () => {
     setTempMoodFilter(appliedMoodFilter);
     setTempAnxietyFilter(appliedAnxietyFilter);
     setTempEmotions([...appliedEmotions]);
@@ -196,15 +229,15 @@ export default function DiaryScreen() {
     setIsFilterModalOpen(true);
   };
 
-  const handleApplyFilters = () => {
+  const applyFilters = () => {
     setAppliedMoodFilter(tempMoodFilter);
     setAppliedAnxietyFilter(tempAnxietyFilter);
-    setAppliedEmotions([...tempEmotions]);
-    setAppliedActivities([...tempActivities]);
+    setAppliedEmotions(tempEmotions);
+    setAppliedActivities(tempActivities);
     setIsFilterModalOpen(false);
   };
 
-  const handleClearFilters = () => {
+  const clearFilters = () => {
     setTempMoodFilter(null);
     setTempAnxietyFilter(null);
     setTempEmotions([]);
@@ -216,12 +249,32 @@ export default function DiaryScreen() {
     setIsFilterModalOpen(false);
   };
 
-  const handleDeleteRecord = async () => {
+  const toggleTempEmotion = (emotion: string) => {
+    if (tempEmotions.includes(emotion)) {
+      setTempEmotions(tempEmotions.filter((e) => e !== emotion));
+    } else {
+      setTempEmotions([...tempEmotions, emotion]);
+    }
+  };
+
+  const toggleTempActivity = (activity: string) => {
+    if (tempActivities.includes(activity)) {
+      setTempActivities(tempActivities.filter((a) => a !== activity));
+    } else {
+      setTempActivities([...tempActivities, activity]);
+    }
+  };
+
+  const confirmDeleteRecord = (id: string) => {
+    setRecordToDelete(id);
+  };
+
+  const executeDelete = async () => {
     if (!recordToDelete) return;
     try {
       setIsDeleting(true);
       await deleteRecord(recordToDelete);
-      showToast({ message: 'Registro excluído', type: 'success' });
+      showToast({ message: 'Registro excluído.', type: 'success' });
       setRecordToDelete(null);
       setSelectedRecordForDetail(null);
     } catch {
@@ -235,44 +288,59 @@ export default function DiaryScreen() {
     <AppShell>
       <View style={[styles.container, isDesktop && styles.containerDesktop]}>
         {/* 1. CABEÇALHO */}
-        <View style={[styles.headerRow, isDesktop && styles.headerRowDesktop]}>
-          <View style={{ flex: 1, paddingRight: isDesktop ? 16 : 0 }}>
-            <Text
-              accessibilityRole="header"
-              aria-level={1}
-              style={[styles.pageTitle, { color: isDark ? colors.text : '#1F2927' }]}
-            >
-              Diário
-            </Text>
-            <Text style={[styles.pageSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
-              Acompanhe seus registros ao longo do tempo.
-            </Text>
-          </View>
+        <View style={styles.headerBlock}>
+          <Text
+            accessibilityRole="header"
+            aria-level={1}
+            style={[styles.pageTitle, { color: isDark ? '#FFFFFF' : '#17211F' }]}
+          >
+            Diário
+          </Text>
+          <Text style={[styles.pageSubtitle, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
+            Acompanhe como você tem se sentido ao longo do tempo.
+          </Text>
 
+          {/* Botão de Largura Total, 48px de Altura e Cantos de 12px */}
           <TouchableOpacity
             onPress={() => router.push('/mood/new' as any)}
+            activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel="Registrar novo momento de humor"
-            style={styles.newRecordBtn}
+            style={[
+              styles.newRecordBtnFull,
+              { backgroundColor: isDark ? '#5ECFC3' : '#238C82' },
+            ]}
           >
-            <Plus size={18} color="#FFFFFF" strokeWidth={2} style={{ marginRight: 6 }} />
-            <Text style={styles.newRecordBtnText}>Registrar momento</Text>
+            <Plus size={18} color={isDark ? '#111827' : '#FFFFFF'} strokeWidth={2.2} style={{ marginRight: 6 }} />
+            <Text
+              style={[
+                styles.newRecordBtnFullText,
+                { color: isDark ? '#111827' : '#FFFFFF' },
+              ]}
+            >
+              + Registrar momento
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* 2. CARD RESUMO ANALÍTICO ÚNICO */}
+        {/* 2. PAINEL ÚNICO: PERÍODO E INDICADORES */}
         <View
           style={[
-            styles.summaryCard,
+            styles.indicatorsPanel,
             {
-              backgroundColor: isDark ? colors.surface : '#FFFFFF',
-              borderColor: isDark ? colors.border : '#E0E5E2',
+              backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+              borderColor: isDark ? '#334155' : '#E2E7E5',
             },
           ]}
         >
           {/* Abas de Período (7 dias, 30 dias, 90 dias) */}
           <View
-            style={[styles.periodTabsRow, { borderBottomColor: isDark ? colors.border : '#E7EBE9' }]}
+            style={[
+              styles.periodTabsPillContainer,
+              {
+                backgroundColor: isDark ? '#111827' : '#F7F8F5',
+              },
+            ]}
             {...(Platform.OS === 'web' ? ({ role: 'tablist', 'aria-label': 'Período do resumo' } as any) : {})}
           >
             {[
@@ -285,134 +353,180 @@ export default function DiaryScreen() {
                 <TouchableOpacity
                   key={p.days}
                   onPress={() => setSelectedPeriod(p.days as any)}
+                  activeOpacity={0.7}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: isActive }}
-                  style={[styles.periodTabItem, isActive && styles.periodTabItemActive]}
+                  style={[
+                    styles.periodTabPill,
+                    isActive && [
+                      styles.periodTabPillActive,
+                      { backgroundColor: isDark ? '#1C3833' : '#EAF5F2' },
+                    ],
+                  ]}
                 >
                   <Text
                     style={[
-                      styles.periodTabText,
-                      isActive && [styles.periodTabTextActive, { color: '#247B74' }],
-                      !isActive && { color: isDark ? colors.textMuted : '#68736F' },
+                      styles.periodTabPillText,
+                      isActive && { color: isDark ? '#5ECFC3' : '#238C82', fontWeight: '700' },
+                      !isActive && { color: isDark ? '#F1F5F9' : '#66726F', fontWeight: '500' },
                     ]}
                   >
                     {p.label}
                   </Text>
-                  {isActive && <View style={styles.activePeriodIndicator} />}
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          {/* Linha das 3 Métricas com Divisores Verticais */}
+          {/* 3 Colunas com Números Destacados e Separadores Discretos */}
           <View style={styles.metricsRow}>
             {/* Humor Médio */}
             <View style={styles.metricColumn}>
-              <Text style={[styles.metricLabel, { color: isDark ? colors.textMuted : '#68736F' }]}>
+              <Text style={[styles.metricLabel, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
                 Humor médio
               </Text>
               <View style={styles.metricValueWrap}>
-                <Text style={[styles.metricValueBold, { color: isDark ? colors.text : '#1F2927' }]}>
+                <Text style={[styles.metricValueBold, { color: isDark ? '#FFFFFF' : '#17211F' }]}>
                   {periodMetrics.avgMood}
                 </Text>
-                <Text style={[styles.metricValueUnit, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                <Text style={[styles.metricValueUnit, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
                   /5
                 </Text>
               </View>
             </View>
 
-            {/* Divisor Vertical 1 */}
-            <View style={[styles.metricDivider, { backgroundColor: isDark ? colors.border : '#E7EBE9' }]} />
+            {/* Separador Discreto 1 */}
+            <View style={[styles.metricDivider, { backgroundColor: isDark ? '#334155' : '#E2E7E5' }]} />
 
             {/* Ansiedade Média */}
             <View style={styles.metricColumn}>
-              <Text style={[styles.metricLabel, { color: isDark ? colors.textMuted : '#68736F' }]}>
+              <Text style={[styles.metricLabel, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
                 Ansiedade média
               </Text>
               <View style={styles.metricValueWrap}>
-                <Text style={[styles.metricValueBold, { color: isDark ? colors.text : '#1F2927' }]}>
+                <Text style={[styles.metricValueBold, { color: isDark ? '#FFFFFF' : '#17211F' }]}>
                   {periodMetrics.avgAnxiety}
                 </Text>
-                <Text style={[styles.metricValueUnit, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                <Text style={[styles.metricValueUnit, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
                   /10
                 </Text>
               </View>
             </View>
 
-            {/* Divisor Vertical 2 */}
-            <View style={[styles.metricDivider, { backgroundColor: isDark ? colors.border : '#E7EBE9' }]} />
+            {/* Separador Discreto 2 */}
+            <View style={[styles.metricDivider, { backgroundColor: isDark ? '#334155' : '#E2E7E5' }]} />
 
             {/* Total de Registros */}
             <View style={styles.metricColumn}>
-              <Text style={[styles.metricLabel, { color: isDark ? colors.textMuted : '#68736F' }]}>
-                {periodMetrics.totalRecords} {periodMetrics.totalRecords === 1 ? 'registro' : 'registros'}
+              <Text style={[styles.metricLabel, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
+                {periodMetrics.totalRecords === 1 ? '1 registro' : 'Registros'}
               </Text>
               <View style={styles.metricValueWrap}>
-                <Text style={[styles.metricValueBold, { color: isDark ? colors.text : '#1F2927' }]}>
+                <Text style={[styles.metricValueBold, { color: isDark ? '#FFFFFF' : '#17211F' }]}>
                   {periodMetrics.totalRecords}
                 </Text>
               </View>
             </View>
           </View>
+        </View>
 
-          {/* Abas Seletoras de Métrica (Humor vs Ansiedade) */}
-          <View style={styles.metricSelectorRow}>
+        {/* 3 & 4. CARD DO GRÁFICO (240px com fundo branco e borda suave) */}
+        <View
+          style={[
+            styles.chartCard,
+            {
+              backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+              borderColor: isDark ? '#334155' : '#E2E7E5',
+            },
+          ]}
+        >
+          {/* Seletor de Métrica: [Humor] [Ansiedade] com linha verde curta */}
+          <View style={[styles.metricSelectorRow, { borderBottomColor: isDark ? '#334155' : '#E2E7E5' }]}>
             <TouchableOpacity
               onPress={() => setSelectedMetric('mood')}
+              activeOpacity={0.7}
               accessibilityRole="tab"
               accessibilityState={{ selected: selectedMetric === 'mood' }}
-              style={[
-                styles.metricTabItem,
-                selectedMetric === 'mood' && styles.metricTabItemActiveMood,
-              ]}
+              style={styles.metricTabItem}
             >
               <Text
                 style={[
                   styles.metricTabText,
                   selectedMetric === 'mood'
-                    ? { color: '#247B74', fontWeight: '600' }
-                    : { color: isDark ? colors.textMuted : '#68736F' },
+                    ? { color: isDark ? '#5ECFC3' : '#238C82', fontWeight: '700' }
+                    : { color: isDark ? '#F1F5F9' : '#66726F', fontWeight: '500' },
                 ]}
               >
                 Humor
               </Text>
-              {selectedMetric === 'mood' && <View style={[styles.activeMetricLine, { backgroundColor: '#247B74' }]} />}
+              {selectedMetric === 'mood' && (
+                <View
+                  style={[
+                    styles.activeMetricLine,
+                    { backgroundColor: isDark ? '#5ECFC3' : '#238C82' },
+                  ]}
+                />
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => setSelectedMetric('anxiety')}
+              activeOpacity={0.7}
               accessibilityRole="tab"
               accessibilityState={{ selected: selectedMetric === 'anxiety' }}
-              style={[
-                styles.metricTabItem,
-                selectedMetric === 'anxiety' && styles.metricTabItemActiveAnxiety,
-              ]}
+              style={styles.metricTabItem}
             >
               <Text
                 style={[
                   styles.metricTabText,
                   selectedMetric === 'anxiety'
-                    ? { color: '#D87556', fontWeight: '600' }
-                    : { color: isDark ? colors.textMuted : '#68736F' },
+                    ? { color: isDark ? '#F69D7A' : '#D87556', fontWeight: '700' }
+                    : { color: isDark ? '#F1F5F9' : '#66726F', fontWeight: '500' },
                 ]}
               >
                 Ansiedade
               </Text>
-              {selectedMetric === 'anxiety' && <View style={[styles.activeMetricLine, { backgroundColor: '#D87556' }]} />}
+              {selectedMetric === 'anxiety' && (
+                <View
+                  style={[
+                    styles.activeMetricLine,
+                    { backgroundColor: isDark ? '#F69D7A' : '#D87556' },
+                  ]}
+                />
+              )}
             </TouchableOpacity>
           </View>
 
-          {/* Título & Subtítulo Interno do Gráfico */}
-          <View style={styles.chartTitleBlock}>
-            <Text style={[styles.chartHeading, { color: isDark ? colors.text : '#1F2927' }]}>
-              {selectedMetric === 'mood' ? 'Humor no período' : 'Ansiedade no período'}
-            </Text>
-            <Text style={[styles.chartSubheading, { color: isDark ? colors.textMuted : '#68736F' }]}>
-              {selectedPeriod === 90 ? 'Média semanal dos registros' : 'Média diária dos registros'}
-            </Text>
+          {/* Cabeçalho do Gráfico + Ação Discreta “Ver detalhes” */}
+          <View style={styles.chartHeaderRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.chartHeading, { color: isDark ? '#FFFFFF' : '#17211F' }]}>
+                {selectedMetric === 'mood' ? 'Evolução do humor' : 'Evolução da ansiedade'}
+              </Text>
+              <Text style={[styles.chartSubheading, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
+                {selectedPeriod === 90 ? 'Média semanal dos registros' : 'Média diária dos registros'}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => router.push('/diary/history' as any)}
+              activeOpacity={0.7}
+              accessibilityRole="link"
+              accessibilityLabel="Ver detalhes do histórico completo"
+              style={styles.viewDetailsBtn}
+            >
+              <Text
+                style={[
+                  styles.viewDetailsBtnText,
+                  { color: isDark ? '#5ECFC3' : '#238C82' },
+                ]}
+              >
+                Ver detalhes
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {/* O Gráfico Real */}
+          {/* Gráfico Real com Altura de 240px */}
           <MoodLineChart
             records={records}
             days={selectedPeriod}
@@ -420,225 +534,251 @@ export default function DiaryScreen() {
             onNavigateNew={() => router.push('/mood/new' as any)}
           />
 
-          {/* Texto Descritivo Dinâmico Abaixo do Gráfico */}
+          {/* 6. Resumo com Linha Verde à Esquerda e Dados Reais */}
           <View
             style={[
-              styles.chartBottomInsight,
+              styles.summaryInsightBox,
               {
-                backgroundColor: isDark ? colors.surfaceSecondary : '#F7F8F5',
-                borderColor: isDark ? colors.border : '#E7EBE9',
+                backgroundColor: isDark ? '#111827' : '#F7F8F5',
+                borderLeftColor: isDark ? '#5ECFC3' : '#238C82',
               },
             ]}
           >
-            <TrendingUp size={20} color="#247B74" strokeWidth={1.75} style={{ marginRight: 12 }} />
-            <Text style={[styles.chartBottomInsightText, { color: isDark ? colors.text : '#1F2927' }]}>
-              Você fez {periodMetrics.totalRecords} {periodMetrics.totalRecords === 1 ? 'registro' : 'registros'} em{' '}
-              {periodMetrics.uniqueDays} {periodMetrics.uniqueDays === 1 ? 'dia' : 'dias'}. Continue registrando para
-              acompanhar suas mudanças ao longo do tempo.
+            <Text
+              style={[
+                styles.summaryInsightStatus,
+                { color: isDark ? '#FFFFFF' : '#17211F' },
+              ]}
+            >
+              {dynamicSummaryInsight.statusText}
+            </Text>
+            <Text
+              style={[
+                styles.summaryInsightDetail,
+                { color: isDark ? '#F1F5F9' : '#66726F' },
+              ]}
+            >
+              {dynamicSummaryInsight.detailText}
             </Text>
           </View>
         </View>
 
-        {/* 3. SEÇÃO REGISTROS RECENTES */}
+        {/* 5. SEÇÃO REGISTROS RECENTES */}
         <View style={styles.recentSection}>
           <View style={styles.recentHeaderRow}>
             <Text
               accessibilityRole="header"
               aria-level={2}
-              style={[styles.sectionTitle, { color: isDark ? colors.text : '#1F2927' }]}
+              style={[styles.sectionTitle, { color: isDark ? '#FFFFFF' : '#17211F' }]}
             >
               Registros recentes
             </Text>
 
             <TouchableOpacity
-              onPress={handleOpenFilterModal}
+              onPress={openFilterModal}
+              activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel={`Filtrar registros recentes. ${activeFiltersCount} filtros ativos.`}
+              accessibilityLabel="Filtrar registros do diário"
               style={styles.filterBtn}
             >
-              <SlidersHorizontal size={18} color="#247B74" strokeWidth={1.75} style={{ marginRight: 6 }} />
-              <Text style={styles.filterBtnText}>Filtrar</Text>
-              {activeFiltersCount > 0 && (
-                <View style={styles.filterBadge}>
-                  <Text style={styles.filterBadgeText}>{activeFiltersCount}</Text>
-                </View>
-              )}
+              <SlidersHorizontal size={15} color={isDark ? '#5ECFC3' : '#238C82'} style={{ marginRight: 6 }} />
+              <Text style={[styles.filterBtnText, { color: isDark ? '#5ECFC3' : '#238C82' }]}>
+                Filtros{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}
+              </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Lista de Registros Agrupados por Data */}
-          {groupedRecords.length > 0 ? (
-            <View style={styles.recordsListBlock}>
-              {groupedRecords.map((group) => (
-                <View key={group.dateLabel} style={styles.dateGroupBlock}>
-                  <Text style={[styles.dateGroupHeader, { color: isDark ? colors.textMuted : '#68736F' }]}>
-                    {group.dateLabel}
-                  </Text>
-
-                  <View
-                    style={[
-                      styles.dateGroupCard,
-                      {
-                        backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                        borderColor: isDark ? colors.border : '#E0E5E2',
-                      },
-                    ]}
-                  >
-                    {group.items.map((record, index) => {
-                      const moodInfo = getMoodInfo(record.mood);
-                      const MoodIcon = moodInfo.Icon;
-                      const timeStr = formatTime(record.createdAt);
-                      const emotionsList = (record.emotions || []).join(', ');
-                      const isLast = index === group.items.length - 1;
-
-                      return (
-                        <TouchableOpacity
-                          key={record.id}
-                          onPress={() => setSelectedRecordForDetail(record)}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Registro: ${moodInfo.label}, ansiedade ${record.anxietyLevel} de 10, às ${timeStr}`}
-                          style={[
-                            styles.recordRow,
-                            !isLast && { borderBottomWidth: 1, borderBottomColor: isDark ? colors.border : '#E7EBE9' },
-                          ]}
-                        >
-                          {/* Ícone de Humor (24px, sem círculos atrás) */}
-                          <View style={styles.recordIconWrap}>
-                            <MoodIcon size={24} color={moodInfo.color} strokeWidth={1.75} />
-                          </View>
-
-                          {/* Centro: Nome do estado e horário/tags */}
-                          <View style={styles.recordInfoCenter}>
-                            <Text style={[styles.recordMoodName, { color: isDark ? colors.text : '#1F2927' }]}>
-                              {moodInfo.label}
-                            </Text>
-
-                            <Text
-                              style={[styles.recordMetaSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}
-                              numberOfLines={1}
-                            >
-                              {emotionsList ? `${emotionsList} · ${timeStr}` : timeStr}
-                            </Text>
-                          </View>
-
-                          {/* Direita: Ansiedade e Chevron */}
-                          <View style={styles.recordRightWrap}>
-                            <Text
-                              style={[
-                                styles.recordAnxietyText,
-                                { color: record.anxietyLevel >= 4 ? '#D87556' : isDark ? colors.textMuted : '#68736F' },
-                              ]}
-                            >
-                              Ansiedade {record.anxietyLevel}/10
-                            </Text>
-                            <ChevronRight size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} />
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-              ))}
-            </View>
-          ) : (
+          {/* Lista de Registros Agrupados por Dia */}
+          {groupedRecords.length === 0 ? (
             <View
               style={[
                 styles.emptyStateCard,
                 {
-                  backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                  borderColor: isDark ? colors.border : '#E0E5E2',
+                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                  borderColor: isDark ? '#334155' : '#E2E7E5',
                 },
               ]}
             >
-              <Text style={[styles.emptyStateTitle, { color: isDark ? colors.text : '#1F2927' }]}>
-                Nenhum registro encontrado
+              <Text style={[styles.emptyStateTitle, { color: isDark ? '#FFFFFF' : '#17211F' }]}>
+                {records.length === 0 ? 'Nenhum registro no diário' : 'Nenhum registro corresponde aos filtros'}
               </Text>
-              <Text style={[styles.emptyStateSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
-                {activeFiltersCount > 0
-                  ? 'Nenhum registro corresponde aos filtros selecionados.'
-                  : 'Comece a registrar como você está se sentindo para visualizar o histórico.'}
+              <Text style={[styles.emptyStateSubtitle, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
+                {records.length === 0
+                  ? 'Você ainda não registrou como se sente. Faça o seu primeiro check-in agora!'
+                  : 'Tente limpar ou ajustar os filtros aplicados para visualizar mais registros.'}
               </Text>
-
-              {activeFiltersCount > 0 ? (
-                <TouchableOpacity onPress={handleClearFilters} style={styles.emptyActionBtn}>
-                  <Text style={styles.emptyActionBtnText}>Limpar filtros</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity onPress={() => router.push('/mood/new' as any)} style={styles.emptyActionBtn}>
-                  <Text style={styles.emptyActionBtnText}>Registrar momento</Text>
+              {records.length > 0 && activeFiltersCount > 0 && (
+                <TouchableOpacity onPress={clearFilters} style={styles.clearFiltersBtn}>
+                  <Text style={styles.clearFiltersBtnText}>Limpar filtros</Text>
                 </TouchableOpacity>
               )}
             </View>
+          ) : (
+            groupedRecords.map((group) => (
+              <View key={group.dateLabel} style={styles.dateGroupWrap}>
+                <Text style={[styles.dateGroupHeading, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
+                  {group.dateLabel}
+                </Text>
+
+                {group.items.map((record) => {
+                  const moodInfo = getMoodVisual(record.mood);
+                  const Icon = moodInfo.Icon;
+                  const timeStr = new Date(record.createdAt).toLocaleTimeString('pt-BR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
+
+                  return (
+                    <TouchableOpacity
+                      key={record.id}
+                      activeOpacity={0.7}
+                      onPress={() => setSelectedRecordForDetail(record)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Registro: ${moodInfo.label}, ansiedade ${record.anxietyLevel} de 10, às ${timeStr}`}
+                      style={[
+                        styles.recordItemCard,
+                        {
+                          backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                          borderColor: isDark ? '#334155' : '#E2E7E5',
+                        },
+                      ]}
+                    >
+                      {/* Ícone de Humor */}
+                      <View style={[styles.recordMoodIconWrap, { backgroundColor: moodInfo.bg }]}>
+                        <Icon size={20} color={moodInfo.color} strokeWidth={2} />
+                      </View>
+
+                      {/* Informações Principais */}
+                      <View style={styles.recordContentCol}>
+                        <View style={styles.recordTopRow}>
+                          <Text style={[styles.recordMoodLabel, { color: isDark ? '#FFFFFF' : '#17211F' }]}>
+                            {moodInfo.label}
+                          </Text>
+                          <Text style={[styles.recordTimeText, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
+                            {timeStr}
+                          </Text>
+                        </View>
+
+                        <View style={styles.recordMetaRow}>
+                          <Text
+                            style={[
+                              styles.recordAnxietyText,
+                              { color: record.anxietyLevel >= 4 ? '#D87556' : (isDark ? '#5ECFC3' : '#238C82') },
+                            ]}
+                          >
+                            Ansiedade {record.anxietyLevel}/10
+                          </Text>
+                          {record.activities && record.activities.length > 0 && (
+                            <Text style={[styles.recordActivityCountText, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
+                              • {record.activities.length} {record.activities.length === 1 ? 'atividade' : 'atividades'}
+                            </Text>
+                          )}
+                        </View>
+
+                        {/* Emoções */}
+                        {record.emotions && record.emotions.length > 0 && (
+                          <View style={styles.recordChipsRow}>
+                            {record.emotions.slice(0, 3).map((emo) => (
+                              <View
+                                key={emo}
+                                style={[
+                                  styles.recordMiniChip,
+                                  { backgroundColor: isDark ? '#111827' : '#F7F8F5' },
+                                ]}
+                              >
+                                <Text style={[styles.recordMiniChipText, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
+                                  {emo}
+                                </Text>
+                              </View>
+                            ))}
+                            {record.emotions.length > 3 && (
+                              <Text style={[styles.recordMoreChipsText, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
+                                +{record.emotions.length - 3}
+                              </Text>
+                            )}
+                          </View>
+                        )}
+                      </View>
+
+                      <ChevronRight size={18} color={isDark ? '#F1F5F9' : '#66726F'} />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ))
           )}
         </View>
-      </View>
 
-      {/* 4. MODAL / BOTTOM SHEET DE FILTROS */}
-      <Modal
-        visible={isFilterModalOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setIsFilterModalOpen(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalSheet,
-              {
-                backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                borderColor: isDark ? colors.border : '#DFE4E1',
-              },
-            ]}
-          >
-            {/* Header */}
-            <View style={styles.modalHeader}>
-              <Text
-                accessibilityRole="header"
-                aria-level={2}
-                style={[styles.modalTitle, { color: isDark ? colors.text : '#1F2927' }]}
-              >
-                Filtrar registros
-              </Text>
-              <TouchableOpacity
-                onPress={() => setIsFilterModalOpen(false)}
-                accessibilityRole="button"
-                accessibilityLabel="Fechar filtros"
-                style={{ padding: 4 }}
-              >
-                <X size={20} color={isDark ? colors.text : '#1F2927'} strokeWidth={1.75} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={{ maxHeight: 440 }} showsVerticalScrollIndicator={false}>
-              {/* Filtro: Humor */}
-              <View style={styles.filterSection}>
-                <Text style={[styles.filterGroupTitle, { color: isDark ? colors.text : '#1F2927' }]}>
-                  Estado de humor
+        {/* MODAL DE FILTRO */}
+        <Modal
+          visible={isFilterModalOpen}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setIsFilterModalOpen(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View
+              style={[
+                styles.filterModalContent,
+                {
+                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                  borderColor: isDark ? '#334155' : '#E2E7E5',
+                },
+              ]}
+            >
+              <View style={styles.modalHeaderRow}>
+                <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#17211F' }]}>
+                  Filtrar registros
                 </Text>
-                <View style={styles.chipsWrap}>
+                <TouchableOpacity
+                  onPress={() => setIsFilterModalOpen(false)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Fechar filtros"
+                >
+                  <X size={20} color={isDark ? '#F1F5F9' : '#66726F'} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.modalScrollArea}>
+                {/* 1. Humor */}
+                <Text style={[styles.filterSectionTitle, { color: isDark ? '#FFFFFF' : '#17211F' }]}>
+                  Nível de humor
+                </Text>
+                <View style={styles.filterOptionsRow}>
                   {[
-                    { id: 5, label: 'Muito bem' },
-                    { id: 4, label: 'Bem' },
-                    { id: 3, label: 'Neutro' },
-                    { id: 2, label: 'Difícil' },
-                    { id: 1, label: 'Muito difícil' },
+                    { score: 5, label: 'Muito bem' },
+                    { score: 4, label: 'Bem' },
+                    { score: 3, label: 'Neutro' },
+                    { score: 2, label: 'Mal' },
+                    { score: 1, label: 'Muito mal' },
                   ].map((item) => {
-                    const isSelected = tempMoodFilter === item.id;
+                    const isSelected = tempMoodFilter === item.score;
                     return (
                       <TouchableOpacity
-                        key={item.id}
-                        onPress={() => setTempMoodFilter(isSelected ? null : item.id)}
+                        key={item.score}
+                        onPress={() => setTempMoodFilter(isSelected ? null : item.score)}
                         style={[
                           styles.filterChip,
-                          isSelected && styles.filterChipActive,
-                          { borderColor: isSelected ? '#247B74' : isDark ? colors.border : '#DFE4E1' },
+                          {
+                            backgroundColor: isSelected
+                              ? (isDark ? '#1C3833' : '#EAF5F2')
+                              : (isDark ? '#111827' : '#F7F8F5'),
+                            borderColor: isSelected
+                              ? (isDark ? '#5ECFC3' : '#238C82')
+                              : (isDark ? '#334155' : '#E2E7E5'),
+                          },
                         ]}
                       >
                         <Text
                           style={[
                             styles.filterChipText,
-                            isSelected && { color: '#247B74', fontWeight: '600' },
-                            !isSelected && { color: isDark ? colors.text : '#1F2927' },
+                            {
+                              color: isSelected
+                                ? (isDark ? '#5ECFC3' : '#238C82')
+                                : (isDark ? '#F1F5F9' : '#66726F'),
+                              fontWeight: isSelected ? '700' : '500',
+                            },
                           ]}
                         >
                           {item.label}
@@ -647,35 +787,43 @@ export default function DiaryScreen() {
                     );
                   })}
                 </View>
-              </View>
 
-              {/* Filtro: Nível de Ansiedade */}
-              <View style={styles.filterSection}>
-                <Text style={[styles.filterGroupTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+                {/* 2. Ansiedade */}
+                <Text style={[styles.filterSectionTitle, { color: isDark ? '#FFFFFF' : '#17211F' }]}>
                   Nível de ansiedade
                 </Text>
-                <View style={styles.chipsWrap}>
+                <View style={styles.filterOptionsRow}>
                   {[
-                    { id: 'mild', label: 'Leve (0 a 3)' },
-                    { id: 'moderate', label: 'Moderada (4 a 7)' },
-                    { id: 'intense', label: 'Intensa (8 a 10)' },
+                    { key: 'mild', label: 'Leve (0-3)' },
+                    { key: 'moderate', label: 'Moderada (4-7)' },
+                    { key: 'intense', label: 'Intensa (8-10)' },
                   ].map((item) => {
-                    const isSelected = tempAnxietyFilter === item.id;
+                    const isSelected = tempAnxietyFilter === item.key;
                     return (
                       <TouchableOpacity
-                        key={item.id}
-                        onPress={() => setTempAnxietyFilter(isSelected ? null : (item.id as any))}
+                        key={item.key}
+                        onPress={() => setTempAnxietyFilter(isSelected ? null : (item.key as any))}
                         style={[
                           styles.filterChip,
-                          isSelected && styles.filterChipActive,
-                          { borderColor: isSelected ? '#247B74' : isDark ? colors.border : '#DFE4E1' },
+                          {
+                            backgroundColor: isSelected
+                              ? (isDark ? '#1C3833' : '#EAF5F2')
+                              : (isDark ? '#111827' : '#F7F8F5'),
+                            borderColor: isSelected
+                              ? (isDark ? '#5ECFC3' : '#238C82')
+                              : (isDark ? '#334155' : '#E2E7E5'),
+                          },
                         ]}
                       >
                         <Text
                           style={[
                             styles.filterChipText,
-                            isSelected && { color: '#247B74', fontWeight: '600' },
-                            !isSelected && { color: isDark ? colors.text : '#1F2927' },
+                            {
+                              color: isSelected
+                                ? (isDark ? '#5ECFC3' : '#238C82')
+                                : (isDark ? '#F1F5F9' : '#66726F'),
+                              fontWeight: isSelected ? '700' : '500',
+                            },
                           ]}
                         >
                           {item.label}
@@ -684,37 +832,39 @@ export default function DiaryScreen() {
                     );
                   })}
                 </View>
-              </View>
 
-              {/* Filtro: Emoções */}
-              <View style={styles.filterSection}>
-                <Text style={[styles.filterGroupTitle, { color: isDark ? colors.text : '#1F2927' }]}>
-                  Emoções
+                {/* 3. Emoções */}
+                <Text style={[styles.filterSectionTitle, { color: isDark ? '#FFFFFF' : '#17211F' }]}>
+                  Sentimentos
                 </Text>
-                <View style={styles.chipsWrap}>
+                <View style={styles.filterOptionsWrap}>
                   {AVAILABLE_EMOTIONS.slice(0, 10).map((emo) => {
                     const isSelected = tempEmotions.includes(emo);
                     return (
                       <TouchableOpacity
                         key={emo}
-                        onPress={() => {
-                          if (isSelected) {
-                            setTempEmotions(tempEmotions.filter((e) => e !== emo));
-                          } else {
-                            setTempEmotions([...tempEmotions, emo]);
-                          }
-                        }}
+                        onPress={() => toggleTempEmotion(emo)}
                         style={[
                           styles.filterChip,
-                          isSelected && styles.filterChipActive,
-                          { borderColor: isSelected ? '#247B74' : isDark ? colors.border : '#DFE4E1' },
+                          {
+                            backgroundColor: isSelected
+                              ? (isDark ? '#1C3833' : '#EAF5F2')
+                              : (isDark ? '#111827' : '#F7F8F5'),
+                            borderColor: isSelected
+                              ? (isDark ? '#5ECFC3' : '#238C82')
+                              : (isDark ? '#334155' : '#E2E7E5'),
+                          },
                         ]}
                       >
                         <Text
                           style={[
                             styles.filterChipText,
-                            isSelected && { color: '#247B74', fontWeight: '600' },
-                            !isSelected && { color: isDark ? colors.text : '#1F2927' },
+                            {
+                              color: isSelected
+                                ? (isDark ? '#5ECFC3' : '#238C82')
+                                : (isDark ? '#F1F5F9' : '#66726F'),
+                              fontWeight: isSelected ? '700' : '500',
+                            },
                           ]}
                         >
                           {emo}
@@ -723,37 +873,39 @@ export default function DiaryScreen() {
                     );
                   })}
                 </View>
-              </View>
 
-              {/* Filtro: Atividades */}
-              <View style={styles.filterSection}>
-                <Text style={[styles.filterGroupTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+                {/* 4. Atividades */}
+                <Text style={[styles.filterSectionTitle, { color: isDark ? '#FFFFFF' : '#17211F' }]}>
                   Atividades
                 </Text>
-                <View style={styles.chipsWrap}>
-                  {AVAILABLE_ACTIVITIES.map((act) => {
+                <View style={styles.filterOptionsWrap}>
+                  {AVAILABLE_ACTIVITIES.slice(0, 10).map((act) => {
                     const isSelected = tempActivities.includes(act);
                     return (
                       <TouchableOpacity
                         key={act}
-                        onPress={() => {
-                          if (isSelected) {
-                            setTempActivities(tempActivities.filter((a) => a !== act));
-                          } else {
-                            setTempActivities([...tempActivities, act]);
-                          }
-                        }}
+                        onPress={() => toggleTempActivity(act)}
                         style={[
                           styles.filterChip,
-                          isSelected && styles.filterChipActive,
-                          { borderColor: isSelected ? '#247B74' : isDark ? colors.border : '#DFE4E1' },
+                          {
+                            backgroundColor: isSelected
+                              ? (isDark ? '#1C3833' : '#EAF5F2')
+                              : (isDark ? '#111827' : '#F7F8F5'),
+                            borderColor: isSelected
+                              ? (isDark ? '#5ECFC3' : '#238C82')
+                              : (isDark ? '#334155' : '#E2E7E5'),
+                          },
                         ]}
                       >
                         <Text
                           style={[
                             styles.filterChipText,
-                            isSelected && { color: '#247B74', fontWeight: '600' },
-                            !isSelected && { color: isDark ? colors.text : '#1F2927' },
+                            {
+                              color: isSelected
+                                ? (isDark ? '#5ECFC3' : '#238C82')
+                                : (isDark ? '#F1F5F9' : '#66726F'),
+                              fontWeight: isSelected ? '700' : '500',
+                            },
                           ]}
                         >
                           {act}
@@ -762,244 +914,304 @@ export default function DiaryScreen() {
                     );
                   })}
                 </View>
-              </View>
-            </ScrollView>
+              </ScrollView>
 
-            {/* Botões do Modal */}
-            <View style={styles.modalButtonsRow}>
-              <TouchableOpacity
-                onPress={handleClearFilters}
-                style={[styles.modalSecondaryBtn, { borderColor: '#DFE4E1' }]}
-              >
-                <Text style={[styles.modalSecondaryBtnText, { color: '#68736F' }]}>Limpar filtros</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handleApplyFilters}
-                style={styles.modalPrimaryBtn}
-              >
-                <Text style={styles.modalPrimaryBtnText}>Aplicar filtros</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* 5. MODAL DE DETALHES DO REGISTRO */}
-      {selectedRecordForDetail && (
-        <Modal
-          visible={!!selectedRecordForDetail}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setSelectedRecordForDetail(null)}
-        >
-          <View style={styles.modalOverlayCenter}>
-            <View
-              style={[
-                styles.detailCard,
-                {
-                  backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                  borderColor: isDark ? colors.border : '#E0E5E2',
-                },
-              ]}
-            >
-              <View style={styles.modalHeader}>
-                <Text
-                  accessibilityRole="header"
-                  aria-level={2}
-                  style={[styles.modalTitle, { color: isDark ? colors.text : '#1F2927' }]}
-                >
-                  Detalhes do registro
-                </Text>
-                <TouchableOpacity
-                  onPress={() => setSelectedRecordForDetail(null)}
-                  style={{ padding: 4 }}
-                >
-                  <X size={20} color={isDark ? colors.text : '#1F2927'} strokeWidth={1.75} />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.detailBody}>
-                {/* Humor & Ansiedade */}
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: isDark ? colors.textMuted : '#68736F' }]}>Humor:</Text>
-                  <Text style={[styles.detailValue, { color: isDark ? colors.text : '#1F2927', fontWeight: '600' }]}>
-                    {getMoodInfo(selectedRecordForDetail.mood).label} ({selectedRecordForDetail.mood}/5)
+              {/* Botões do Modal */}
+              <View style={[styles.modalActionsRow, { borderTopColor: isDark ? '#334155' : '#E2E7E5' }]}>
+                <TouchableOpacity onPress={clearFilters} style={styles.modalSecondaryBtn}>
+                  <Text style={[styles.modalSecondaryBtnText, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
+                    Limpar tudo
                   </Text>
-                </View>
-
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: isDark ? colors.textMuted : '#68736F' }]}>Ansiedade:</Text>
-                  <Text style={[styles.detailValue, { color: '#D87556', fontWeight: '600' }]}>
-                    {selectedRecordForDetail.anxietyLevel}/10
-                  </Text>
-                </View>
-
-                <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: isDark ? colors.textMuted : '#68736F' }]}>Horário:</Text>
-                  <Text style={[styles.detailValue, { color: isDark ? colors.text : '#1F2927' }]}>
-                    {new Date(selectedRecordForDetail.createdAt).toLocaleString('pt-BR')}
-                  </Text>
-                </View>
-
-                {selectedRecordForDetail.emotions && selectedRecordForDetail.emotions.length > 0 && (
-                  <View style={styles.detailRow}>
-                    <Text style={[styles.detailLabel, { color: isDark ? colors.textMuted : '#68736F' }]}>Emoções:</Text>
-                    <Text style={[styles.detailValue, { color: isDark ? colors.text : '#1F2927' }]}>
-                      {selectedRecordForDetail.emotions.join(', ')}
-                    </Text>
-                  </View>
-                )}
-
-                {selectedRecordForDetail.activities && selectedRecordForDetail.activities.length > 0 && (
-                  <View style={styles.detailRow}>
-                    <Text style={[styles.detailLabel, { color: isDark ? colors.textMuted : '#68736F' }]}>Atividades:</Text>
-                    <Text style={[styles.detailValue, { color: isDark ? colors.text : '#1F2927' }]}>
-                      {selectedRecordForDetail.activities.join(', ')}
-                    </Text>
-                  </View>
-                )}
-
-                {selectedRecordForDetail.notes && (
-                  <View style={{ marginTop: 8 }}>
-                    <Text style={[styles.detailLabel, { color: isDark ? colors.textMuted : '#68736F', marginBottom: 4 }]}>
-                      Anotações:
-                    </Text>
-                    <Text style={[styles.detailNotesText, { color: isDark ? colors.text : '#1F2927' }]}>
-                      {selectedRecordForDetail.notes}
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.detailActionsRow}>
-                <TouchableOpacity
-                  onPress={() => {
-                    const id = selectedRecordForDetail.id;
-                    setRecordToDelete(id);
-                  }}
-                  style={styles.detailDeleteBtn}
-                >
-                  <Trash2 size={16} color="#C84E45" strokeWidth={1.75} style={{ marginRight: 6 }} />
-                  <Text style={styles.detailDeleteBtnText}>Excluir registro</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => setSelectedRecordForDetail(null)}
-                  style={styles.detailCloseBtn}
+                  onPress={applyFilters}
+                  style={[styles.modalPrimaryBtn, { backgroundColor: isDark ? '#5ECFC3' : '#238C82' }]}
                 >
-                  <Text style={styles.detailCloseBtnText}>Fechar</Text>
+                  <Text style={[styles.modalPrimaryBtnText, { color: isDark ? '#111827' : '#FFFFFF' }]}>
+                    Aplicar
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </Modal>
-      )}
 
-      {/* 6. DIÁLOGO DE CONFIRMAÇÃO DE EXCLUSÃO */}
-      <ConfirmDialog
-        visible={!!recordToDelete}
-        title="Excluir registro"
-        message="Tem certeza de que deseja excluir este registro do diário? Esta ação não poderá ser desfeita."
-        confirmTitle="Excluir"
-        cancelTitle="Cancelar"
-        isDestructive={true}
-        isLoading={isDeleting}
-        onConfirm={handleDeleteRecord}
-        onCancel={() => setRecordToDelete(null)}
-      />
+        {/* MODAL DE DETALHES DO REGISTRO */}
+        {selectedRecordForDetail && (
+          <Modal
+            visible={!!selectedRecordForDetail}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setSelectedRecordForDetail(null)}
+          >
+            <View style={styles.modalOverlay}>
+              <View
+                style={[
+                  styles.detailModalCard,
+                  {
+                    backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                    borderColor: isDark ? '#334155' : '#E2E7E5',
+                  },
+                ]}
+              >
+                <View style={styles.modalHeaderRow}>
+                  <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#17211F' }]}>
+                    Detalhes do registro
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setSelectedRecordForDetail(null)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Fechar detalhes"
+                  >
+                    <X size={20} color={isDark ? '#F1F5F9' : '#66726F'} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView style={styles.detailModalBody}>
+                  {/* Data e Hora */}
+                  <Text style={[styles.detailDateText, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
+                    {new Date(selectedRecordForDetail.createdAt).toLocaleDateString('pt-BR', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })}{' '}
+                    às{' '}
+                    {new Date(selectedRecordForDetail.createdAt).toLocaleTimeString('pt-BR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Text>
+
+                  {/* Humor e Ansiedade */}
+                  <View style={styles.detailScoresRow}>
+                    <View
+                      style={[
+                        styles.detailScoreBox,
+                        {
+                          backgroundColor: isDark ? '#111827' : '#F7F8F5',
+                          borderColor: isDark ? '#334155' : '#E2E7E5',
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.detailScoreLabel, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
+                        Humor
+                      </Text>
+                      <Text style={[styles.detailScoreValue, { color: isDark ? '#5ECFC3' : '#238C82' }]}>
+                        {getMoodVisual(selectedRecordForDetail.mood).label} ({selectedRecordForDetail.mood}/5)
+                      </Text>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.detailScoreBox,
+                        {
+                          backgroundColor: isDark ? '#111827' : '#F7F8F5',
+                          borderColor: isDark ? '#334155' : '#E2E7E5',
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.detailScoreLabel, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
+                        Ansiedade
+                      </Text>
+                      <Text
+                        style={[
+                          styles.detailScoreValue,
+                          { color: selectedRecordForDetail.anxietyLevel >= 4 ? '#D87556' : (isDark ? '#5ECFC3' : '#238C82') },
+                        ]}
+                      >
+                        {selectedRecordForDetail.anxietyLevel}/10
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Emoções */}
+                  {selectedRecordForDetail.emotions && selectedRecordForDetail.emotions.length > 0 && (
+                    <View style={styles.detailSectionBlock}>
+                      <Text style={[styles.detailSectionHeading, { color: isDark ? '#FFFFFF' : '#17211F' }]}>
+                        Sentimentos
+                      </Text>
+                      <View style={styles.filterOptionsWrap}>
+                        {selectedRecordForDetail.emotions.map((emo) => (
+                          <View
+                            key={emo}
+                            style={[
+                              styles.detailChip,
+                              {
+                                backgroundColor: isDark ? '#1C3833' : '#EAF5F2',
+                                borderColor: isDark ? '#5ECFC3' : '#238C82',
+                              },
+                            ]}
+                          >
+                            <Text style={[styles.detailChipText, { color: isDark ? '#5ECFC3' : '#238C82' }]}>
+                              {emo}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Atividades */}
+                  {selectedRecordForDetail.activities && selectedRecordForDetail.activities.length > 0 && (
+                    <View style={styles.detailSectionBlock}>
+                      <Text style={[styles.detailSectionHeading, { color: isDark ? '#FFFFFF' : '#17211F' }]}>
+                        Atividades
+                      </Text>
+                      <View style={styles.filterOptionsWrap}>
+                        {selectedRecordForDetail.activities.map((act) => (
+                          <View
+                            key={act}
+                            style={[
+                              styles.detailChip,
+                              {
+                                backgroundColor: isDark ? '#111827' : '#F7F8F5',
+                                borderColor: isDark ? '#334155' : '#E2E7E5',
+                              },
+                            ]}
+                          >
+                            <Text style={[styles.detailChipText, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
+                              {act}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Notas */}
+                  {selectedRecordForDetail.notes ? (
+                    <View style={styles.detailSectionBlock}>
+                      <Text style={[styles.detailSectionHeading, { color: isDark ? '#FFFFFF' : '#17211F' }]}>
+                        Anotações
+                      </Text>
+                      <Text style={[styles.detailNotesText, { color: isDark ? '#F1F5F9' : '#17211F' }]}>
+                        {selectedRecordForDetail.notes}
+                      </Text>
+                    </View>
+                  ) : null}
+                </ScrollView>
+
+                {/* Ações do Modal de Detalhes */}
+                <View style={[styles.modalActionsRow, { borderTopColor: isDark ? '#334155' : '#E2E7E5' }]}>
+                  <TouchableOpacity
+                    onPress={() => confirmDeleteRecord(selectedRecordForDetail.id)}
+                    style={styles.deleteRecordBtn}
+                  >
+                    <Trash2 size={16} color="#BA4328" style={{ marginRight: 6 }} />
+                    <Text style={styles.deleteRecordBtnText}>Excluir registro</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setSelectedRecordForDetail(null)}
+                    style={[styles.modalPrimaryBtn, { backgroundColor: isDark ? '#5ECFC3' : '#238C82' }]}
+                  >
+                    <Text style={[styles.modalPrimaryBtnText, { color: isDark ? '#111827' : '#FFFFFF' }]}>
+                      Fechar
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        )}
+
+        {/* DIÁLOGO DE CONFIRMAÇÃO DE EXCLUSÃO */}
+        <ConfirmDialog
+          visible={!!recordToDelete}
+          title="Excluir este registro?"
+          message="Esta ação não pode ser desfeita e os dados deste momento serão removidos do seu histórico."
+          confirmTitle={isDeleting ? 'Excluindo...' : 'Excluir'}
+          cancelTitle="Cancelar"
+          isDestructive={true}
+          isLoading={isDeleting}
+          onConfirm={executeDelete}
+          onCancel={() => setRecordToDelete(null)}
+        />
+      </View>
     </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 48,
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 32,
   },
   containerDesktop: {
     maxWidth: 960,
     alignSelf: 'center',
+    width: '100%',
   },
 
-  // Cabeçalho
-  headerRow: {
+  // 1. Cabeçalho
+  headerBlock: {
     marginBottom: 20,
   },
-  headerRowDesktop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   pageTitle: {
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: '700',
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
     marginBottom: 4,
   },
   pageSubtitle: {
     fontSize: 15,
     lineHeight: 22,
     fontWeight: '400',
-    marginBottom: 14,
+    marginBottom: 16,
   },
-  newRecordBtn: {
-    height: 44,
-    backgroundColor: '#247B74',
-    borderRadius: 8,
+  newRecordBtnFull: {
+    height: 48,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    alignSelf: 'flex-start',
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  newRecordBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
+  newRecordBtnFullText: {
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
 
-  // Card Resumo Analítico Único
-  summaryCard: {
+  // 2. Painel de Indicadores Único
+  indicatorsPanel: {
     borderRadius: 14,
     borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-    marginBottom: 28,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  periodTabsRow: {
+  periodTabsPillContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    borderBottomWidth: 1,
-    paddingBottom: 4,
+    justifyContent: 'space-between',
+    borderRadius: 10,
+    padding: 4,
     marginBottom: 18,
   },
-  periodTabItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    position: 'relative',
-    minHeight: 44,
+  periodTabPill: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 8,
   },
-  periodTabItemActive: {},
-  periodTabText: {
-    fontSize: 14,
-    fontWeight: '400',
-  },
-  periodTabTextActive: {
-    fontWeight: '600',
-  },
-  activePeriodIndicator: {
-    position: 'absolute',
-    bottom: -5,
-    left: 0,
-    right: 0,
-    height: 2.5,
-    backgroundColor: '#247B74',
-    borderRadius: 1,
+  periodTabPillActive: {},
+  periodTabPillText: {
+    fontSize: 13.5,
   },
 
   // Métricas
@@ -1007,7 +1219,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
   },
   metricColumn: {
     flex: 1,
@@ -1015,85 +1226,109 @@ const styles = StyleSheet.create({
   },
   metricDivider: {
     width: 1,
-    height: 44,
-    marginHorizontal: 8,
+    height: 38,
+    marginHorizontal: 4,
   },
   metricLabel: {
     fontSize: 12,
     marginBottom: 4,
     textAlign: 'center',
+    fontWeight: '400',
   },
   metricValueWrap: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
   metricValueBold: {
-    fontSize: 26,
+    fontSize: 25,
     fontWeight: '700',
     letterSpacing: -0.5,
   },
   metricValueUnit: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '400',
     marginLeft: 2,
   },
 
-  // Seletor de Métrica (Humor vs Ansiedade)
+  // 3 & 4. Card do Gráfico
+  chartCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 28,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
   metricSelectorRow: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E7EBE9',
     marginBottom: 16,
+    paddingBottom: 2,
   },
   metricTabItem: {
     paddingVertical: 8,
+    paddingHorizontal: 4,
     position: 'relative',
   },
-  metricTabItemActiveMood: {},
-  metricTabItemActiveAnxiety: {},
   metricTabText: {
-    fontSize: 14,
+    fontSize: 14.5,
   },
   activeMetricLine: {
     position: 'absolute',
     bottom: -1,
-    left: 0,
-    right: 0,
-    height: 2,
-    borderRadius: 1,
+    left: 4,
+    right: 4,
+    height: 2.5,
+    borderRadius: 1.5,
   },
-
-  // Título Interno do Gráfico
-  chartTitleBlock: {
-    marginBottom: 8,
+  chartHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   chartHeading: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     letterSpacing: -0.2,
   },
   chartSubheading: {
-    fontSize: 12,
+    fontSize: 12.5,
     marginTop: 2,
   },
+  viewDetailsBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  viewDetailsBtnText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+  },
 
-  // Texto Descritivo Abaixo do Gráfico
-  chartBottomInsight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 10,
-    borderWidth: 1,
+  // 6. Resumo com Linha Verde à Esquerda
+  summaryInsightBox: {
+    borderLeftWidth: 3.5,
+    paddingLeft: 12,
+    paddingVertical: 10,
+    borderRadius: 6,
     marginTop: 14,
   },
-  chartBottomInsightText: {
-    fontSize: 13,
+  summaryInsightStatus: {
+    fontSize: 13.5,
+    fontWeight: '700',
     lineHeight: 19,
-    flex: 1,
+    marginBottom: 2,
+  },
+  summaryInsightDetail: {
+    fontSize: 12.5,
+    lineHeight: 18,
   },
 
-  // Seção Registros Recentes
+  // 5. Seção Registros Recentes
   recentSection: {
     width: '100%',
   },
@@ -1104,8 +1339,8 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   sectionTitle: {
-    fontSize: 19,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     letterSpacing: -0.3,
   },
   filterBtn: {
@@ -1115,128 +1350,143 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   filterBtnText: {
-    color: '#247B74',
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '600',
   },
-  filterBadge: {
-    backgroundColor: '#247B74',
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    marginLeft: 6,
-  },
-  filterBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-
-  // Lista de Registros
-  recordsListBlock: {
-    gap: 16,
-  },
-  dateGroupBlock: {
-    marginBottom: 8,
-  },
-  dateGroupHeader: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  dateGroupCard: {
-    borderRadius: 12,
+  emptyStateCard: {
+    borderRadius: 14,
     borderWidth: 1,
-    overflow: 'hidden',
-  },
-  recordRow: {
-    flexDirection: 'row',
+    padding: 24,
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    minHeight: 64,
-  },
-  recordIconWrap: {
-    marginRight: 14,
-  },
-  recordInfoCenter: {
-    flex: 1,
     justifyContent: 'center',
   },
-  recordMoodName: {
+  emptyStateTitle: {
     fontSize: 15,
     fontWeight: '600',
-    marginBottom: 2,
-  },
-  recordMetaSubtitle: {
-    fontSize: 13,
-  },
-  recordRightWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  recordAnxietyText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-
-  // Estado Vazio
-  emptyStateCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 32,
-    alignItems: 'center',
-  },
-  emptyStateTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 6,
+    marginBottom: 4,
+    textAlign: 'center',
   },
   emptyStateSubtitle: {
     fontSize: 13,
     textAlign: 'center',
     lineHeight: 19,
-    marginBottom: 16,
     maxWidth: 300,
   },
-  emptyActionBtn: {
-    backgroundColor: '#247B74',
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 8,
+  clearFiltersBtn: {
+    marginTop: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
-  emptyActionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
+  clearFiltersBtnText: {
+    color: '#238C82',
+    fontSize: 13,
     fontWeight: '600',
   },
-
-  // Modal de Filtros
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
+  dateGroupWrap: {
+    marginBottom: 16,
   },
-  modalOverlayCenter: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+  dateGroupHeading: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    paddingLeft: 4,
+  },
+  recordItemCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  recordMoodIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    marginRight: 12,
   },
-  modalSheet: {
+  recordContentCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  recordTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  recordMoodLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  recordTimeText: {
+    fontSize: 12,
+  },
+  recordMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  recordAnxietyText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  recordActivityCountText: {
+    fontSize: 12,
+    marginLeft: 6,
+  },
+  recordChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 2,
+  },
+  recordMiniChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  recordMiniChipText: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  recordMoreChipsText: {
+    fontSize: 11,
+    marginLeft: 2,
+  },
+
+  // Modais
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  filterModalContent: {
     width: '100%',
-    maxWidth: 600,
-    alignSelf: 'center',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    maxWidth: 480,
+    maxHeight: '85%',
+    borderRadius: 16,
     borderWidth: 1,
-    borderBottomWidth: 0,
     padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  modalHeader: {
+  modalHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1244,128 +1494,133 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
+    fontWeight: '700',
+  },
+  modalScrollArea: {
+    maxHeight: 400,
+  },
+  filterSectionTitle: {
+    fontSize: 13.5,
     fontWeight: '600',
+    marginTop: 12,
+    marginBottom: 8,
   },
-  filterSection: {
-    marginBottom: 18,
-  },
-  filterGroupTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 10,
-  },
-  chipsWrap: {
+  filterOptionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
+  filterOptionsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
   filterChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  filterChipActive: {
-    backgroundColor: '#EDF7F5',
   },
   filterChipText: {
     fontSize: 13,
   },
-  modalButtonsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 16,
-  },
-  modalSecondaryBtn: {
-    flex: 1,
-    height: 46,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalSecondaryBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  modalPrimaryBtn: {
-    flex: 1,
-    height: 46,
-    borderRadius: 8,
-    backgroundColor: '#247B74',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalPrimaryBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  // Modal de Detalhes
-  detailCard: {
-    width: '100%',
-    maxWidth: 440,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 20,
-    alignSelf: 'center',
-  },
-  detailBody: {
-    marginVertical: 12,
-    gap: 8,
-  },
-  detailRow: {
+  modalActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  detailLabel: {
-    fontSize: 13,
-  },
-  detailValue: {
-    fontSize: 14,
-  },
-  detailNotesText: {
-    fontSize: 13,
-    lineHeight: 19,
-    padding: 10,
-    backgroundColor: '#F7F8F5',
-    borderRadius: 8,
-  },
-  detailActionsRow: {
-    flexDirection: 'row',
-    gap: 10,
+    borderTopWidth: 1,
+    paddingTop: 14,
     marginTop: 16,
   },
-  detailDeleteBtn: {
+  modalSecondaryBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  modalSecondaryBtnText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  modalPrimaryBtn: {
+    paddingVertical: 9,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+  },
+  modalPrimaryBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  // Modal Detalhes
+  detailModalCard: {
+    width: '100%',
+    maxWidth: 480,
+    maxHeight: '85%',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  detailModalBody: {
+    maxHeight: 400,
+  },
+  detailDateText: {
+    fontSize: 13,
+    marginBottom: 14,
+  },
+  detailScoresRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  detailScoreBox: {
     flex: 1,
-    height: 42,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  detailScoreLabel: {
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  detailScoreValue: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  detailSectionBlock: {
+    marginBottom: 14,
+  },
+  detailSectionHeading: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  detailChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#F8D7DA',
-    backgroundColor: '#FDF2F2',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  detailDeleteBtnText: {
-    color: '#C84E45',
-    fontSize: 13,
+  detailChipText: {
+    fontSize: 12.5,
     fontWeight: '600',
   },
-  detailCloseBtn: {
-    flex: 1,
-    height: 42,
-    borderRadius: 8,
-    backgroundColor: '#247B74',
-    alignItems: 'center',
-    justifyContent: 'center',
+  detailNotesText: {
+    fontSize: 14,
+    lineHeight: 20,
   },
-  detailCloseBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
+  deleteRecordBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  deleteRecordBtnText: {
+    color: '#BA4328',
+    fontSize: 13.5,
     fontWeight: '600',
   },
 });

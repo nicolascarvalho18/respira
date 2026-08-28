@@ -116,7 +116,7 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
   if (hasError) {
     return (
       <View style={styles.stateContainer}>
-        <Text style={[styles.stateTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+        <Text style={[styles.stateTitle, { color: isDark ? '#FFFFFF' : '#17211F' }]}>
           Não foi possível carregar o resumo.
         </Text>
         {onRetry && (
@@ -132,10 +132,10 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
   if (dataPoints.length === 0) {
     return (
       <View style={styles.stateContainer}>
-        <Text style={[styles.stateTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+        <Text style={[styles.stateTitle, { color: isDark ? '#FFFFFF' : '#17211F' }]}>
           Ainda não há dados neste período
         </Text>
-        <Text style={[styles.stateSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
+        <Text style={[styles.stateSubtitle, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
           Registre como você está para começar a acompanhar suas mudanças.
         </Text>
         {onNavigateNew && (
@@ -147,13 +147,13 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
     );
   }
 
-  // Dimensões do Gráfico Mais Amplo e Aberto nas Laterais
+  // Dimensões do Gráfico (Altura de 240px conforme requisito entre 230px e 260px)
   const chartWidth = Math.max(280, containerWidth);
-  const chartHeight = 185;
-  const paddingLeft = 20; // Espaço compacto para os números 5, 4, 3, 2, 1
+  const chartHeight = 240;
+  const paddingLeft = 22; // Espaço compacto para os números 5, 4, 3, 2, 1
   const paddingRight = 6;  // Linha estende até a extremidade direita
-  const paddingTop = 16;
-  const paddingBottom = 24;
+  const paddingTop = 20;
+  const paddingBottom = 30;
 
   const usableWidth = chartWidth - paddingLeft - paddingRight;
   const usableHeight = chartHeight - paddingTop - paddingBottom;
@@ -175,10 +175,14 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
     return paddingLeft + (index / (dataPoints.length - 1)) * usableWidth;
   };
 
-  // Cores conforme design system
-  const lineColor = metric === 'mood' ? '#247B74' : '#D87556';
-  const areaColor = metric === 'mood' ? 'rgba(36, 123, 116, 0.05)' : 'rgba(216, 117, 86, 0.05)';
-  const gridColor = isDark ? 'rgba(255,255,255,0.08)' : '#E8ECEA';
+  // Cores conforme design system especificado
+  const lineColor = metric === 'mood'
+    ? (isDark ? '#5ECFC3' : '#238C82')
+    : (isDark ? '#F69D7A' : '#D87556');
+  const areaColor = metric === 'mood'
+    ? (isDark ? 'rgba(94, 207, 195, 0.08)' : 'rgba(35, 140, 130, 0.08)')
+    : (isDark ? 'rgba(246, 157, 122, 0.08)' : 'rgba(216, 117, 86, 0.08)');
+  const gridColor = isDark ? '#334155' : '#E2E7E5';
 
   // Gerar caminho SVG para a linha e a área
   const pointsCoords = dataPoints.map((p, idx) => ({
@@ -259,7 +263,7 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
         </table>
       )}
 
-      {/* SVG Canvas do Gráfico (Expandido de ponta a ponta) */}
+      {/* SVG Canvas do Gráfico (Expandido e com 240px de altura) */}
       <View style={styles.svgContainer}>
         <Svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
           {/* 1. Grade Horizontal Discreta */}
@@ -281,22 +285,22 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
             })}
           </G>
 
-          {/* 2. Área Preenchida Suave (5% opacidade) */}
+          {/* 2. Área Preenchida Verde Suave */}
           {pathArea ? <Path d={pathArea} fill={areaColor} /> : null}
 
-          {/* 3. Linha Principal */}
+          {/* 3. Linha Principal Verde-Água com 2.5px */}
           {pathLine ? (
             <Path
               d={pathLine}
               fill="none"
               stroke={lineColor}
-              strokeWidth="2.2"
+              strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
           ) : null}
 
-          {/* 4. Marcadores Circulares Interativos (6px) */}
+          {/* 4. Marcadores Circulares Pequenos e Interativos */}
           {pointsCoords.map((pt, idx) => {
             const isSelected = selectedPointIndex === idx;
             return (
@@ -304,10 +308,10 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
                 <Circle
                   cx={pt.x}
                   cy={pt.y}
-                  r={isSelected ? 6.5 : 4.5}
+                  r={isSelected ? 6 : 4.2}
                   fill={lineColor}
-                  stroke={isDark ? '#1F2927' : '#FFFFFF'}
-                  strokeWidth={isSelected ? 2.5 : 1.8}
+                  stroke={isDark ? '#1F2937' : '#FFFFFF'}
+                  strokeWidth={isSelected ? 2.5 : 2}
                 />
               </G>
             );
@@ -318,17 +322,17 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
         <View style={[styles.yAxisLabels, { top: paddingTop - 8, height: usableHeight + 16 }]}>
           {metric === 'mood' ? (
             <>
-              <Text style={[styles.axisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}>5</Text>
-              <Text style={[styles.axisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}>4</Text>
-              <Text style={[styles.axisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}>3</Text>
-              <Text style={[styles.axisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}>2</Text>
-              <Text style={[styles.axisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}>1</Text>
+              <Text style={[styles.axisText, { color: isDark ? '#F1F5F9' : '#66726F' }]}>5</Text>
+              <Text style={[styles.axisText, { color: isDark ? '#F1F5F9' : '#66726F' }]}>4</Text>
+              <Text style={[styles.axisText, { color: isDark ? '#F1F5F9' : '#66726F' }]}>3</Text>
+              <Text style={[styles.axisText, { color: isDark ? '#F1F5F9' : '#66726F' }]}>2</Text>
+              <Text style={[styles.axisText, { color: isDark ? '#F1F5F9' : '#66726F' }]}>1</Text>
             </>
           ) : (
             <>
-              <Text style={[styles.axisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}>10</Text>
-              <Text style={[styles.axisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}>5</Text>
-              <Text style={[styles.axisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}>0</Text>
+              <Text style={[styles.axisText, { color: isDark ? '#F1F5F9' : '#66726F' }]}>10</Text>
+              <Text style={[styles.axisText, { color: isDark ? '#F1F5F9' : '#66726F' }]}>5</Text>
+              <Text style={[styles.axisText, { color: isDark ? '#F1F5F9' : '#66726F' }]}>0</Text>
             </>
           )}
         </View>
@@ -352,14 +356,14 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
           />
         ))}
 
-        {/* 7. Tooltip Flutuante */}
+        {/* 7. Tooltip Pequeno com Fundo Branco e Borda Fina */}
         {selectedPoint && selectedPointIndex !== null && (
           <View
             style={[
               styles.tooltipCard,
               {
-                backgroundColor: isDark ? '#172033' : '#FFFFFF',
-                borderColor: isDark ? '#334155' : '#DDE6E3',
+                backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                borderColor: isDark ? '#334155' : '#E2E7E5',
                 left: Math.min(
                   chartWidth - 120,
                   Math.max(10, scaleX(selectedPointIndex) - 55)
@@ -368,14 +372,14 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
               },
             ]}
           >
-            <Text style={[styles.tooltipDate, { color: isDark ? colors.text : '#1F2927' }]}>
+            <Text style={[styles.tooltipDate, { color: isDark ? '#FFFFFF' : '#17211F' }]}>
               {selectedPoint.fullDateLabel}
             </Text>
             <Text style={[styles.tooltipValue, { color: lineColor, fontWeight: '700' }]}>
               {metric === 'mood' ? 'Humor' : 'Ansiedade'}: {selectedPoint.value.toString().replace('.', ',')}
               {metric === 'mood' ? '/5' : '/10'}
             </Text>
-            <Text style={[styles.tooltipCount, { color: isDark ? colors.textMuted : '#68736F' }]}>
+            <Text style={[styles.tooltipCount, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
               {selectedPoint.count} {selectedPoint.count === 1 ? 'registro' : 'registros'}
             </Text>
           </View>
@@ -395,7 +399,7 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
         {xLabels.map((lbl, idx) => (
           <Text
             key={`xlbl-${idx}`}
-            style={[styles.xAxisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}
+            style={[styles.xAxisText, { color: isDark ? '#F1F5F9' : '#66726F' }]}
           >
             {lbl.label}
           </Text>
@@ -404,7 +408,7 @@ export const MoodLineChart: React.FC<MoodLineChartProps> = ({
 
       {/* Mensagem Auxiliar para Caso de Registro Único */}
       {dataPoints.length === 1 && (
-        <Text style={[styles.singlePointHint, { color: isDark ? colors.textMuted : '#68736F' }]}>
+        <Text style={[styles.singlePointHint, { color: isDark ? '#F1F5F9' : '#66726F' }]}>
           Adicione mais registros para visualizar a evolução.
         </Text>
       )}
@@ -419,25 +423,25 @@ const styles = StyleSheet.create({
   },
   svgContainer: {
     width: '100%',
-    height: 185,
+    height: 240,
     position: 'relative',
   },
   yAxisLabels: {
     position: 'absolute',
     left: 0,
-    width: 16,
+    width: 18,
     justifyContent: 'space-between',
     pointerEvents: 'none',
   },
   axisText: {
     fontSize: 11,
-    fontWeight: '400',
+    fontWeight: '500',
     textAlign: 'center',
   },
   xAxisLabelsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 4,
+    marginTop: 6,
   },
   xAxisText: {
     fontSize: 11,
@@ -483,7 +487,7 @@ const styles = StyleSheet.create({
     paddingVertical: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 180,
+    minHeight: 220,
   },
   stateTitle: {
     fontSize: 15,
@@ -499,7 +503,7 @@ const styles = StyleSheet.create({
     maxWidth: 280,
   },
   actionBtn: {
-    backgroundColor: '#247B74',
+    backgroundColor: '#238C82',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
