@@ -54,6 +54,12 @@ const EDITORIAL_IMAGE_COVERS: Record<string, any> = {
   'como-identificar-e-nomear-suas-emocoes': require('../../../assets/images/como-identificar-e-nomear-suas-emocoes.jpg'),
   'como-acolher-emocoes-desconfortaveis': require('../../../assets/images/como-acolher-emocoes-desconfortaveis.jpg'),
   'como-a-respiracao-ajuda-a-regular-o-corpo': require('../../../assets/images/como-a-respiracao-ajuda-a-regular-o-corpo.jpg'),
+  // Regulação (6 a 10)
+  'como-lidar-com-irritacao-e-frustracao': require('../../../assets/images/como-lidar-com-irritacao-e-frustracao.jpg'),
+  'estrategias-para-momentos-de-sobrecarga-emocional': require('../../../assets/images/estrategias-para-momentos-de-sobrecarga-emocional.jpg'),
+  'como-responder-sem-agir-por-impulso': require('../../../assets/images/como-responder-sem-agir-por-impulso.jpg'),
+  'tecnicas-de-aterramento-para-momentos-intensos': require('../../../assets/images/tecnicas-de-aterramento-para-momentos-intensos.jpg'),
+  'como-recuperar-o-equilibrio-depois-de-um-dia-dificil': require('../../../assets/images/como-recuperar-o-equilibrio-depois-de-um-dia-dificil.jpg'),
 };
 
 export interface ArticleCoverProps {
