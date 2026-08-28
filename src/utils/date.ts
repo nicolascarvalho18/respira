@@ -15,6 +15,23 @@ export function formatDate(isoString: string): string {
 }
 
 /**
+ * Formata a data atual em linguagem natural para o cabeçalho (sem o ano).
+ * Ex: "Sexta-feira, 28 de agosto"
+ */
+export function formatHeaderDate(date: Date | string = new Date()): string {
+  try {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    const weekday = d.toLocaleDateString('pt-BR', { weekday: 'long' });
+    const day = d.getDate();
+    const month = d.toLocaleDateString('pt-BR', { month: 'long' });
+    const capitalizedWeekday = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+    return `${capitalizedWeekday}, ${day} de ${month}`;
+  } catch {
+    return 'Hoje';
+  }
+}
+
+/**
  * Formata apenas a hora e minutos.
  */
 export function formatTime(isoString: string): string {

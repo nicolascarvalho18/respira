@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Image,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -35,7 +36,7 @@ import { usePracticeStore } from '../../src/store/practiceStore';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
 import { useToast } from '../../src/components/ui/Toast';
-import { getGreeting, formatDate, formatDateTime } from '../../src/utils/date';
+import { getGreeting, formatHeaderDate, formatDateTime } from '../../src/utils/date';
 import { getPracticeImage } from '../../src/utils/practiceImages';
 import { PlannedExercise } from '../../src/types';
 
@@ -44,7 +45,12 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const { colors, isDark } = useTheme();
   const { isDesktop } = useBreakpoint();
+  const { width } = useWindowDimensions();
   const { showToast } = useToast();
+
+  const isSmallScreen = width < 360;
+  const avatarSize = isDesktop ? 64 : 56;
+  const greetingFontSize = isDesktop ? 26 : isSmallScreen ? 21 : 24;
 
   const { records, updateExerciseStatus } = useMoodStore();
   const { practices, toggleFavorite: togglePracticeFavorite } = usePracticeStore();
@@ -61,10 +67,10 @@ export default function HomeScreen() {
   const recommendedPractice =
     practices.find((p) => p.id === 'practice-breathing-478') || practices[0] || null;
 
-  // Formatação de data da barra superior
+  // Formatação de data natural e acolhedora: "Sexta-feira, 28 de agosto"
   const formattedToday = useMemo(() => {
     try {
-      return formatDate(new Date().toISOString());
+      return formatHeaderDate(new Date());
     } catch {
       return 'Hoje';
     }
@@ -235,37 +241,93 @@ export default function HomeScreen() {
 
   return (
     <AppShell rightPanel={renderDesktopRightPanel()}>
-      {/* 1. Cabeçalho Superior */}
+      {/* 1. Cabeçalho Superior Compacto e Natural */}
       <View style={styles.topHeader}>
         <View style={styles.userGreetingRow}>
-          {user?.avatarUrl ? (
-            <Image
-              source={{ uri: user.avatarUrl }}
-              accessibilityLabel={`Foto de perfil de ${userName}`}
-              style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#EDF7F5' }}
-            />
-          ) : (
-            <View style={[styles.avatarCircle, { backgroundColor: '#247B74' }]}>
-              <Text style={styles.avatarLetter}>{userInitial}</Text>
-            </View>
-          )}
+          {/* Avatar / Foto */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => router.push('/profile')}
+            accessibilityRole="link"
+            accessibilityLabel={`Perfil de ${userName}`}
+            style={[
+              styles.avatarContainer,
+              {
+                width: avatarSize,
+                height: avatarSize,
+                borderRadius: avatarSize / 2,
+                borderColor: isDark ? '#334155' : 'transparent',
+                borderWidth: isDark ? 1.5 : 0,
+              },
+            ]}
+          >
+            {user?.avatarUrl ? (
+              <Image
+                source={{ uri: user.avatarUrl }}
+                accessibilityLabel={`Foto de perfil de ${userName}`}
+                style={{
+                  width: avatarSize,
+                  height: avatarSize,
+                  borderRadius: avatarSize / 2,
+                  backgroundColor: '#EDF7F5',
+                }}
+                resizeMode="cover"
+              />
+            ) : (
+              <View
+                style={[
+                  styles.avatarCircle,
+                  {
+                    width: avatarSize,
+                    height: avatarSize,
+                    borderRadius: avatarSize / 2,
+                    backgroundColor: '#247B74',
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.avatarLetter,
+                    { fontSize: isDesktop ? 26 : 22 },
+                  ]}
+                >
+                  {userInitial}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          {/* Saudação e Data */}
           <View style={styles.headerTextGroup}>
             <Text
               accessibilityRole="header"
               aria-level={1}
-              style={[styles.greetingTitle, { color: isDark ? colors.text : '#1F2927' }]}
+              numberOfLines={1}
+              style={[
+                styles.greetingTitle,
+                {
+                  fontSize: greetingFontSize,
+                  color: isDark ? '#FFFFFF' : '#17332F',
+                },
+              ]}
             >
               {getGreeting(userName)}
             </Text>
-            <Text style={[styles.dateSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
+            <Text
+              style={[
+                styles.dateSubtitle,
+                { color: isDark ? '#F1F5F9' : '#5F706C' },
+              ]}
+            >
               {formattedToday}
             </Text>
           </View>
         </View>
 
+        {/* Botão Apoio Imediato Abaixo */}
         <TouchableOpacity
           onPress={() => router.push('/support')}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityLabel="Apoio imediato e escuta gratuita pelo CVV"
           style={[
@@ -276,7 +338,7 @@ export default function HomeScreen() {
             },
           ]}
         >
-          <Heart size={15} color="#D87556" strokeWidth={1.8} aria-hidden={true} />
+          <Heart size={14} color="#D87556" strokeWidth={1.8} aria-hidden={true} />
           <Text style={styles.sosHeaderText}>Apoio imediato</Text>
         </TouchableOpacity>
       </View>
@@ -639,51 +701,49 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  // 1. Cabeçalho Superior
+  // 1. Cabeçalho Superior Compacto e Natural
   topHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-    paddingTop: 4,
+    marginBottom: 24,
+    paddingTop: 8,
     gap: 12,
   },
   userGreetingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    minWidth: 0,
+    gap: 12,
   },
-  avatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  avatarContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    overflow: 'hidden',
+  },
+  avatarCircle: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarLetter: {
     color: '#FFFFFF',
-    fontSize: 18,
     fontWeight: '700',
   },
   headerTextGroup: {
     flex: 1,
     minWidth: 0,
+    justifyContent: 'center',
   },
   greetingTitle: {
-    fontSize: 17,
     fontWeight: '700',
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
   dateSubtitle: {
-    fontSize: 13,
+    fontSize: 14.5,
     fontWeight: '400',
-    marginTop: 2,
+    marginTop: 4,
+    lineHeight: 20,
   },
   sosHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
     gap: 6,
     paddingVertical: 7,
     paddingHorizontal: 12,
