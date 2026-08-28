@@ -19,6 +19,11 @@ const EDITORIAL_IMAGE_COVERS: Record<string, any> = {
   'ansiedade-e-estresse-qual-e-a-diferenca': require('../../../assets/images/ansiedade-e-estresse-qual-e-a-diferenca.jpg'),
   'o-que-acontece-no-corpo-durante-uma-crise-de-ansiedade': require('../../../assets/images/o-que-acontece-no-corpo-durante-uma-crise-de-ansiedade.jpg'),
   'como-acalmar-os-pensamentos-acelerados': require('../../../assets/images/como-acalmar-os-pensamentos-acelerados.jpg'),
+  'ansiedade-antes-de-provas-reunioes-e-apresentacoes': require('../../../assets/images/ansiedade-antes-de-provas-reunioes-e-apresentacoes.jpg'),
+  'como-lidar-com-a-preocupacao-excessiva': require('../../../assets/images/como-lidar-com-a-preocupacao-excessiva.jpg'),
+  'habitos-que-podem-aumentar-a-ansiedade': require('../../../assets/images/habitos-que-podem-aumentar-a-ansiedade.jpg'),
+  'como-apoiar-alguem-que-esta-ansioso': require('../../../assets/images/como-apoiar-alguem-que-esta-ansioso.jpg'),
+  'quando-procurar-ajuda-profissional': require('../../../assets/images/quando-procurar-ajuda-profissional.jpg'),
 };
 
 export interface ArticleCoverProps {
