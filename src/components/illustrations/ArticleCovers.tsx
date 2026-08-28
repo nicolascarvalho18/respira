@@ -42,6 +42,12 @@ const EDITORIAL_IMAGE_COVERS: Record<string, any> = {
   'descansar-tambem-faz-parte-da-produtividade': require('../../../assets/images/descansar-tambem-faz-parte-da-produtividade.jpg'),
   'como-diminuir-a-sobrecarga-mental': require('../../../assets/images/como-diminuir-a-sobrecarga-mental.jpg'),
   'movimento-e-atividade-fisica-para-o-bem-estar': require('../../../assets/images/movimento-e-atividade-fisica-para-o-bem-estar.jpg'),
+  // Bem-estar (6 a 10)
+  'como-ter-uma-relacao-saudavel-com-a-produtividade': require('../../../assets/images/como-ter-uma-relacao-saudavel-com-a-produtividade.jpg'),
+  'como-aprender-a-respeitar-os-proprios-limites': require('../../../assets/images/como-aprender-a-respeitar-os-proprios-limites.jpg'),
+  'como-criar-uma-rotina-emocionalmente-saudavel': require('../../../assets/images/como-criar-uma-rotina-emocionalmente-saudavel.jpg'),
+  'gratidao-sem-ignorar-as-emocoes-dificeis': require('../../../assets/images/gratidao-sem-ignorar-as-emocoes-dificeis.jpg'),
+  'como-criar-habitos-de-autocuidado-duradouros': require('../../../assets/images/como-criar-habitos-de-autocuidado-duradouros.jpg'),
 };
 
 export interface ArticleCoverProps {
