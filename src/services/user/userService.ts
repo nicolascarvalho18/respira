@@ -114,9 +114,8 @@ class UserService {
     return updated;
   }
 
-  async exportUserData(userId: string): Promise<string> {
-    logger.info(`Exporting data package for user ${userId}`);
-    return await userAccountService.exportUserDataPackage(userId);
+  async exportUserData(_userId: string): Promise<string> {
+    throw new Error('403: A funcionalidade de exportação de dados foi descontinuada.');
   }
 
   async deleteAccount(

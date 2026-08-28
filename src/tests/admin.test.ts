@@ -13,13 +13,7 @@ describe('Admin Security and Data Privacy (LGPD) Tests', () => {
     });
   });
 
-  it('should format user export data without exposing unencrypted sensitive keys', async () => {
-    const exportJson = await userService.exportUserData('user-demo-1');
-    const parsed = JSON.parse(exportJson);
-
-    expect(parsed.appVersion).toBeDefined();
-    expect(parsed.user).toBeDefined();
-    expect(parsed.user.password).toBeUndefined();
-    expect(parsed.legalNotice).toContain('privacidade');
+  it('should reject data export requests with 403 status as feature is discontinued', async () => {
+    await expect(userService.exportUserData('user-demo-1')).rejects.toThrow('403');
   });
 });

@@ -70,11 +70,8 @@ describe('Supabase Auth, RLS & Database Centralization Tests', () => {
     expect(devices[0].type).toBeDefined();
   });
 
-  it('should export user data package with valid schema', async () => {
-    const exported = await supabaseUserService.exportUserData('user-demo-1');
-    expect(exported).toBeDefined();
-    expect(exported.exportedAt).toBeDefined();
-    expect(exported.user).toBeDefined();
+  it('should reject export user data requests with 403 error', async () => {
+    await expect(supabaseUserService.exportUserData('user-demo-1')).rejects.toThrow('403');
   });
 
   describe('Two-Account Isolation & RLS Cross-Access Tests (Simulated & Rule Check)', () => {

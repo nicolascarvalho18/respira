@@ -413,16 +413,8 @@ class SupabaseUserService {
     return this.getActiveDevices(userId);
   }
 
-  async exportUserData(userId: string): Promise<any> {
-    const profile = await this.getProfile(userId);
-    const prefs = await this.getUserPreferences(userId);
-    const devices = await this.getActiveDevices(userId);
-    return {
-      exportedAt: new Date().toISOString(),
-      user: profile,
-      preferences: prefs,
-      devices,
-    };
+  async exportUserData(_userId: string): Promise<any> {
+    throw new Error('403: A funcionalidade de exportação de dados foi descontinuada.');
   }
 }
 

@@ -52,14 +52,15 @@ export default function HomeScreen() {
   const avatarSize = isDesktop ? 64 : 56;
   const greetingFontSize = isDesktop ? 26 : isSmallScreen ? 21 : 24;
 
-  const { records, updateExerciseStatus } = useMoodStore();
+  const { records, updateExerciseStatus, fetchRecords } = useMoodStore();
   const { practices, toggleFavorite: togglePracticeFavorite } = usePracticeStore();
 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       document.title = 'Início — Respira';
     }
-  }, []);
+    fetchRecords(user?.id);
+  }, [user?.id, fetchRecords]);
 
   const lastRecord = records.length > 0 ? records[0] : null;
   const plannedExercises: PlannedExercise[] = lastRecord?.plannedExercises || [];

@@ -371,59 +371,10 @@ export class UserAccountService {
   }
 
   /**
-   * 6. Complete Data Export (LGPD Portability)
+   * 6. Complete Data Export (Descontinuado)
    */
-  async exportUserDataPackage(userId: string): Promise<string> {
-    const user = await this.getUserById(userId);
-    const sessions = await this.getActiveSessions(userId);
-    const securityEvents = await this.getSecurityEvents(userId);
-
-    const exportPackage = {
-      appVersion: '1.0.0 (Respira)',
-      legalNotice: 'Este arquivo contém seus dados de bem-estar exportados em conformidade com as diretrizes de privacidade e LGPD.',
-      exportMetadata: {
-        platform: 'Respira Digital Health Platform',
-        version: '1.0.0',
-        exportedAt: new Date().toISOString(),
-        userId: user?.id || userId,
-        purpose: 'LGPD Artigo 18 - Portabilidade de Dados',
-      },
-      user: {
-        id: user?.id || userId,
-        name: user?.name,
-        email: user?.email,
-        createdAt: user?.createdAt,
-        updatedAt: user?.updatedAt,
-        isEmailVerified: user?.isEmailVerified,
-      },
-      userProfile: {
-        name: user?.name,
-        email: user?.email,
-        createdAt: user?.createdAt,
-        updatedAt: user?.updatedAt,
-        isEmailVerified: user?.isEmailVerified,
-      },
-      userConsents: user?.consents,
-      userPreferences: user?.preferences,
-      moodEntries: MOCK_MOODS,
-      completedPractices: MOCK_PRACTICES.filter((p) => (p.completedCount || 0) > 0),
-      favoriteArticles: MOCK_ARTICLES.filter((a) => a.isFavorite),
-      articleReadingProgress: MOCK_ARTICLES.map((a) => ({
-        articleSlug: a.slug,
-        title: a.title,
-        progress: a.readProgress,
-      })),
-      activeSessions: sessions.map((s) => ({
-        deviceType: s.deviceType,
-        browser: s.browser,
-        os: s.os,
-        lastActiveAt: s.lastActiveAt,
-      })),
-      securityAuditTrail: securityEvents,
-    };
-
-    await this.logSecurityEvent(userId, 'data_exported', 'Pacote completo de dados gerado e exportado.');
-    return JSON.stringify(exportPackage, null, 2);
+  async exportUserDataPackage(_userId: string): Promise<string> {
+    throw new Error('403: A funcionalidade de exportação de dados foi descontinuada.');
   }
 
   /**

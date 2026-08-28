@@ -4,6 +4,8 @@ import { authService, LoginCredentials, RegisterData } from '../services/auth/au
 import { supabaseAuthService, LogoutScope } from '../services/auth/supabaseAuthService';
 import { supabaseUserService } from '../services/user/supabaseUserService';
 import { isSupabaseConfigured } from '../services/supabase/client';
+import { useMoodStore } from './moodStore';
+import { moodService } from '../services/mood/moodService';
 
 interface AuthState {
   user: User | null;
@@ -74,11 +76,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
         await supabaseUserService.syncCurrentDevice(res.user.id);
         set({ user: res.user, isAuthenticated: true, isLoading: false });
+        useMoodStore.getState().fetchRecords(res.user.id);
         return;
       }
 
       const { user } = await authService.login(credentials);
       set({ user, isAuthenticated: true, isLoading: false });
+      useMoodStore.getState().fetchRecords(user.id);
     } catch (err: any) {
       set({ isLoading: false, error: err.message || 'Erro ao realizar login' });
       throw err;
@@ -96,11 +100,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
         await supabaseUserService.syncCurrentDevice(res.user.id);
         set({ user: res.user, isAuthenticated: true, isLoading: false });
+        useMoodStore.getState().fetchRecords(res.user.id);
         return;
       }
 
       const { user } = await authService.register(data);
       set({ user, isAuthenticated: true, isLoading: false });
+      useMoodStore.getState().fetchRecords(user.id);
     } catch (err: any) {
       set({ isLoading: false, error: err.message || 'Erro ao criar conta' });
       throw err;
@@ -109,7 +115,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async (scope: LogoutScope = 'local') => {
     try {
+      const currentUser = get().user;
       set({ isLoading: true });
+
+      // Limpar estado em memória de humor e diário imediatamente
+      useMoodStore.getState().clearRecords();
+      if (currentUser?.id) {
+        await moodService.clearUserCache(currentUser.id);
+      }
+
       if (isSupabaseConfigured) {
         await supabaseAuthService.signOut(scope);
       }

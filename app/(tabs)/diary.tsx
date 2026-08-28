@@ -24,6 +24,7 @@ import { MoodLineChart } from '../../src/components/mood/MoodLineChart';
 import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
 import { useToast } from '../../src/components/ui/Toast';
 import { useMoodStore } from '../../src/store/moodStore';
+import { useAuth } from '../../src/hooks/useAuth';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
 import { MoodRecord } from '../../src/types';
@@ -31,11 +32,16 @@ import { AVAILABLE_EMOTIONS, AVAILABLE_ACTIVITIES } from '../../src/mocks/moods.
 
 export default function DiaryScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const { colors, isDark } = useTheme();
   const { isDesktop } = useBreakpoint();
   const { showToast } = useToast();
 
-  const { records, deleteRecord } = useMoodStore();
+  const { records, deleteRecord, fetchRecords } = useMoodStore();
+
+  useEffect(() => {
+    fetchRecords(user?.id);
+  }, [user?.id, fetchRecords]);
 
   // Estados de controle
   const [selectedPeriod, setSelectedPeriod] = useState<7 | 30 | 90>(30);

@@ -35,6 +35,7 @@ import { CorrelationInsightsCard } from '../../src/components/mood/CorrelationIn
 import { ConfirmationModal } from '../../src/components/ui/ConfirmationModal';
 import { useToast } from '../../src/components/ui/Toast';
 import { useMoodStore } from '../../src/store/moodStore';
+import { useAuth } from '../../src/hooks/useAuth';
 import { usePracticeStore } from '../../src/store/practiceStore';
 import { useTheme } from '../../src/hooks/useTheme';
 import { formatDate, formatTime } from '../../src/utils/date';
@@ -44,17 +45,19 @@ import { MoodRecord } from '../../src/types';
 
 export default function DiaryHistoryScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const { colors, isDark } = useTheme();
   const { showToast } = useToast();
+
+  const { records, deleteRecord, updateExerciseStatus, fetchRecords } = useMoodStore();
+  const { practices } = usePracticeStore();
 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       document.title = 'Histórico do Diário — Respira';
     }
-  }, []);
-
-  const { records, deleteRecord, updateExerciseStatus } = useMoodStore();
-  const { practices } = usePracticeStore();
+    fetchRecords(user?.id);
+  }, [user?.id, fetchRecords]);
 
   const [selectedFilterDays, setSelectedFilterDays] = useState<7 | 30 | 90>(7);
   const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);

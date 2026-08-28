@@ -17,7 +17,6 @@ import {
   Bell,
   MessageCircle,
   FileText,
-  CloudDownload,
   Lock,
   Monitor,
   LogOut,
@@ -38,7 +37,6 @@ import { SecurityAccessModal } from '../../src/components/profile/SecurityAccess
 import { SessionsModal } from '../../src/components/profile/SessionsModal';
 import { NotificationSettingsModal } from '../../src/components/profile/NotificationSettingsModal';
 import { MonthlyReportModal } from '../../src/components/profile/MonthlyReportModal';
-import { DataExportModal } from '../../src/components/profile/DataExportModal';
 import { AppearanceBottomSheet } from '../../src/components/profile/AppearanceBottomSheet';
 import { ChatHistoryModal } from '../../src/components/profile/ChatHistoryModal';
 import { DeleteAccountModal } from '../../src/components/profile/DeleteAccountModal';
@@ -61,7 +59,6 @@ export default function ProfileScreen() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
   const [isMonthlyReportOpen, setIsMonthlyReportOpen] = useState(false);
-  const [isExportDataOpen, setIsExportDataOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isSessionsModalOpen, setIsSessionsModalOpen] = useState(false);
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
@@ -450,7 +447,7 @@ export default function ProfileScreen() {
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel="Relatório mensal, gerar resumo em PDF"
-            style={[styles.cardRow, { borderBottomColor: isDark ? colors.border : '#F0F4F2' }]}
+            style={[styles.cardRow, { borderBottomWidth: 0 }]}
           >
             <View style={styles.rowLeft}>
               <FileText size={20} color={primaryAccent} strokeWidth={1.75} style={styles.rowIcon} />
@@ -460,29 +457,6 @@ export default function ProfileScreen() {
                 </Text>
                 <Text style={[styles.rowSubtitle, { color: isDark ? '#F1F5F9' : '#68736F' }]}>
                   Gerar resumo em PDF
-                </Text>
-              </View>
-            </View>
-
-            <ChevronRight size={18} color={iconMuted} strokeWidth={1.75} />
-          </TouchableOpacity>
-
-          {/* Item: Exportar meus dados */}
-          <TouchableOpacity
-            onPress={() => setIsExportDataOpen(true)}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Exportar meus dados, baixar suas informações"
-            style={[styles.cardRow, { borderBottomWidth: 0 }]}
-          >
-            <View style={styles.rowLeft}>
-              <CloudDownload size={20} color={primaryAccent} strokeWidth={1.75} style={styles.rowIcon} />
-              <View style={styles.rowTextCol}>
-                <Text style={[styles.rowTitle, { color: isDark ? '#FFFFFF' : '#1F2927' }]}>
-                  Exportar meus dados
-                </Text>
-                <Text style={[styles.rowSubtitle, { color: isDark ? '#F1F5F9' : '#68736F' }]}>
-                  Baixar suas informações
                 </Text>
               </View>
             </View>
@@ -638,11 +612,6 @@ export default function ProfileScreen() {
       <MonthlyReportModal
         visible={isMonthlyReportOpen}
         onClose={() => setIsMonthlyReportOpen(false)}
-      />
-
-      <DataExportModal
-        visible={isExportDataOpen}
-        onClose={() => setIsExportDataOpen(false)}
       />
 
       <SecurityAccessModal

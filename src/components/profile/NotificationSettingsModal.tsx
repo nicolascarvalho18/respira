@@ -8,7 +8,6 @@ import {
   Switch,
   ScrollView,
   Platform,
-  TextInput,
 } from 'react-native';
 import {
   X,
@@ -17,6 +16,8 @@ import {
   Coffee,
   AlertCircle,
   Check,
+  Send,
+  HelpCircle,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { AppButton } from '../ui/AppButton';
@@ -58,7 +59,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
   const { showToast } = useToast();
 
   const [config, setConfig] = useState<NotificationScheduleConfig>({
-    dailyReminderEnabled: true,
+    dailyReminderEnabled: false,
     reminderTime: '18:00',
     selectedDays: [1, 2, 3, 4, 5, 6, 0],
     microPausesEnabled: false,
@@ -67,11 +68,24 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
 
   const [permissionStatus, setPermissionStatus] = useState<string>('default');
   const [isSaving, setIsSaving] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
 
   useEffect(() => {
     if (visible) {
-      notificationService.getSavedConfig(user?.id).then(setConfig);
-      notificationService.getPermissionStatus().then(setPermissionStatus);
+      notificationService.getSavedConfig(user?.id).then((saved) => {
+        notificationService.getPermissionStatus().then((perm) => {
+          setPermissionStatus(perm);
+          if (perm === 'denied') {
+            setConfig({
+              ...saved,
+              dailyReminderEnabled: false,
+              microPausesEnabled: false,
+            });
+          } else {
+            setConfig(saved);
+          }
+        });
+      });
     }
   }, [visible, user?.id]);
 
@@ -80,7 +94,6 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
   const toggleDay = (dayId: number) => {
     const exists = config.selectedDays.includes(dayId);
     if (exists && config.selectedDays.length === 1) {
-      // Manter pelo menos 1 dia selecionado
       return;
     }
     const updated = exists
@@ -92,32 +105,81 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
   const handleToggleDaily = async (enabled: boolean) => {
     if (enabled) {
       const granted = await notificationService.requestPermissionContextually();
-      if (!granted) {
-        const currentStatus = await notificationService.getPermissionStatus();
-        setPermissionStatus(currentStatus);
+      const currentStatus = await notificationService.getPermissionStatus();
+      setPermissionStatus(currentStatus);
+
+      if (!granted || currentStatus === 'denied') {
+        showToast({
+          message: 'Permissão de notificação bloqueada no navegador.',
+          type: 'error',
+        });
+        setConfig((prev) => ({ ...prev, dailyReminderEnabled: false }));
+        return;
       }
     }
     setConfig((prev) => ({ ...prev, dailyReminderEnabled: enabled }));
+  };
+
+  const handleToggleMicroPauses = async (enabled: boolean) => {
+    if (enabled) {
+      const granted = await notificationService.requestPermissionContextually();
+      const currentStatus = await notificationService.getPermissionStatus();
+      setPermissionStatus(currentStatus);
+
+      if (!granted || currentStatus === 'denied') {
+        showToast({
+          message: 'Permissão de notificação bloqueada no navegador.',
+          type: 'error',
+        });
+        setConfig((prev) => ({ ...prev, microPausesEnabled: false }));
+        return;
+      }
+    }
+    setConfig((prev) => ({ ...prev, microPausesEnabled: enabled }));
+  };
+
+  const handleSendTest = async () => {
+    try {
+      setIsTesting(true);
+      const sent = await notificationService.sendTestNotification();
+      if (sent) {
+        showToast({ message: 'Notificação de teste enviada!', type: 'success' });
+      } else {
+        showToast({
+          message: 'Permissão necessária para enviar notificação.',
+          type: 'info',
+        });
+      }
+    } catch {
+      showToast({ message: 'Erro ao enviar notificação de teste.', type: 'error' });
+    } finally {
+      setIsTesting(false);
+    }
   };
 
   const handleSave = async () => {
     try {
       setIsSaving(true);
       await notificationService.saveConfig(config, user?.id);
-      showToast({ message: 'Preferências salvas', type: 'success' });
+      showToast({ message: 'Preferências salvas com sucesso', type: 'success' });
       onClose();
-    } catch (_err) {
-      showToast({ message: 'Não foi possível salvar as preferências.', type: 'error' });
+    } catch (err: any) {
+      showToast({
+        message: err?.message || 'Não foi possível salvar as preferências.',
+        type: 'error',
+      });
     } finally {
       setIsSaving(false);
     }
   };
 
-  const accentColor = isDark ? '#5ECFC3' : '#238C82';
+  const accentColor = isDark ? '#5ECFC3' : '#1F766E';
   const cardBg = isDark ? '#1F2937' : '#F8FAF9';
   const cardBorder = isDark ? '#334155' : '#DDE6E3';
   const textPrimary = isDark ? '#FFFFFF' : '#17332F';
   const textSecondary = isDark ? '#F1F5F9' : '#5F706C';
+
+  const isBlocked = permissionStatus === 'denied';
 
   return (
     <Modal
@@ -168,13 +230,25 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* Aviso se notificações estiverem bloqueadas */}
-            {permissionStatus === 'denied' && (
+            {/* Aviso quando as permissões estiverem bloqueadas */}
+            {isBlocked && (
               <View style={styles.warningBox}>
-                <AlertCircle size={16} color="#D87556" style={{ marginRight: 8, marginTop: 1 }} />
-                <Text style={styles.warningText}>
-                  Notificações bloqueadas no navegador. Para receber lembretes, revise as permissões do site nas configurações do navegador.
-                </Text>
+                <AlertCircle size={18} color="#D87556" style={{ marginRight: 8, marginTop: 2 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.warningTitle}>Notificações bloqueadas no navegador</Text>
+                  <Text style={styles.warningText}>
+                    Para receber lembretes no horário programado:
+                  </Text>
+                  <Text style={styles.warningStep}>
+                    1. Clique no ícone de cadeado / configurações na barra de endereços do navegador.
+                  </Text>
+                  <Text style={styles.warningStep}>
+                    2. Altere a permissão de &ldquo;Notificações&rdquo; para &ldquo;Permitir&rdquo;.
+                  </Text>
+                  <Text style={styles.warningStep}>
+                    3. Recarregue a página para ativar os lembretes.
+                  </Text>
+                </View>
               </View>
             )}
 
@@ -185,6 +259,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                 {
                   backgroundColor: cardBg,
                   borderColor: cardBorder,
+                  opacity: isBlocked ? 0.65 : 1,
                 },
               ]}
             >
@@ -198,12 +273,17 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                       Lembrete diário
                     </Text>
                     <Text style={[styles.cardDesc, { color: textSecondary }]}>
-                      {config.dailyReminderEnabled ? 'Ativado para check-in de humor' : 'Desativado'}
+                      {isBlocked
+                        ? 'Bloqueado no navegador'
+                        : config.dailyReminderEnabled
+                        ? 'Ativado para check-in de humor'
+                        : 'Desativado'}
                     </Text>
                   </View>
                 </View>
                 <Switch
-                  value={config.dailyReminderEnabled}
+                  value={!isBlocked && config.dailyReminderEnabled}
+                  disabled={isBlocked}
                   onValueChange={handleToggleDaily}
                   trackColor={{ false: isDark ? '#334155' : '#DDE6E3', true: accentColor }}
                   thumbColor="#FFFFFF"
@@ -211,7 +291,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                 />
               </View>
 
-              {config.dailyReminderEnabled && (
+              {!isBlocked && config.dailyReminderEnabled && (
                 <View style={styles.cardBody}>
                   {/* Horário */}
                   <View style={styles.fieldSection}>
@@ -230,8 +310,8 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                             style={[
                               styles.timePill,
                               isSelected && {
-                                backgroundColor: isDark ? '#5ECFC3' : '#238C82',
-                                borderColor: isDark ? '#5ECFC3' : '#238C82',
+                                backgroundColor: accentColor,
+                                borderColor: accentColor,
                               },
                               !isSelected && {
                                 backgroundColor: isDark ? '#172033' : '#FFFFFF',
@@ -243,11 +323,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                               style={[
                                 styles.timePillText,
                                 {
-                                  color: isSelected
-                                    ? isDark
-                                      ? '#172033'
-                                      : '#FFFFFF'
-                                    : textPrimary,
+                                  color: isSelected ? '#FFFFFF' : textPrimary,
                                   fontWeight: isSelected ? '700' : '500',
                                 },
                               ]}
@@ -277,8 +353,8 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                             style={[
                               styles.dayBtn,
                               isSelected && {
-                                backgroundColor: isDark ? '#5ECFC3' : '#238C82',
-                                borderColor: isDark ? '#5ECFC3' : '#238C82',
+                                backgroundColor: accentColor,
+                                borderColor: accentColor,
                               },
                               !isSelected && {
                                 backgroundColor: isDark ? '#172033' : '#FFFFFF',
@@ -290,11 +366,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                               style={[
                                 styles.dayBtnText,
                                 {
-                                  color: isSelected
-                                    ? isDark
-                                      ? '#172033'
-                                      : '#FFFFFF'
-                                    : textPrimary,
+                                  color: isSelected ? '#FFFFFF' : textPrimary,
                                   fontWeight: isSelected ? '700' : '600',
                                 },
                               ]}
@@ -317,6 +389,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                 {
                   backgroundColor: cardBg,
                   borderColor: cardBorder,
+                  opacity: isBlocked ? 0.65 : 1,
                 },
               ]}
             >
@@ -330,22 +403,25 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                       Micro-pausas
                     </Text>
                     <Text style={[styles.cardDesc, { color: textSecondary }]}>
-                      {config.microPausesEnabled ? 'Avisos breves ao longo do dia' : 'Desativado'}
+                      {isBlocked
+                        ? 'Bloqueado no navegador'
+                        : config.microPausesEnabled
+                        ? 'Avisos breves ao longo do dia'
+                        : 'Desativado'}
                     </Text>
                   </View>
                 </View>
                 <Switch
-                  value={config.microPausesEnabled}
-                  onValueChange={(val) =>
-                    setConfig((prev) => ({ ...prev, microPausesEnabled: val }))
-                  }
+                  value={!isBlocked && config.microPausesEnabled}
+                  disabled={isBlocked}
+                  onValueChange={handleToggleMicroPauses}
                   trackColor={{ false: isDark ? '#334155' : '#DDE6E3', true: accentColor }}
                   thumbColor="#FFFFFF"
                   accessibilityLabel="Ativar micro-pausas"
                 />
               </View>
 
-              {config.microPausesEnabled && (
+              {!isBlocked && config.microPausesEnabled && (
                 <View style={styles.cardBody}>
                   <Text style={[styles.fieldLabel, { color: textPrimary }]}>
                     Frequência
@@ -395,6 +471,26 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                 </View>
               )}
             </View>
+
+            {/* Teste de Notificação */}
+            {permissionStatus === 'granted' && (
+              <TouchableOpacity
+                onPress={handleSendTest}
+                disabled={isTesting}
+                style={[
+                  styles.testBtn,
+                  {
+                    borderColor: isDark ? '#334155' : '#DDE6E3',
+                    backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                  },
+                ]}
+              >
+                <Send size={15} color={accentColor} style={{ marginRight: 6 }} />
+                <Text style={[styles.testBtnText, { color: accentColor }]}>
+                  {isTesting ? 'Enviando teste...' : 'Enviar notificação de teste'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </ScrollView>
 
           {/* Ações na Base */}
@@ -448,49 +544,36 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 480,
     maxHeight: '90%',
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    display: 'flex',
-    flexDirection: 'column',
     overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.16,
-        shadowRadius: 18,
-      },
-      android: {
-        elevation: 8,
-      },
-      web: {
-        boxShadow: '0 8px 30px rgba(0, 0, 0, 0.16)',
-      },
-    }),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 8,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 12,
+    paddingBottom: 16,
   },
   title: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: 14,
-    marginTop: 2,
+    fontSize: 13,
+    marginTop: 3,
   },
   closeBtn: {
-    padding: 6,
-    marginLeft: 8,
+    padding: 4,
   },
   scrollArea: {
-    flex: 1,
+    flexGrow: 0,
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -499,24 +582,34 @@ const styles = StyleSheet.create({
   },
   warningBox: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#FFF7E6',
+    backgroundColor: '#FDF2E9',
+    borderColor: '#F6B7A5',
     borderWidth: 1,
-    borderColor: '#FFE0B2',
-    padding: 12,
-    borderRadius: 10,
+    borderRadius: 12,
+    padding: 14,
+  },
+  warningTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#8A3B24',
+    marginBottom: 4,
   },
   warningText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#975A16',
-    lineHeight: 18,
+    fontSize: 12,
+    color: '#733722',
+    lineHeight: 16,
+    marginBottom: 6,
+  },
+  warningStep: {
+    fontSize: 11,
+    color: '#5C2D24',
+    lineHeight: 15,
+    marginTop: 2,
   },
   configCard: {
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     padding: 16,
-    gap: 14,
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -527,34 +620,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    flex: 1,
   },
   iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     justifyContent: 'center',
+    alignItems: 'center',
   },
   cardTitle: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   cardDesc: {
-    fontSize: 13,
+    fontSize: 12,
     marginTop: 1,
   },
   cardBody: {
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#DDE6E3',
-    gap: 14,
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.06)',
+    gap: 16,
   },
   fieldSection: {
     gap: 8,
   },
   fieldLabel: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '600',
   },
   timePillsWrap: {
@@ -563,15 +656,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   timePill: {
-    paddingHorizontal: 14,
-    height: 40,
-    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
     borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   timePillText: {
-    fontSize: 13.5,
+    fontSize: 13,
   },
   daysRow: {
     flexDirection: 'row',
@@ -580,14 +671,14 @@ const styles = StyleSheet.create({
   },
   dayBtn: {
     flex: 1,
-    minHeight: 44,
-    borderRadius: 10,
+    height: 38,
+    borderRadius: 8,
     borderWidth: 1,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   dayBtnText: {
-    fontSize: 13.5,
+    fontSize: 13,
   },
   frequencyList: {
     gap: 8,
@@ -596,20 +687,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 44,
+    paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 10,
     borderWidth: 1,
   },
   frequencyOptionText: {
-    fontSize: 13.5,
+    fontSize: 13,
+  },
+  testBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+  },
+  testBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   footerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 16,
     borderTopWidth: 1,
   },
   cancelBtn: {
@@ -617,8 +722,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 12,
     borderWidth: 1,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   cancelBtnText: {
     fontSize: 14,

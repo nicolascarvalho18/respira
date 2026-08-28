@@ -8,6 +8,7 @@ import { useContentStore } from '../src/store/contentStore';
 import { usePracticeStore } from '../src/store/practiceStore';
 import { useChatStore } from '../src/store/chatStore';
 import { useThemeStore } from '../src/store/themeStore';
+import { notificationService } from '../src/services/notifications/notificationService';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -74,6 +75,7 @@ export default function RootLayout() {
     async function bootstrap() {
       await initializeTheme();
       await initializeAuth();
+      notificationService.registerServiceWorker();
       await Promise.all([
         fetchRecords(),
         fetchPractices(),

@@ -11,7 +11,8 @@ interface MoodState {
   error: string | null;
 
   // Actions
-  fetchRecords: () => Promise<void>;
+  fetchRecords: (userId?: string) => Promise<void>;
+  clearRecords: () => void;
   addRecord: (record: Omit<MoodRecord, 'id' | 'createdAt'>) => Promise<MoodRecord>;
   updateRecord: (id: string, partial: Partial<MoodRecord>) => Promise<MoodRecord>;
   updateExerciseStatus: (
@@ -38,10 +39,25 @@ export const useMoodStore = create<MoodState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  fetchRecords: async () => {
+  clearRecords: () => {
+    set({
+      records: [],
+      stats: {
+        averageMood: 0,
+        averageAnxiety: 0,
+        totalCheckins: 0,
+        topEmotions: [],
+        weeklyData: [],
+      },
+      isLoading: false,
+      error: null,
+    });
+  },
+
+  fetchRecords: async (userId?: string) => {
     try {
       set({ isLoading: true, error: null });
-      const records = await moodService.getRecords();
+      const records = await moodService.getRecords(userId);
       const stats = calculateMoodStats(records);
       set({ records, stats, isLoading: false });
     } catch (err: any) {

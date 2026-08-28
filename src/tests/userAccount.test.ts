@@ -48,14 +48,8 @@ describe('User Account, Security and LGPD Service Tests', () => {
     expect(updatedSessions.some((s) => s.id === 'session-desktop-1')).toBe(false);
   });
 
-  it('exports complete user data package in structured JSON', async () => {
-    const jsonStr = await userAccountService.exportUserDataPackage(testUserId);
-    const parsed = JSON.parse(jsonStr);
-
-    expect(parsed.exportMetadata.purpose).toContain('LGPD');
-    expect(parsed.userProfile).toBeDefined();
-    expect(parsed.moodEntries).toBeDefined();
-    expect(parsed.favoriteArticles).toBeDefined();
+  it('rejects data export package request with 403 as feature is discontinued', async () => {
+    await expect(userAccountService.exportUserDataPackage(testUserId)).rejects.toThrow('403');
   });
 
   it('requires exact confirmation phrase to delete account', async () => {

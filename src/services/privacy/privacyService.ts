@@ -14,8 +14,8 @@ class PrivacyService {
     return LEGAL_TEXTS.CONSENT_ITEMS;
   }
 
-  async exportAllData(userId: string): Promise<string> {
-    return userService.exportUserData(userId);
+  async exportAllData(_userId: string): Promise<string> {
+    throw new Error('403: A funcionalidade de exportação de dados foi descontinuada.');
   }
 
   async purgeAllData(userId: string): Promise<boolean> {
