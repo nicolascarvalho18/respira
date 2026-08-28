@@ -117,14 +117,14 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       return;
     }
 
-    if (sanitizedName.length > 80) {
-      setNameError('O nome não pode exceder 80 caracteres.');
+    if (sanitizedName.length > 60) {
+      setNameError('O nome não pode exceder 60 caracteres.');
       return;
     }
 
     const sanitizedBio = bio.replace(/<[^>]*>?/gm, '').trim();
-    if (sanitizedBio.length > 180) {
-      setBioError('A biografia não pode exceder 180 caracteres.');
+    if (sanitizedBio.length > 160) {
+      setBioError('A biografia não pode exceder 160 caracteres.');
       return;
     }
 
@@ -144,7 +144,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
         avatarUrl: updated.avatarUrl,
       });
 
-      showToast({ message: 'Alterações salvas', type: 'success' });
+      showToast({ message: 'Perfil atualizado com sucesso', type: 'success' });
       onClose();
     } catch (err: any) {
       showToast({ message: err.message || 'Erro ao salvar alterações.', type: 'error' });
@@ -152,6 +152,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       setIsSaving(false);
     }
   };
+
+  const isUnchanged =
+    name.trim() === (user?.name || '').trim() &&
+    bio.trim() === (user?.bio || '').trim() &&
+    avatarUri === (user?.avatarUrl || null);
 
   if (!visible) return null;
 
@@ -285,7 +290,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                   Biografia
                 </Text>
                 <Text style={[styles.charCounter, { color: isDark ? colors.textMuted : '#68736F' }]}>
-                  {bio.length}/180
+                  {bio.length}/160 caracteres
                 </Text>
               </View>
               <TextInput
@@ -294,10 +299,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                   setBio(val);
                   if (bioError) setBioError(null);
                 }}
-                maxLength={180}
+                maxLength={160}
                 multiline
                 numberOfLines={3}
-                placeholder="Conte um pouco sobre você."
+                placeholder="Conte um pouco sobre você..."
                 placeholderTextColor="#8F9B97"
                 style={[
                   styles.textAreaInput,
@@ -354,8 +359,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
             <TouchableOpacity
               onPress={handleSave}
-              disabled={isSaving}
-              style={[styles.saveBtn, isSaving && { opacity: 0.7 }]}
+              disabled={isSaving || isUnchanged}
+              style={[styles.saveBtn, (isSaving || isUnchanged) && { opacity: 0.5 }]}
             >
               {isSaving ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />

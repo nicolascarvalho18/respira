@@ -7,7 +7,9 @@
 -- 1. PROFILES (extends auth.users)
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
-  display_name text not null default 'Usuário',
+  full_name text not null default 'Nicolas Carvalho',
+  display_name text not null default 'Nicolas Carvalho',
+  bio text,
   avatar_url text,
   phone text,
   birth_date date,

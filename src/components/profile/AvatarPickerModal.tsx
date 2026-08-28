@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Modal,
   View,
@@ -212,9 +212,12 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
               style={[styles.saveBtn, isSaving && { opacity: 0.7 }]}
             >
               {isSaving ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <Text style={styles.saveBtnText}>Salvando foto...</Text>
+                </View>
               ) : (
-                <Text style={styles.saveBtnText}>Salvar</Text>
+                <Text style={styles.saveBtnText}>Salvar foto</Text>
               )}
             </TouchableOpacity>
           </View>

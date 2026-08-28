@@ -1,10 +1,9 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   Switch,
   Image,
   Platform,
@@ -12,17 +11,19 @@ import {
 import { useRouter } from 'expo-router';
 import {
   Pencil,
+  Camera,
   Sun,
   Waves,
   Bell,
   MessageCircle,
   FileText,
-  KeyRound,
-  MonitorSmartphone,
+  CloudDownload,
+  Lock,
+  Monitor,
   LogOut,
   Trash2,
   ChevronRight,
-  CircleCheck,
+  CheckCircle2,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
 import { useAuth } from '../../src/hooks/useAuth';
@@ -37,6 +38,7 @@ import { SecurityAccessModal } from '../../src/components/profile/SecurityAccess
 import { SessionsModal } from '../../src/components/profile/SessionsModal';
 import { NotificationSettingsModal } from '../../src/components/profile/NotificationSettingsModal';
 import { MonthlyReportModal } from '../../src/components/profile/MonthlyReportModal';
+import { DataExportModal } from '../../src/components/profile/DataExportModal';
 import { AppearanceBottomSheet } from '../../src/components/profile/AppearanceBottomSheet';
 import { ChatHistoryModal } from '../../src/components/profile/ChatHistoryModal';
 import { DeleteAccountModal } from '../../src/components/profile/DeleteAccountModal';
@@ -59,6 +61,7 @@ export default function ProfileScreen() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
   const [isMonthlyReportOpen, setIsMonthlyReportOpen] = useState(false);
+  const [isExportDataOpen, setIsExportDataOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isSessionsModalOpen, setIsSessionsModalOpen] = useState(false);
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
@@ -130,7 +133,7 @@ export default function ProfileScreen() {
     try {
       const updated = await userService.updateAvatar(user.id, newAvatarUrl);
       updateUser({ avatarUrl: updated.avatarUrl });
-      showToast({ message: 'Foto de perfil atualizada com sucesso', type: 'success' });
+      showToast({ message: 'Foto atualizada com sucesso', type: 'success' });
     } catch {
       showToast({ message: 'Erro ao atualizar foto de perfil', type: 'error' });
     }
@@ -175,9 +178,9 @@ export default function ProfileScreen() {
     router.replace('/(auth)/login' as any);
   };
 
-  const userName = user?.name || 'Nicolas';
+  const userName = user?.name || 'Nicolas Carvalho';
   const userEmail = user?.email || 'nicolasbdhshdh@gmail.com';
-  const userBio = user?.bio;
+  const userBio = user?.bio || 'Desenvolvedor e estudante de tecnologia.';
   const initials = userName
     .trim()
     .split(' ')
@@ -190,16 +193,14 @@ export default function ProfileScreen() {
 
   // Descrição dinâmica real de dispositivos
   const sessionsCountLabel =
-    sessions.length === 0
-      ? 'Nenhum outro dispositivo conectado'
-      : sessions.length === 1
-      ? '1 dispositivo conectado'
-      : `${sessions.length} dispositivos conectados`;
+    sessions.length <= 1
+      ? '1 dispositivo'
+      : `${sessions.length} dispositivos`;
 
   return (
     <AppShell>
       <View style={[styles.container, isDesktop && styles.containerDesktop]}>
-        {/* Cabeçalho da Página */}
+        {/* 1. CABEÇALHO */}
         <View style={styles.header}>
           <Text
             accessibilityRole="header"
@@ -209,20 +210,28 @@ export default function ProfileScreen() {
             Perfil
           </Text>
           <Text style={[styles.pageSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
-            Conta, preferências e privacidade
+            Sua conta, preferências e privacidade
           </Text>
         </View>
 
-        {/* Área do Usuário */}
-        <View style={styles.userArea}>
-          {/* Foto à esquerda com ação abaixo */}
-          <View style={styles.avatarColumn}>
+        {/* 2. CARD DO PERFIL */}
+        <View
+          style={[
+            styles.profileCard,
+            {
+              backgroundColor: isDark ? colors.surface : '#FFFFFF',
+              borderColor: isDark ? colors.border : '#E5EAE8',
+            },
+          ]}
+        >
+          <View style={styles.profileTopRow}>
+            {/* Foto Circular com Botão de Câmera Sobreposto */}
             <TouchableOpacity
               onPress={() => setIsAvatarModalOpen(true)}
-              activeOpacity={0.85}
+              activeOpacity={0.88}
               accessibilityRole="button"
-              accessibilityLabel={`Foto de perfil de ${userName}. Clique para alterar.`}
-              style={styles.avatarWrapper}
+              accessibilityLabel={`Foto de perfil de ${userName}. Toque para alterar.`}
+              style={styles.avatarWrap}
             >
               {user?.avatarUrl ? (
                 <Image
@@ -235,87 +244,94 @@ export default function ProfileScreen() {
                   <Text style={styles.avatarInitialsText}>{initials}</Text>
                 </View>
               )}
-            </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => setIsAvatarModalOpen(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Alterar foto de perfil"
-              style={styles.changePhotoBtn}
-            >
-              <Text style={styles.changePhotoText}>Alterar foto</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Nome, biografia, e-mail e status no centro */}
-          <View style={styles.userInfoColumn}>
-            <Text
-              accessibilityRole="header"
-              aria-level={2}
-              style={[styles.userName, { color: isDark ? colors.text : '#1F2927' }]}
-            >
-              {userName}
-            </Text>
-
-            {userBio && userBio.trim().length > 0 && (
-              <Text
-                style={[styles.userBio, { color: isDark ? colors.textMuted : '#68736F' }]}
-                numberOfLines={3}
+              {/* Botão de Câmera Sobreposto */}
+              <View
+                style={[
+                  styles.cameraBadge,
+                  { borderColor: isDark ? colors.surface : '#FFFFFF' },
+                ]}
               >
-                {userBio}
+                <Camera size={13} color="#FFFFFF" strokeWidth={2} />
+              </View>
+            </TouchableOpacity>
+
+            {/* Informações do Usuário */}
+            <View style={styles.profileInfoCol}>
+              <Text
+                accessibilityRole="header"
+                aria-level={2}
+                style={[styles.profileName, { color: isDark ? colors.text : '#1F2927' }]}
+                numberOfLines={1}
+              >
+                {userName}
               </Text>
-            )}
 
-            <Text style={[styles.userEmail, { color: isDark ? colors.textMuted : '#68736F' }]}>
-              {userEmail}
-            </Text>
+              <Text
+                style={[styles.profileEmail, { color: isDark ? colors.textMuted : '#68736F' }]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {userEmail}
+              </Text>
 
-            <View style={styles.verifiedRow}>
-              <CircleCheck size={16} color="#247B74" strokeWidth={1.75} style={{ marginRight: 6 }} />
-              <Text style={styles.verifiedText}>E-mail verificado</Text>
+              <View style={styles.verifiedRow}>
+                <CheckCircle2 size={15} color="#247B74" strokeWidth={2} style={{ marginRight: 6 }} />
+                <Text style={styles.verifiedText}>E-mail verificado</Text>
+              </View>
+
+              {userBio && userBio.trim().length > 0 && (
+                <Text
+                  style={[styles.profileBio, { color: isDark ? colors.textMuted : '#4A5553' }]}
+                  numberOfLines={2}
+                >
+                  {userBio}
+                </Text>
+              )}
             </View>
           </View>
 
-          {/* Botão Editar à direita */}
+          {/* Botão Editar Perfil */}
           <TouchableOpacity
             onPress={() => setIsEditProfileOpen(true)}
+            activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel="Editar perfil completo"
-            style={[
-              styles.editProfileBtn,
-              {
-                backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                borderColor: isDark ? colors.border : '#E0E5E2',
-              },
-            ]}
+            accessibilityLabel="Editar perfil"
+            style={styles.editProfileBtn}
           >
-            <Pencil size={16} color="#247B74" strokeWidth={1.75} style={{ marginRight: 6 }} />
-            <Text style={styles.editProfileBtnText}>Editar</Text>
+            <Pencil size={15} color="#247B74" strokeWidth={2} style={{ marginRight: 8 }} />
+            <Text style={styles.editProfileBtnText}>Editar perfil</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Divisor Horizontal após o cabeçalho */}
-        <View style={[styles.sectionDivider, { backgroundColor: isDark ? colors.border : '#E7EBE9' }]} />
-
-        {/* SEÇÃO 1: Preferências */}
-        <View style={styles.sectionBlock}>
+        {/* 3. CARD PREFERÊNCIAS */}
+        <View
+          style={[
+            styles.sectionCard,
+            {
+              backgroundColor: isDark ? colors.surface : '#FFFFFF',
+              borderColor: isDark ? colors.border : '#E5EAE8',
+            },
+          ]}
+        >
           <Text
             accessibilityRole="header"
             aria-level={3}
-            style={[styles.sectionTitle, { color: isDark ? colors.text : '#1F2927' }]}
+            style={[styles.sectionCardTitle, { color: isDark ? colors.text : '#1F2927' }]}
           >
             Preferências
           </Text>
 
-          {/* Linha: Aparência */}
+          {/* Item: Aparência */}
           <TouchableOpacity
             onPress={() => setIsAppearanceOpen(true)}
+            activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel={`Aparência, atual: ${appearanceLabel}`}
-            style={[styles.settingRow, { borderBottomColor: isDark ? colors.border : '#E7EBE9' }]}
+            accessibilityLabel={`Aparência, valor atual: ${appearanceLabel}`}
+            style={[styles.cardRow, { borderBottomColor: isDark ? colors.border : '#F0F4F2' }]}
           >
             <View style={styles.rowLeft}>
-              <Sun size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} style={styles.rowIcon} />
+              <Sun size={20} color="#247B74" strokeWidth={1.75} style={styles.rowIcon} />
               <Text style={[styles.rowTitle, { color: isDark ? colors.text : '#1F2927' }]}>
                 Aparência
               </Text>
@@ -325,15 +341,15 @@ export default function ProfileScreen() {
               <Text style={[styles.rowValueText, { color: isDark ? colors.textMuted : '#68736F' }]}>
                 {appearanceLabel}
               </Text>
-              <ChevronRight size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} />
+              <ChevronRight size={18} color={isDark ? colors.textMuted : '#8F9B97'} strokeWidth={1.75} />
             </View>
           </TouchableOpacity>
 
-          {/* Linha: Reduzir movimento */}
-          <View style={[styles.settingRow, { borderBottomColor: isDark ? colors.border : '#E7EBE9' }]}>
+          {/* Item: Reduzir movimento */}
+          <View style={[styles.cardRow, { borderBottomColor: isDark ? colors.border : '#F0F4F2' }]}>
             <View style={styles.rowLeft}>
-              <Waves size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} style={styles.rowIcon} />
-              <View style={styles.rowTextWrap}>
+              <Waves size={20} color="#247B74" strokeWidth={1.75} style={styles.rowIcon} />
+              <View style={styles.rowTextCol}>
                 <Text style={[styles.rowTitle, { color: isDark ? colors.text : '#1F2927' }]}>
                   Reduzir movimento
                 </Text>
@@ -351,16 +367,17 @@ export default function ProfileScreen() {
             />
           </View>
 
-          {/* Linha: Lembretes */}
+          {/* Item: Lembretes */}
           <TouchableOpacity
             onPress={() => setIsNotificationOpen(true)}
+            activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel="Lembretes, horários e frequência"
-            style={styles.settingRow}
+            style={[styles.cardRow, { borderBottomWidth: 0 }]}
           >
             <View style={styles.rowLeft}>
-              <Bell size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} style={styles.rowIcon} />
-              <View style={styles.rowTextWrap}>
+              <Bell size={20} color="#247B74" strokeWidth={1.75} style={styles.rowIcon} />
+              <View style={styles.rowTextCol}>
                 <Text style={[styles.rowTitle, { color: isDark ? colors.text : '#1F2927' }]}>
                   Lembretes
                 </Text>
@@ -370,33 +387,39 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            <ChevronRight size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} />
+            <ChevronRight size={18} color={isDark ? colors.textMuted : '#8F9B97'} strokeWidth={1.75} />
           </TouchableOpacity>
         </View>
 
-        {/* Divisor de Seção */}
-        <View style={[styles.sectionDivider, { backgroundColor: isDark ? colors.border : '#E7EBE9' }]} />
-
-        {/* SEÇÃO 2: Privacidade e dados */}
-        <View style={styles.sectionBlock}>
+        {/* 4. CARD PRIVACIDADE E DADOS */}
+        <View
+          style={[
+            styles.sectionCard,
+            {
+              backgroundColor: isDark ? colors.surface : '#FFFFFF',
+              borderColor: isDark ? colors.border : '#E5EAE8',
+            },
+          ]}
+        >
           <Text
             accessibilityRole="header"
             aria-level={3}
-            style={[styles.sectionTitle, { color: isDark ? colors.text : '#1F2927' }]}
+            style={[styles.sectionCardTitle, { color: isDark ? colors.text : '#1F2927' }]}
           >
             Privacidade e dados
           </Text>
 
-          {/* Histórico de conversas */}
+          {/* Item: Histórico de conversas */}
           <TouchableOpacity
             onPress={() => setIsChatHistoryOpen(true)}
+            activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel="Histórico de conversas, salvar novas conversas"
-            style={[styles.settingRow, { borderBottomColor: isDark ? colors.border : '#E7EBE9' }]}
+            style={[styles.cardRow, { borderBottomColor: isDark ? colors.border : '#F0F4F2' }]}
           >
             <View style={styles.rowLeft}>
-              <MessageCircle size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} style={styles.rowIcon} />
-              <View style={styles.rowTextWrap}>
+              <MessageCircle size={20} color="#247B74" strokeWidth={1.75} style={styles.rowIcon} />
+              <View style={styles.rowTextCol}>
                 <Text style={[styles.rowTitle, { color: isDark ? colors.text : '#1F2927' }]}>
                   Histórico de conversas
                 </Text>
@@ -406,93 +429,110 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            <ChevronRight size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} />
+            <ChevronRight size={18} color={isDark ? colors.textMuted : '#8F9B97'} strokeWidth={1.75} />
           </TouchableOpacity>
 
-          {/* Relatório mensal */}
+          {/* Item: Relatório mensal */}
           <TouchableOpacity
             onPress={() => setIsMonthlyReportOpen(true)}
+            activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel="Relatório mensal, gerar um resumo em PDF"
-            style={styles.settingRow}
+            accessibilityLabel="Relatório mensal, gerar resumo em PDF"
+            style={[styles.cardRow, { borderBottomColor: isDark ? colors.border : '#F0F4F2' }]}
           >
             <View style={styles.rowLeft}>
-              <FileText size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} style={styles.rowIcon} />
-              <View style={styles.rowTextWrap}>
+              <FileText size={20} color="#247B74" strokeWidth={1.75} style={styles.rowIcon} />
+              <View style={styles.rowTextCol}>
                 <Text style={[styles.rowTitle, { color: isDark ? colors.text : '#1F2927' }]}>
                   Relatório mensal
                 </Text>
                 <Text style={[styles.rowSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
-                  Gerar um resumo em PDF
+                  Gerar resumo em PDF
                 </Text>
               </View>
             </View>
 
-            <ChevronRight size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} />
+            <ChevronRight size={18} color={isDark ? colors.textMuted : '#8F9B97'} strokeWidth={1.75} />
+          </TouchableOpacity>
+
+          {/* Item: Exportar meus dados */}
+          <TouchableOpacity
+            onPress={() => setIsExportDataOpen(true)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Exportar meus dados, baixar suas informações"
+            style={[styles.cardRow, { borderBottomWidth: 0 }]}
+          >
+            <View style={styles.rowLeft}>
+              <CloudDownload size={20} color="#247B74" strokeWidth={1.75} style={styles.rowIcon} />
+              <View style={styles.rowTextCol}>
+                <Text style={[styles.rowTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+                  Exportar meus dados
+                </Text>
+                <Text style={[styles.rowSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                  Baixar suas informações
+                </Text>
+              </View>
+            </View>
+
+            <ChevronRight size={18} color={isDark ? colors.textMuted : '#8F9B97'} strokeWidth={1.75} />
           </TouchableOpacity>
         </View>
 
-        {/* Divisor de Seção */}
-        <View style={[styles.sectionDivider, { backgroundColor: isDark ? colors.border : '#E7EBE9' }]} />
-
-        {/* SEÇÃO 3: Segurança */}
-        <View style={styles.sectionBlock}>
+        {/* 5. CARD SEGURANÇA */}
+        <View
+          style={[
+            styles.sectionCard,
+            {
+              backgroundColor: isDark ? colors.surface : '#FFFFFF',
+              borderColor: isDark ? colors.border : '#E5EAE8',
+            },
+          ]}
+        >
           <Text
             accessibilityRole="header"
             aria-level={3}
-            style={[styles.sectionTitle, { color: isDark ? colors.text : '#1F2927' }]}
+            style={[styles.sectionCardTitle, { color: isDark ? colors.text : '#1F2927' }]}
           >
             Segurança
           </Text>
 
-          {/* Senha e acesso */}
+          {/* Item: Alterar senha */}
           <TouchableOpacity
             onPress={() => setIsSecurityModalOpen(true)}
+            activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel="Senha e acesso, e-mail, senha e autenticação"
-            style={styles.settingRow}
+            accessibilityLabel="Alterar senha, proteja sua conta"
+            style={[styles.cardRow, { borderBottomColor: isDark ? colors.border : '#F0F4F2' }]}
           >
             <View style={styles.rowLeft}>
-              <KeyRound size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} style={styles.rowIcon} />
-              <View style={styles.rowTextWrap}>
+              <Lock size={20} color="#247B74" strokeWidth={1.75} style={styles.rowIcon} />
+              <View style={styles.rowTextCol}>
                 <Text style={[styles.rowTitle, { color: isDark ? colors.text : '#1F2927' }]}>
-                  Senha e acesso
+                  Alterar senha
                 </Text>
                 <Text style={[styles.rowSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
-                  E-mail, senha e autenticação
+                  Proteja sua conta
                 </Text>
               </View>
             </View>
 
-            <ChevronRight size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} />
+            <ChevronRight size={18} color={isDark ? colors.textMuted : '#8F9B97'} strokeWidth={1.75} />
           </TouchableOpacity>
-        </View>
 
-        {/* Divisor de Seção */}
-        <View style={[styles.sectionDivider, { backgroundColor: isDark ? colors.border : '#E7EBE9' }]} />
-
-        {/* SEÇÃO 4: Dispositivos */}
-        <View style={styles.sectionBlock}>
-          <Text
-            accessibilityRole="header"
-            aria-level={3}
-            style={[styles.sectionTitle, { color: isDark ? colors.text : '#1F2927' }]}
-          >
-            Dispositivos
-          </Text>
-
-          {/* Sessões ativas */}
+          {/* Item: Sessões e dispositivos */}
           <TouchableOpacity
             onPress={() => setIsSessionsModalOpen(true)}
+            activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel={`Sessões ativas, ${sessionsCountLabel}`}
-            style={styles.settingRow}
+            accessibilityLabel={`Sessões e dispositivos, ${sessionsCountLabel}`}
+            style={[styles.cardRow, { borderBottomWidth: 0 }]}
           >
             <View style={styles.rowLeft}>
-              <MonitorSmartphone size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} style={styles.rowIcon} />
-              <View style={styles.rowTextWrap}>
+              <Monitor size={20} color="#247B74" strokeWidth={1.75} style={styles.rowIcon} />
+              <View style={styles.rowTextCol}>
                 <Text style={[styles.rowTitle, { color: isDark ? colors.text : '#1F2927' }]}>
-                  Sessões ativas
+                  Sessões e dispositivos
                 </Text>
                 <Text style={[styles.rowSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
                   {sessionsCountLabel}
@@ -500,62 +540,56 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            <ChevronRight size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} />
+            <ChevronRight size={18} color={isDark ? colors.textMuted : '#8F9B97'} strokeWidth={1.75} />
           </TouchableOpacity>
         </View>
 
-        {/* Divisor de Seção */}
-        <View style={[styles.sectionDivider, { backgroundColor: isDark ? colors.border : '#E7EBE9' }]} />
-
-        {/* SEÇÃO 5: Conta */}
-        <View style={styles.sectionBlock}>
-          <Text
-            accessibilityRole="header"
-            aria-level={3}
-            style={[styles.sectionTitle, { color: isDark ? colors.text : '#1F2927' }]}
-          >
-            Conta
-          </Text>
-
-          {/* Sair */}
-          <TouchableOpacity
-            onPress={() => setIsLogoutDialogOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Sair da conta"
-            style={[styles.settingRow, { borderBottomColor: isDark ? colors.border : '#E7EBE9' }]}
-          >
-            <View style={styles.rowLeft}>
-              <LogOut size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} style={styles.rowIcon} />
-              <Text style={[styles.rowTitle, { color: isDark ? colors.text : '#1F2927' }]}>
-                Sair
+        {/* 6. ZONA DE RISCO: EXCLUIR CONTA */}
+        <TouchableOpacity
+          onPress={() => setIsDeleteModalOpen(true)}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Excluir conta, exclua permanentemente sua conta e seus dados"
+          style={[
+            styles.dangerCard,
+            {
+              backgroundColor: isDark ? colors.surface : '#FFFFFF',
+              borderColor: isDark ? colors.border : '#FCE8E6',
+            },
+          ]}
+        >
+          <View style={styles.rowLeft}>
+            <Trash2 size={20} color="#C84E45" strokeWidth={1.75} style={styles.rowIcon} />
+            <View style={styles.rowTextCol}>
+              <Text style={[styles.rowTitle, { color: '#C84E45' }]}>
+                Excluir conta
+              </Text>
+              <Text style={[styles.rowSubtitle, { color: '#D9655B' }]}>
+                Exclua permanentemente sua conta e seus dados
               </Text>
             </View>
+          </View>
 
-            <ChevronRight size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} />
-          </TouchableOpacity>
+          <ChevronRight size={18} color="#C84E45" strokeWidth={1.75} />
+        </TouchableOpacity>
 
-          {/* Excluir conta */}
-          <TouchableOpacity
-            onPress={() => setIsDeleteModalOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Excluir conta, exclui permanentemente a conta e os dados"
-            style={styles.settingRow}
-          >
-            <View style={styles.rowLeft}>
-              <Trash2 size={20} color="#C84E45" strokeWidth={1.75} style={styles.rowIcon} />
-              <View style={styles.rowTextWrap}>
-                <Text style={[styles.rowTitle, { color: '#C84E45' }]}>
-                  Excluir conta
-                </Text>
-                <Text style={[styles.rowSubtitle, { color: '#C84E45' }]}>
-                  Exclui permanentemente a conta e os dados
-                </Text>
-              </View>
-            </View>
-
-            <ChevronRight size={20} color="#C84E45" strokeWidth={1.75} />
-          </TouchableOpacity>
-        </View>
+        {/* 7. SAIR DA CONTA */}
+        <TouchableOpacity
+          onPress={() => setIsLogoutDialogOpen(true)}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Sair da conta"
+          style={[
+            styles.logoutBtn,
+            {
+              backgroundColor: isDark ? 'transparent' : '#FFFFFF',
+              borderColor: isDark ? '#4A2320' : '#F5C6CB',
+            },
+          ]}
+        >
+          <LogOut size={17} color="#C84E45" strokeWidth={1.75} style={{ marginRight: 8 }} />
+          <Text style={styles.logoutBtnText}>Sair da conta</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Modais & Bottom Sheets */}
@@ -594,6 +628,11 @@ export default function ProfileScreen() {
         onClose={() => setIsMonthlyReportOpen(false)}
       />
 
+      <DataExportModal
+        visible={isExportDataOpen}
+        onClose={() => setIsExportDataOpen(false)}
+      />
+
       <SecurityAccessModal
         visible={isSecurityModalOpen}
         onClose={() => setIsSecurityModalOpen(false)}
@@ -610,10 +649,10 @@ export default function ProfileScreen() {
 
       <ConfirmDialog
         visible={isLogoutDialogOpen}
-        title="Encerrar sessão"
-        message="Tem certeza de que deseja sair da sua conta neste dispositivo?"
+        title="Sair da conta?"
+        message="Você precisará entrar novamente para acessar seu perfil."
         confirmTitle="Sair"
-        cancelTitle="Cancelar"
+        cancelTitle="Continuar conectado"
         onConfirm={handleLogout}
         onCancel={() => setIsLogoutDialogOpen(false)}
       />
@@ -631,172 +670,236 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 48,
+    paddingTop: 16,
+    paddingBottom: 80, // espaço extra para menu inferior fixo
   },
   containerDesktop: {
-    maxWidth: 760,
+    maxWidth: 640,
     alignSelf: 'center',
   },
 
-  // Cabeçalho da Página
+  // 1. Cabeçalho
   header: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   pageTitle: {
-    fontSize: 26,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
     letterSpacing: -0.4,
     marginBottom: 4,
   },
   pageSubtitle: {
     fontSize: 15,
-    lineHeight: 22,
     fontWeight: '400',
+    lineHeight: 22,
   },
 
-  // Área do Usuário
-  userArea: {
+  // 2. Card do Perfil
+  profileCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 18,
+    marginBottom: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 1,
+      },
+      web: {
+        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)',
+      },
+    }),
+  },
+  profileTopRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
+    alignItems: 'flex-start',
   },
-  avatarColumn: {
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  avatarWrapper: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    overflow: 'hidden',
-    marginBottom: 6,
+  avatarWrap: {
+    width: 82,
+    height: 82,
+    position: 'relative',
   },
   avatarImage: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    backgroundColor: '#EDF7F5',
   },
   avatarInitials: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 82,
+    height: 82,
+    borderRadius: 41,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitialsText: {
-    fontSize: 24,
-    fontWeight: '600',
+    fontSize: 28,
+    fontWeight: '700',
     color: '#247B74',
   },
-  changePhotoBtn: {
-    paddingVertical: 2,
-  },
-  changePhotoText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#247B74',
-  },
-  userInfoColumn: {
-    flex: 1,
+  cameraBadge: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#247B74',
+    borderWidth: 2,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  userName: {
+  profileInfoCol: {
+    flex: 1,
+    marginLeft: 16,
+    justifyContent: 'center',
+  },
+  profileName: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     letterSpacing: -0.2,
     marginBottom: 2,
   },
-  userBio: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 4,
-  },
-  userEmail: {
+  profileEmail: {
     fontSize: 14,
     fontWeight: '400',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   verifiedRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 6,
   },
   verifiedText: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#247B74',
+  },
+  profileBio: {
+    fontSize: 13.5,
+    lineHeight: 19,
+    fontWeight: '400',
   },
   editProfileBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
+    justifyContent: 'center',
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#247B74',
+    backgroundColor: 'transparent',
+    marginTop: 16,
+    width: '100%',
   },
   editProfileBtnText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 14.5,
+    fontWeight: '600',
     color: '#247B74',
   },
 
-  // Divisores
-  sectionDivider: {
-    width: '100%',
-    height: 1,
-    marginVertical: 14,
+  // Cards de Seções (Preferências, Privacidade, Segurança)
+  sectionCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 4,
+    marginBottom: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 1,
+      },
+      web: {
+        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)',
+      },
+    }),
   },
-
-  // Seções
-  sectionBlock: {
-    width: '100%',
-    marginTop: 4,
-  },
-  sectionTitle: {
+  sectionCardTitle: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
     letterSpacing: -0.2,
-    marginBottom: 4,
+    marginBottom: 8,
   },
-
-  // Linhas de Configuração
-  settingRow: {
+  cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 64,
-    paddingVertical: 14,
+    paddingVertical: 13,
     borderBottomWidth: 1,
-    borderBottomColor: 'transparent',
+    minHeight: 52,
   },
   rowLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    paddingRight: 12,
+    marginRight: 10,
   },
   rowIcon: {
-    marginRight: 16,
+    marginRight: 14,
   },
-  rowTextWrap: {
+  rowTextCol: {
     flex: 1,
   },
   rowTitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    letterSpacing: -0.1,
+    fontSize: 14.5,
+    fontWeight: '600',
+    lineHeight: 20,
   },
   rowSubtitle: {
     fontSize: 13,
+    fontWeight: '400',
     lineHeight: 18,
-    marginTop: 2,
+    marginTop: 1,
   },
   rowRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
   },
   rowValueText: {
     fontSize: 14,
-    marginRight: 6,
+    fontWeight: '500',
+  },
+
+  // 6. Danger Card (Excluir Conta)
+  dangerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 14,
+    minHeight: 56,
+  },
+
+  // 7. Sair da Conta
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    width: '100%',
+    marginBottom: 20,
+  },
+  logoutBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#C84E45',
   },
 });

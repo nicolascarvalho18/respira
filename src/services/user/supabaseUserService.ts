@@ -31,7 +31,8 @@ class SupabaseUserService {
 
       return {
         id: data.id,
-        name: data.display_name,
+        name: data.full_name || data.display_name,
+        bio: data.bio,
         avatarUrl: data.avatar_url,
         phone: data.phone,
         birthDate: data.birth_date,
@@ -46,12 +47,18 @@ class SupabaseUserService {
 
   async updateProfile(
     userId: string,
-    updates: { displayName?: string; avatarUrl?: string; phone?: string; birthDate?: string }
+    updates: { name?: string; displayName?: string; bio?: string; avatarUrl?: string; phone?: string; birthDate?: string }
   ): Promise<boolean> {
     if (!isSupabaseConfigured) return true;
     try {
       const payload: Record<string, any> = { updated_at: new Date().toISOString() };
-      if (updates.displayName !== undefined) payload.display_name = updates.displayName;
+      if (updates.name !== undefined) {
+        payload.full_name = updates.name;
+        payload.display_name = updates.name;
+      } else if (updates.displayName !== undefined) {
+        payload.display_name = updates.displayName;
+      }
+      if (updates.bio !== undefined) payload.bio = updates.bio;
       if (updates.avatarUrl !== undefined) payload.avatar_url = updates.avatarUrl;
       if (updates.phone !== undefined) payload.phone = updates.phone;
       if (updates.birthDate !== undefined) payload.birth_date = updates.birthDate;
