@@ -1,26 +1,20 @@
-import React, { useState } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import {
   Modal,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
+  Image,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import {
   X,
-  Check,
-  User,
-  Smile,
-  Heart,
-  Compass,
-  Sun,
-  Moon,
-  Leaf,
-  Wind,
+  Upload,
+  Trash2,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
-import { AppButton } from '../ui/AppButton';
 
 export interface AvatarPickerModalProps {
   visible: boolean;
@@ -30,28 +24,6 @@ export interface AvatarPickerModalProps {
   onSelectAvatar: (avatarUrl: string | null) => Promise<void>;
 }
 
-const AVATAR_COLORS = [
-  '#2F7F7C',
-  '#173D3B',
-  '#2C648E',
-  '#D98968',
-  '#4A7A3E',
-  '#634E99',
-  '#C87A24',
-  '#B84C4C',
-];
-
-const PRESET_ICONS = [
-  { id: 'user', icon: User, label: 'Perfil' },
-  { id: 'smile', icon: Smile, label: 'Sorriso' },
-  { id: 'heart', icon: Heart, label: 'Coração' },
-  { id: 'compass', icon: Compass, label: 'Foco' },
-  { id: 'leaf', icon: Leaf, label: 'Natureza' },
-  { id: 'wind', icon: Wind, label: 'Respiração' },
-  { id: 'sun', icon: Sun, label: 'Sol' },
-  { id: 'moon', icon: Moon, label: 'Noite' },
-];
-
 export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
   visible,
   currentAvatarUrl,
@@ -60,32 +32,65 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
   onSelectAvatar,
 }) => {
   const { colors, isDark } = useTheme();
+  const fileInputRef = useRef<any>(null);
 
-  // Parse existing avatar if available
-  const initialIsCustom = !!(currentAvatarUrl && currentAvatarUrl.startsWith('custom-icon:'));
-  const initialIconId = initialIsCustom ? currentAvatarUrl.split(':')[1] || 'user' : 'user';
-  const initialColor = initialIsCustom ? currentAvatarUrl.split(':')[2] || AVATAR_COLORS[0] : AVATAR_COLORS[0];
-
-  const [selectedType, setSelectedType] = useState<'initials' | 'icon'>(
-    initialIsCustom ? 'icon' : 'initials'
-  );
-  const [selectedColor, setSelectedColor] = useState<string>(initialColor);
-  const [selectedIconId, setSelectedIconId] = useState<string>(initialIconId);
+  const [previewUri, setPreviewUri] = useState<string | null>(currentAvatarUrl || null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const initialLetter = userName.trim().charAt(0).toUpperCase() || 'A';
+  const initials = userName
+    ? userName
+        .trim()
+        .split(' ')
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : 'N';
+
+  const handleFileChange = (event: any) => {
+    setErrorMessage(null);
+    const file = event.target?.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setErrorMessage('Formato inválido. Use arquivos JPG, PNG ou WebP.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMessage('O arquivo deve ter menos de 5MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setPreviewUri(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleTriggerUpload = () => {
+    if (Platform.OS === 'web') {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setPreviewUri(null);
+    setErrorMessage(null);
+  };
 
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      if (selectedType === 'initials') {
-        await onSelectAvatar(null);
-      } else {
-        await onSelectAvatar(`custom-icon:${selectedIconId}:${selectedColor}`);
-      }
+      await onSelectAvatar(previewUri);
       onClose();
     } catch {
-      // Trata erro no componente pai
+      setErrorMessage('Erro ao salvar foto de perfil. Tente novamente.');
     } finally {
       setIsSaving(false);
     }
@@ -93,15 +98,12 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
 
   if (!visible) return null;
 
-  const SelectedIcon = PRESET_ICONS.find((i) => i.id === selectedIconId)?.icon || User;
-
   return (
     <Modal
       visible={visible}
       transparent
       animationType="fade"
       onRequestClose={onClose}
-      accessibilityViewIsModal
     >
       <View style={styles.overlay}>
         <View
@@ -109,160 +111,112 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
             styles.modalCard,
             {
               backgroundColor: isDark ? colors.surface : '#FFFFFF',
-              borderColor: colors.border,
+              borderColor: isDark ? colors.border : '#E0E5E2',
             },
           ]}
         >
           {/* Header */}
-          <View style={styles.headerRow}>
-            <Text style={[styles.modalTitle, { color: isDark ? colors.text : '#173D3B' }]}>
-              Escolha seu avatar
+          <View style={styles.modalHeader}>
+            <Text
+              accessibilityRole="header"
+              aria-level={2}
+              style={[styles.modalTitle, { color: isDark ? colors.text : '#1F2927' }]}
+            >
+              Foto de perfil
             </Text>
             <TouchableOpacity
               onPress={onClose}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
-              accessibilityLabel="Fechar modal"
+              accessibilityLabel="Fechar janela"
+              style={styles.closeBtn}
             >
-              <X size={20} color="#8C9E9B" />
+              <X size={20} color={isDark ? colors.text : '#1F2927'} strokeWidth={1.75} />
             </TouchableOpacity>
           </View>
 
-          {/* Prévia do Avatar Selecionado */}
+          {/* Hidden File Input for Web */}
+          {Platform.OS === 'web' && (
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp"
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+            />
+          )}
+
+          {/* Avatar Preview */}
           <View style={styles.previewContainer}>
-            <View
-              style={[
-                styles.previewCircle,
-                {
-                  backgroundColor:
-                    selectedType === 'initials' ? '#173D3B' : selectedColor,
-                },
-              ]}
+            {previewUri ? (
+              <Image
+                source={{ uri: previewUri }}
+                accessibilityLabel={`Foto de perfil de ${userName}`}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <View style={[styles.avatarInitials, { backgroundColor: isDark ? '#1C3833' : '#EDF7F5' }]}>
+                <Text style={styles.initialsText}>{initials}</Text>
+              </View>
+            )}
+          </View>
+
+          {errorMessage && (
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          )}
+
+          <Text style={[styles.helperText, { color: isDark ? colors.textMuted : '#68736F' }]}>
+            Formatos aceitos: JPG, PNG e WebP (máx. 5MB).
+          </Text>
+
+          {/* Action Buttons */}
+          <View style={styles.actionsBlock}>
+            <TouchableOpacity
+              onPress={handleTriggerUpload}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Escolher foto do dispositivo"
+              style={[styles.uploadBtn, { borderColor: '#247B74' }]}
             >
-              {selectedType === 'initials' ? (
-                <Text style={styles.previewInitial}>{initialLetter}</Text>
+              <Upload size={18} color="#247B74" strokeWidth={1.75} style={{ marginRight: 8 }} />
+              <Text style={styles.uploadBtnText}>Escolher foto do dispositivo</Text>
+            </TouchableOpacity>
+
+            {previewUri && (
+              <TouchableOpacity
+                onPress={handleRemovePhoto}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Remover foto atual"
+                style={styles.removeBtn}
+              >
+                <Trash2 size={16} color="#C84E45" strokeWidth={1.75} style={{ marginRight: 6 }} />
+                <Text style={styles.removeBtnText}>Remover foto e usar iniciais</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Bottom Controls */}
+          <View style={styles.footerRow}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={[styles.cancelBtn, { borderColor: isDark ? colors.border : '#E0E5E2' }]}
+            >
+              <Text style={[styles.cancelBtnText, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                Cancelar
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleSave}
+              disabled={isSaving}
+              style={[styles.saveBtn, isSaving && { opacity: 0.7 }]}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <SelectedIcon size={36} color="#FFFFFF" strokeWidth={2.2} />
+                <Text style={styles.saveBtnText}>Salvar</Text>
               )}
-            </View>
-            <Text style={[styles.previewLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
-              Prévia do seu avatar
-            </Text>
-          </View>
-
-          {/* Opção 1: Iniciais do Nome */}
-          <TouchableOpacity
-            onPress={() => setSelectedType('initials')}
-            activeOpacity={0.8}
-            style={[
-              styles.optionCard,
-              selectedType === 'initials' && [
-                styles.optionCardSelected,
-                { borderColor: '#2F7F7C' },
-              ],
-              {
-                backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFA',
-                borderColor: isDark ? colors.border : '#EBF1EF',
-              },
-            ]}
-          >
-            <View style={[styles.miniCircle, { backgroundColor: '#173D3B' }]}>
-              <Text style={styles.miniCircleText}>{initialLetter}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.optionTitle, { color: isDark ? colors.text : '#173D3B' }]}>
-                Usar iniciais do nome ({initialLetter})
-              </Text>
-              <Text style={[styles.optionSubtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
-                Simples e elegante com sua letra inicial.
-              </Text>
-            </View>
-            {selectedType === 'initials' && <Check size={18} color="#2F7F7C" />}
-          </TouchableOpacity>
-
-          {/* Opção 2: Ícone Ilustrado com Cor de Fundo */}
-          <View style={{ marginTop: 12 }}>
-            <Text style={[styles.sectionHeading, { color: isDark ? colors.text : '#173D3B' }]}>
-              Ou escolha um ícone e cor
-            </Text>
-
-            {/* Grid de Ícones */}
-            <View style={styles.iconsGrid}>
-              {PRESET_ICONS.map((item) => {
-                const Icon = item.icon;
-                const isSelected = selectedType === 'icon' && selectedIconId === item.id;
-                return (
-                  <TouchableOpacity
-                    key={item.id}
-                    onPress={() => {
-                      setSelectedType('icon');
-                      setSelectedIconId(item.id);
-                    }}
-                    style={[
-                      styles.iconSelectBtn,
-                      isSelected && {
-                        borderColor: '#2F7F7C',
-                        backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
-                      },
-                      {
-                        borderColor: isSelected ? '#2F7F7C' : isDark ? colors.border : '#EBF1EF',
-                        backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                      },
-                    ]}
-                  >
-                    <Icon
-                      size={20}
-                      color={isSelected ? '#2F7F7C' : isDark ? colors.text : '#173D3B'}
-                      strokeWidth={2}
-                    />
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Paleta de Cores */}
-            <View style={styles.colorPaletteRow}>
-              {AVATAR_COLORS.map((c) => {
-                const isSelected = selectedType === 'icon' && selectedColor === c;
-                return (
-                  <TouchableOpacity
-                    key={c}
-                    onPress={() => {
-                      setSelectedType('icon');
-                      setSelectedColor(c);
-                    }}
-                    style={[
-                      styles.colorDot,
-                      { backgroundColor: c },
-                      isSelected && styles.colorDotSelected,
-                    ]}
-                  >
-                    {isSelected && <Check size={12} color="#FFFFFF" strokeWidth={3} />}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Botões de Ação */}
-          <View style={styles.actionsRow}>
-            <View style={{ flex: 1, marginRight: 8 }}>
-              <AppButton
-                title="Cancelar"
-                variant="outline"
-                size="md"
-                onPress={onClose}
-                disabled={isSaving}
-              />
-            </View>
-            <View style={{ flex: 1, marginLeft: 8 }}>
-              <AppButton
-                title="Salvar Avatar"
-                size="md"
-                isLoading={isSaving}
-                onPress={handleSave}
-              />
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -273,129 +227,125 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     alignItems: 'center',
-    padding: 18,
-    zIndex: 1000,
+    justifyContent: 'center',
+    padding: 20,
   },
   modalCard: {
     width: '100%',
     maxWidth: 420,
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 16,
     borderWidth: 1,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    elevation: 8,
+    padding: 20,
   },
-  headerRow: {
+  modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '600',
+  },
+  closeBtn: {
+    padding: 4,
   },
   previewContainer: {
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  previewCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 2,
+    marginVertical: 12,
   },
-  previewInitial: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  previewLabel: {
-    fontSize: 12,
-  },
-  optionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    gap: 12,
-  },
-  optionCardSelected: {
+  avatarImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     borderWidth: 2,
+    borderColor: '#247B74',
   },
-  miniCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  avatarInitials: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#247B74',
+  },
+  initialsText: {
+    fontSize: 32,
+    fontWeight: '600',
+    color: '#247B74',
+  },
+  errorText: {
+    color: '#C84E45',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 6,
+  },
+  helperText: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginVertical: 8,
+  },
+  actionsBlock: {
+    gap: 10,
+    marginVertical: 14,
+  },
+  uploadBtn: {
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  uploadBtnText: {
+    color: '#247B74',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  removeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+  },
+  removeBtnText: {
+    color: '#C84E45',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  footerRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  miniCircleText: {
+  cancelBtnText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  saveBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#247B74',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveBtnText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  optionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  optionSubtitle: {
-    fontSize: 11,
-    marginTop: 1,
-  },
-  sectionHeading: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 10,
-  },
-  iconsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
-  },
-  iconSelectBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  colorPaletteRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 18,
-  },
-  colorDot: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  colorDotSelected: {
-    transform: [{ scale: 1.15 }],
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
