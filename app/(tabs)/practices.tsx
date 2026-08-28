@@ -134,7 +134,7 @@ export default function PracticesScreen() {
     selectedObjective !== 'all';
 
   const handleOpenPractice = (practiceId: string) => {
-    router.push(`/practices/${practiceId}` as any);
+    router.push(`/practices/player/${practiceId}` as any);
   };
 
   return (

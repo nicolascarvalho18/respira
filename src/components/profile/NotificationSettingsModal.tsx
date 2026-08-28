@@ -83,7 +83,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
     try {
       setIsSaving(true);
       await notificationService.saveConfig(config);
-      showToast({ message: 'Preferências de notificação salvas.', type: 'success' });
+      showToast({ message: 'Lembrete salvo', type: 'success' });
       onClose();
     } catch {
       showToast({ message: 'Erro ao salvar preferências.', type: 'error' });
