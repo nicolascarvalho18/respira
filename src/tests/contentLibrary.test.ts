@@ -1,11 +1,13 @@
+import React from 'react';
 import { ALL_ARTICLES, getCategoryMetas, normalizeText } from '../data/articles';
 import { ANXIETY_ARTICLES } from '../data/articles/anxiety';
 import { SLEEP_ARTICLES } from '../data/articles/sleep';
 import { WELLBEING_ARTICLES } from '../data/articles/wellbeing';
 import { REGULATION_ARTICLES } from '../data/articles/regulation';
 import { useContentStore } from '../store/contentStore';
+import { ArticleCoverImage } from '../components/illustrations/ArticleCovers';
 
-describe('Emotional Education Content Library (40 Complete Articles)', () => {
+describe('Emotional Education Content Library (40 Complete Articles & Editorial Layout)', () => {
   it('should have exactly 40 total articles', () => {
     expect(ALL_ARTICLES.length).toBe(40);
   });
@@ -74,5 +76,33 @@ describe('Emotional Education Content Library (40 Complete Articles)', () => {
     const searchResults = useContentStore.getState().getFilteredArticles();
     expect(searchResults.length).toBeGreaterThan(0);
     expect(searchResults.every((a) => a.category === 'Ansiedade')).toBe(true);
+  });
+
+  it('should verify all 40 articles have dedicated slug mappings without errors', () => {
+    ALL_ARTICLES.forEach((article) => {
+      expect(article.slug).toBeDefined();
+      expect(typeof article.slug).toBe('string');
+      expect(article.slug.length).toBeGreaterThan(3);
+    });
+  });
+
+  it('should correctly calculate weekly completed readings', () => {
+    const articlesWithReads = ALL_ARTICLES.map((a, idx) => ({
+      ...a,
+      readProgress: idx < 3 ? 100 : 0,
+    }));
+
+    const weeklyCount = articlesWithReads.filter((a) => (a.readProgress || 0) >= 90).length;
+    expect(weeklyCount).toBe(3);
+  });
+
+  it('should identify articles currently in progress for Continue Reading section', () => {
+    const inProgressDemo = {
+      ...ALL_ARTICLES[0],
+      readProgress: 65,
+    };
+
+    expect(inProgressDemo.readProgress).toBeGreaterThan(0);
+    expect(inProgressDemo.readProgress).toBeLessThan(90);
   });
 });

@@ -31,12 +31,7 @@ import { useTheme } from '../../src/hooks/useTheme';
 import { SafeMarkdown } from '../../src/components/ui/SafeMarkdown';
 import { Article } from '../../src/types';
 import { normalizeText } from '../../src/data/articles';
-import {
-  NightSkyMoonThumb,
-  SageLeavesThumb,
-  WarmSunHillsThumb,
-  RiverHillsThumb,
-} from '../../src/components/illustrations/ArticleThumbnails';
+import { ArticleCoverImage } from '../../src/components/illustrations/ArticleCovers';
 
 export default function ArticleDetailSlugScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -165,17 +160,14 @@ export default function ArticleDetailSlugScreen() {
 
   // Artwork
   const renderCoverIllustration = () => {
-    const cat = normalizeText(article.category || '');
-    if (cat.includes('sono')) {
-      return <NightSkyMoonThumb size={110} borderRadius={16} />;
-    }
-    if (cat.includes('regulacao') || cat.includes('atencao')) {
-      return <SageLeavesThumb size={110} borderRadius={16} />;
-    }
-    if (cat.includes('ansiedade')) {
-      return <WarmSunHillsThumb size={110} borderRadius={16} />;
-    }
-    return <RiverHillsThumb size={110} borderRadius={16} />;
+    return (
+      <ArticleCoverImage
+        slug={article.slug || article.id}
+        category={article.category}
+        height={160}
+        borderRadius={16}
+      />
+    );
   };
 
   return (

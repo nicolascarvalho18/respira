@@ -8,36 +8,40 @@ import {
   TextInput,
   Platform,
   Modal,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   Search,
   X,
   Clock,
-  ArrowRight,
-  Filter,
-  CheckCircle2,
   Bookmark,
   TrendingUp,
-  BookOpen,
-  ChevronDown,
-  RotateCcw,
+  SlidersHorizontal,
+  ChevronRight,
+  Check,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
 import { ContentCard } from '../../src/components/content/ContentCard';
 import { useContentStore, ArticleFilterOption } from '../../src/store/contentStore';
 import { useTheme } from '../../src/hooks/useTheme';
-import { useBreakpoint } from '../../src/hooks/useBreakpoint';
-import { ArticleContourLines } from '../../src/components/illustrations/ArticleContourLines';
+import { ArticleCoverImage } from '../../src/components/illustrations/ArticleCovers';
 import { Article } from '../../src/types';
-import { getCategoryMetas, getRecommendedArticles } from '../../src/data/articles';
-
+import { normalizeText } from '../../src/data/articles';
 import { useToast } from '../../src/components/ui/Toast';
+
+const CATEGORIES = [
+  { id: 'all', label: 'Todos' },
+  { id: 'Ansiedade', label: 'Ansiedade' },
+  { id: 'Sono', label: 'Sono' },
+  { id: 'Bem-estar', label: 'Bem-estar' },
+  { id: 'Regulação', label: 'Regulação' },
+];
 
 export default function ContentScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
-  const { isDesktop } = useBreakpoint();
+  const { width } = useWindowDimensions();
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -51,6 +55,7 @@ export default function ContentScreen() {
     selectedCategory,
     searchQuery,
     selectedFilter,
+    pageLimit,
     setSelectedCategory,
     setSearchQuery,
     setSelectedFilter,
@@ -60,6 +65,8 @@ export default function ContentScreen() {
     getFilteredArticles,
     getVisibleArticles,
   } = useContentStore();
+
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   const handleToggleFavorite = async (articleId: string) => {
     try {
@@ -76,40 +83,59 @@ export default function ContentScreen() {
     }
   };
 
-  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-
-  // Dynamic category metas with counts (e.g. Todos (40), Ansiedade (10), etc.)
-  const categoryMetas = useMemo(() => getCategoryMetas(articles), [articles]);
-
-  // Weekly read count
+  // Cálculo de leitura semanal real
   const weeklyReadCount = useMemo(() => {
     return articles.filter((a) => (a.readProgress || 0) >= 90).length;
   }, [articles]);
 
-  // Curated recommended hero article
-  const recommendedHeroArticle: Article = useMemo(() => {
+  // Artigo em andamento ("Continuar lendo")
+  const inProgressArticle: Article | undefined = useMemo(() => {
+    // 1. Procurar artigo com progresso entre 10% e 89%
+    const found = articles.find(
+      (a) => (a.readProgress || 0) > 0 && (a.readProgress || 0) < 90
+    );
+    if (found) return found;
+
+    // 2. Se houver o artigo específico de sono com progresso, fallback demonstrativo amigável
+    const sleepDemo = articles.find(
+      (a) => a.slug === 'como-desacelerar-a-mente-antes-de-dormir'
+    );
+    if (sleepDemo && (sleepDemo.readProgress || 0) > 0) return sleepDemo;
+
+    return undefined;
+  }, [articles]);
+
+  // Artigo em destaque curado
+  const featuredArticle: Article = useMemo(() => {
+    if (selectedCategory === 'Sono') {
+      return (
+        articles.find((a) => a.slug === 'como-criar-uma-rotina-noturna-saudavel') ||
+        articles[0]
+      );
+    }
+    if (selectedCategory === 'Bem-estar') {
+      return (
+        articles.find((a) => a.slug === 'a-importancia-das-pequenas-pausas-durante-o-dia') ||
+        articles[0]
+      );
+    }
+    if (selectedCategory === 'Regulação') {
+      return (
+        articles.find((a) => a.slug === 'o-que-e-regulacao-emocional') ||
+        articles[0]
+      );
+    }
+    // Padrão (Todos ou Ansiedade)
     return (
       articles.find((a) => a.slug === 'o-que-e-ansiedade-e-como-ela-funciona') ||
       articles[0]
     );
-  }, [articles]);
-
-  // "Para você" recommendations
-  const forYouArticles = useMemo(() => {
-    return getRecommendedArticles(articles);
-  }, [articles]);
+  }, [articles, selectedCategory]);
 
   const filteredArticles = getFilteredArticles();
   const visibleArticles = getVisibleArticles();
 
-  const hasActiveFilters =
-    selectedCategory !== 'all' || searchQuery.trim().length > 0 || selectedFilter !== 'all';
-
-  const hasMoreToLoad =
-    selectedCategory === 'all' &&
-    !searchQuery &&
-    selectedFilter === 'all' &&
-    visibleArticles.length < filteredArticles.length;
+  const hasMoreToLoad = visibleArticles.length < filteredArticles.length;
 
   const filterOptions: { id: ArticleFilterOption; label: string }[] = [
     { id: 'all', label: 'Todos os status' },
@@ -122,375 +148,422 @@ export default function ContentScreen() {
     { id: 'recent', label: 'Mais recentes' },
   ];
 
-  const currentFilterLabel =
-    filterOptions.find((f) => f.id === selectedFilter)?.label || 'Filtrar';
+  // Grid responsiveness: 3 colunas em telas maiores ou 320-430px (2 a 3 colunas compactas)
+  const isDesktop = width >= 860;
+  const isTablet = width >= 580 && width < 860;
+  const numColumns = isDesktop ? 3 : isTablet ? 3 : width < 360 ? 1 : 3;
+
+  const getCategoryColor = (catId: string, isActive: boolean) => {
+    if (isActive) {
+      if (catId === 'Ansiedade') return { bg: isDark ? '#FB923C' : '#C85A32', text: '#FFFFFF' };
+      if (catId === 'Sono') return { bg: isDark ? '#A78BFA' : '#5A489B', text: '#FFFFFF' };
+      if (catId === 'Bem-estar') return { bg: isDark ? '#68D391' : '#2E7D5B', text: '#FFFFFF' };
+      if (catId === 'Regulação') return { bg: isDark ? '#60A5FA' : '#2D6A9F', text: '#FFFFFF' };
+      return { bg: isDark ? '#5ECFC3' : '#247B74', text: isDark ? '#111827' : '#FFFFFF' };
+    }
+    // Inativo
+    if (catId === 'Ansiedade') return { bg: isDark ? '#2D1F1B' : '#FDF0E9', text: isDark ? '#FDBA74' : '#C85A32' };
+    if (catId === 'Sono') return { bg: isDark ? '#231E38' : '#F0EDF9', text: isDark ? '#C4B5FD' : '#5A489B' };
+    if (catId === 'Bem-estar') return { bg: isDark ? '#1C2E24' : '#EDF7F1', text: isDark ? '#86EFAC' : '#2E7D5B' };
+    if (catId === 'Regulação') return { bg: isDark ? '#1E2838' : '#EBF2F9', text: isDark ? '#93C5FD' : '#2D6A9F' };
+    return { bg: isDark ? '#1F2937' : '#F0F4F3', text: isDark ? '#E2E8F0' : '#5F706C' };
+  };
+
+  const getCategoryBadgeColor = (catName: string) => {
+    const norm = normalizeText(catName);
+    if (norm.includes('sono')) return isDark ? '#A78BFA' : '#5A489B';
+    if (norm.includes('ansiedade')) return isDark ? '#FB923C' : '#C85A32';
+    if (norm.includes('regulacao') || norm.includes('atencao')) return isDark ? '#60A5FA' : '#2D6A9F';
+    return isDark ? '#68D391' : '#2E7D5B';
+  };
 
   return (
     <AppShell>
-      {/* 1. Cabeçalho com Título, Subtítulo e Indicador Semanal */}
-      <View style={styles.headerRow}>
-        <View style={{ flex: 1, paddingRight: 8 }}>
-          <Text
-            accessibilityRole="header"
-            aria-level={1}
-            style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}
-          >
-            Conteúdos
-          </Text>
-          <Text style={[styles.subtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
-            Informação confiável para cuidar da mente e da rotina.
-          </Text>
-        </View>
-
-        {/* Indicador de Leitura Semanal */}
-        <View
-          style={[
-            styles.weeklyBadgeBox,
-            {
-              backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
-            },
-          ]}
-        >
-          <TrendingUp size={16} color="#2F7F7C" style={{ marginRight: 6 }} />
-          <View>
-            <Text style={[styles.weeklyBadgeCount, { color: isDark ? colors.text : '#173D3B' }]}>
-              {weeklyReadCount > 0 ? `${weeklyReadCount} lidos` : '0 lidos'}
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* 1. Cabeçalho com Título, Subtítulo e Indicador de Leitura Semanal */}
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <Text
+              accessibilityRole="header"
+              aria-level={1}
+              style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#17332F' }]}
+            >
+              Conteúdos
             </Text>
-            <Text style={[styles.weeklyBadgeLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
-              esta semana
+            <Text style={[styles.headerSubtitle, { color: isDark ? '#F1F5F9' : '#5F706C' }]}>
+              Informação confiável para cuidar da mente e da rotina.
             </Text>
           </View>
-        </View>
-      </View>
 
-      {/* 2. Campo de Busca e Botão de Filtro */}
-      <View style={styles.searchFilterRow}>
-        <View
-          style={[
-            styles.searchBar,
-            {
-              backgroundColor: isDark ? colors.surface : '#FFFFFF',
-              borderColor: isDark ? colors.border : '#DCE5E2',
-            },
-          ]}
-        >
-          <Search size={18} color="#8C9E9B" style={{ marginLeft: 12, marginRight: 8 }} />
-          <TextInput
-            placeholder="Buscar por título, assunto, palavra..."
-            placeholderTextColor="#8C9E9B"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={[styles.searchInput, { color: isDark ? colors.text : '#173D3B' }]}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setSearchQuery('')}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={{ paddingRight: 12 }}
+          {/* Indicador de progresso semanal (Oculto se 0 lidos) */}
+          {weeklyReadCount > 0 && (
+            <View
+              style={[
+                styles.weeklyBadge,
+                {
+                  backgroundColor: isDark ? '#183B38' : '#EAF7F3',
+                  borderColor: isDark ? '#2C5D58' : '#D1ECE5',
+                },
+              ]}
             >
-              <X size={16} color="#8C9E9B" />
-            </TouchableOpacity>
+              <TrendingUp size={16} color={isDark ? '#5ECFC3' : '#247B74'} strokeWidth={2.2} />
+              <View>
+                <Text style={[styles.weeklyCountText, { color: isDark ? '#5ECFC3' : '#176B61' }]}>
+                  {weeklyReadCount} lidos
+                </Text>
+                <Text style={[styles.weeklySubText, { color: isDark ? '#E2E8F0' : '#5F706C' }]}>
+                  esta semana
+                </Text>
+              </View>
+            </View>
           )}
         </View>
 
-        {/* Botão de Filtro com Badge se ativo */}
-        <TouchableOpacity
-          onPress={() => setIsFilterModalOpen(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Abrir filtros de conteúdo"
-          style={[
-            styles.filterButton,
-            selectedFilter !== 'all' && {
-              backgroundColor: '#2F7F7C',
-              borderColor: '#2F7F7C',
-            },
-            {
-              backgroundColor: isDark
-                ? colors.surface
-                : selectedFilter !== 'all'
-                ? '#2F7F7C'
-                : '#FFFFFF',
-              borderColor: isDark ? colors.border : '#DCE5E2',
-            },
-          ]}
-        >
-          <Filter
-            size={18}
-            color={selectedFilter !== 'all' ? '#FFFFFF' : isDark ? colors.text : '#173D3B'}
-          />
-        </TouchableOpacity>
-      </View>
-
-      {/* Badges de Filtros Ativos + Botão Limpar Filtros */}
-      {hasActiveFilters && (
-        <View style={styles.activeFiltersRow}>
-          <Text style={[styles.activeFiltersLabel, { color: isDark ? colors.textMuted : '#667775' }]}>
-            Filtros ativos:
-          </Text>
-
-          {selectedCategory !== 'all' && (
-            <View style={styles.activeFilterChip}>
-              <Text style={styles.activeFilterChipText}>Categoria: {selectedCategory}</Text>
-              <TouchableOpacity onPress={() => setSelectedCategory('all')}>
-                <X size={12} color="#2F7F7C" />
+        {/* 2. Barra de Busca e Botão de Filtros */}
+        <View style={styles.searchRow}>
+          <View
+            style={[
+              styles.searchBar,
+              {
+                backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                borderColor: isDark ? '#334155' : '#E5EAE8',
+              },
+            ]}
+          >
+            <Search size={18} color={isDark ? '#CBD5E1' : '#708885'} strokeWidth={2} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Buscar conteúdos"
+              placeholderTextColor={isDark ? '#94A3B8' : '#8C9E9B'}
+              style={[
+                styles.searchInput,
+                {
+                  color: isDark ? '#FFFFFF' : '#17332F',
+                },
+              ]}
+              accessibilityLabel="Buscar conteúdos por título, tema ou palavra-chave"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setSearchQuery('')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Limpar busca"
+              >
+                <X size={16} color={isDark ? '#CBD5E1' : '#708885'} />
               </TouchableOpacity>
-            </View>
-          )}
+            )}
+          </View>
 
-          {selectedFilter !== 'all' && (
-            <View style={styles.activeFilterChip}>
-              <Text style={styles.activeFilterChipText}>{currentFilterLabel}</Text>
-              <TouchableOpacity onPress={() => setSelectedFilter('all')}>
-                <X size={12} color="#2F7F7C" />
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {searchQuery.trim().length > 0 && (
-            <View style={styles.activeFilterChip}>
-              <Text style={styles.activeFilterChipText}>{`Busca: "${searchQuery}"`}</Text>
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <X size={12} color="#2F7F7C" />
-              </TouchableOpacity>
-            </View>
-          )}
-
-          <TouchableOpacity onPress={clearFilters} style={styles.clearFiltersBtn}>
-            <RotateCcw size={12} color="#D9534F" style={{ marginRight: 4 }} />
-            <Text style={styles.clearFiltersBtnText}>Limpar filtros</Text>
+          <TouchableOpacity
+            onPress={() => setIsFilterModalOpen(true)}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Abrir opções de filtro"
+            style={[
+              styles.filterBtn,
+              {
+                backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                borderColor: selectedFilter !== 'all' ? (isDark ? '#5ECFC3' : '#247B74') : isDark ? '#334155' : '#E5EAE8',
+              },
+            ]}
+          >
+            <SlidersHorizontal
+              size={18}
+              color={selectedFilter !== 'all' ? (isDark ? '#5ECFC3' : '#247B74') : isDark ? '#F1F5F9' : '#5F706C'}
+              strokeWidth={2}
+            />
           </TouchableOpacity>
         </View>
-      )}
 
-      {/* 3. Categorias com Contagens Dinâmicas Reais */}
-      <View
-        style={styles.categoriesWrapper}
-        {...(Platform.OS === 'web' ? ({ role: 'tablist', 'aria-label': 'Categorias de conteúdo educativo' } as any) : {})}
-      >
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoriesScroll}
-        >
-          {categoryMetas.map((cat) => {
-            const isSelected = selectedCategory === cat.id;
+        {/* 3. Chips de Categorias */}
+        <View style={styles.categoriesRow}>
+          {CATEGORIES.map((cat) => {
+            const isActive = selectedCategory === cat.id;
+            const colorsScheme = getCategoryColor(cat.id, isActive);
             return (
               <TouchableOpacity
                 key={cat.id}
                 onPress={() => setSelectedCategory(cat.id)}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: isSelected }}
-                aria-selected={isSelected}
-                aria-controls="content-tabpanel"
-                accessibilityLabel={`Categoria ${cat.label}`}
-                {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
-                style={[styles.categoryTab, isSelected && styles.categoryTabActive]}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={`Filtrar por categoria ${cat.label}`}
+                style={[
+                  styles.categoryChip,
+                  {
+                    backgroundColor: colorsScheme.bg,
+                  },
+                ]}
               >
                 <Text
                   style={[
-                    styles.categoryTabText,
+                    styles.categoryChipText,
                     {
-                      color: isSelected ? '#2F7F7C' : isDark ? colors.textMuted : '#667775',
-                      fontWeight: isSelected ? '800' : '600',
+                      color: colorsScheme.text,
+                      fontWeight: isActive ? '700' : '600',
                     },
                   ]}
                 >
                   {cat.label}
                 </Text>
-                {isSelected && <View style={styles.activeUnderline} />}
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
-      </View>
+        </View>
 
-      <View
-        style={{ width: '100%' }}
-        {...(Platform.OS === 'web' ? ({ id: 'content-tabpanel', role: 'tabpanel', 'aria-label': 'Lista de artigos' } as any) : {})}
-      >
-
-      {/* 4. Card "LEITURA RECOMENDADA" (Apenas quando não houver busca ativa e na aba Todos) */}
-      {!searchQuery && selectedCategory === 'all' && selectedFilter === 'all' && recommendedHeroArticle && (
-        <View
-          style={[
-            styles.heroCard,
-            {
-              backgroundColor: isDark ? colors.surface : '#FFFFFF',
-              borderColor: isDark ? colors.border : '#DCE5E2',
-            },
-          ]}
-        >
-          <View style={styles.heroLeftCol}>
-            <Text style={styles.heroBadgeText}>LEITURA RECOMENDADA</Text>
-            <Text
-              style={[styles.heroTitle, { color: isDark ? colors.text : '#173D3B' }]}
-              numberOfLines={2}
+        {/* 4. Seção "CONTINUAR LENDO" (Exibida apenas quando houver artigo em andamento) */}
+        {inProgressArticle && !searchQuery && selectedFilter === 'all' && (
+          <View style={styles.sectionWrap}>
+            <View
+              style={[
+                styles.continueCard,
+                {
+                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                  borderColor: isDark ? '#334155' : '#E5EAE8',
+                },
+              ]}
             >
-              {recommendedHeroArticle.title}
-            </Text>
-            <Text
-              style={[styles.heroSummary, { color: isDark ? colors.textMuted : '#667775' }]}
-              numberOfLines={3}
-            >
-              {recommendedHeroArticle.summary}
-            </Text>
-
-            <View style={styles.heroFooter}>
-              <View style={styles.heroReadTimeRow}>
-                <Clock size={12} color="#8C9E9B" style={{ marginRight: 4 }} />
-                <Text style={styles.heroReadTimeText}>
-                  {recommendedHeroArticle.readingTimeMinutes || 5} min de leitura
-                </Text>
+              {/* Miniatura à esquerda */}
+              <View style={styles.continueThumb}>
+                <ArticleCoverImage
+                  slug={inProgressArticle.slug || inProgressArticle.id}
+                  category={inProgressArticle.category}
+                  width="100%"
+                  height="100%"
+                  borderRadius={10}
+                />
               </View>
 
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() =>
-                  router.push(`/contents/${recommendedHeroArticle.slug || recommendedHeroArticle.id}` as any)
-                }
-                style={styles.heroReadButton}
-                accessibilityRole="button"
-                accessibilityLabel="Ler artigo recomendado"
-              >
-                <Text style={styles.heroReadButtonText}>Ler artigo</Text>
-                <ArrowRight size={14} color="#FFFFFF" style={{ marginLeft: 4 }} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Ilustração Editorial SVG */}
-          <View style={styles.heroRightIllustration}>
-            <ArticleContourLines width={140} height={140} />
-          </View>
-        </View>
-      )}
-
-      {/* 5. Seção "Para Você" (Recomendações Variadas) */}
-      {!searchQuery && selectedCategory === 'all' && selectedFilter === 'all' && forYouArticles.length > 0 && (
-        <View style={styles.forYouSection}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <BookOpen size={16} color="#2F7F7C" style={{ marginRight: 6 }} aria-hidden={true} />
-              <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>
-                Recomendado para você
-              </Text>
-            </View>
-            <Text style={[styles.sectionSubtitle, { color: isDark ? colors.textMuted : '#8C9E9B' }]}>
-              Baseado nos seus interesses
-            </Text>
-          </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.forYouScroll}
-          >
-            {forYouArticles.map((art) => (
-              <TouchableOpacity
-                key={art.id}
-                onPress={() => router.push(`/contents/${art.slug || art.id}` as any)}
-                activeOpacity={0.85}
-                style={[
-                  styles.forYouCard,
-                  {
-                    backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                    borderColor: isDark ? colors.border : '#EBF1EF',
-                  },
-                ]}
-              >
-                <Text style={styles.forYouCatLabel}>{art.category.toUpperCase()}</Text>
-                <Text
-                  style={[styles.forYouTitle, { color: isDark ? colors.text : '#173D3B' }]}
-                  numberOfLines={2}
-                >
-                  {art.title}
+              {/* Informações à direita */}
+              <View style={styles.continueBody}>
+                <Text style={[styles.continueBadge, { color: isDark ? '#5ECFC3' : '#247B74' }]}>
+                  CONTINUAR LENDO
                 </Text>
-                <View style={styles.forYouFooter}>
-                  <Clock size={11} color="#8C9E9B" style={{ marginRight: 4 }} />
-                  <Text style={styles.forYouTime}>{art.readingTimeMinutes || 5} min</Text>
+                <Text
+                  numberOfLines={2}
+                  style={[styles.continueTitle, { color: isDark ? '#FFFFFF' : '#17332F' }]}
+                >
+                  {inProgressArticle.title}
+                </Text>
+
+                {/* Barra de Progresso */}
+                <View style={styles.progressRow}>
+                  <View style={[styles.progressTrack, { backgroundColor: isDark ? '#334155' : '#E5EAE8' }]}>
+                    <View
+                      style={[
+                        styles.progressFill,
+                        {
+                          width: `${inProgressArticle.readProgress || 65}%`,
+                          backgroundColor: isDark ? '#5ECFC3' : '#247B74',
+                        },
+                      ]}
+                    />
+                  </View>
+                  <Text style={[styles.progressPctText, { color: isDark ? '#E2E8F0' : '#5F706C' }]}>
+                    {inProgressArticle.readProgress || 65}%
+                  </Text>
                 </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
 
-      {/* 6. Seção "Todos os conteúdos" / Lista Principal */}
-      <View style={styles.articlesListSection}>
-        <View style={styles.sectionHeaderRow}>
-          <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>
-            {selectedCategory === 'all' ? 'Todos os conteúdos' : `Artigos de ${selectedCategory}`}
-          </Text>
-          <Text style={[styles.sectionCountText, { color: isDark ? colors.textMuted : '#8C9E9B' }]}>
-            {filteredArticles.length} {filteredArticles.length === 1 ? 'artigo' : 'artigos'}
-          </Text>
-        </View>
+                {/* Botão Continuar */}
+                <TouchableOpacity
+                  onPress={() => router.push(`/contents/${inProgressArticle.slug || inProgressArticle.id}` as any)}
+                  activeOpacity={0.85}
+                  style={[
+                    styles.continueBtn,
+                    {
+                      backgroundColor: isDark ? '#5ECFC3' : '#247B74',
+                    },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Continuar lendo ${inProgressArticle.title}`}
+                >
+                  <Text style={[styles.continueBtnText, { color: isDark ? '#111827' : '#FFFFFF' }]}>
+                    Continuar
+                  </Text>
+                  <ChevronRight size={16} color={isDark ? '#111827' : '#FFFFFF'} strokeWidth={2.2} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
 
-        {/* Estado Vazio de Busca */}
-        {filteredArticles.length === 0 ? (
-          <View
-            style={[
-              styles.emptyWrap,
-              {
-                backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                borderColor: isDark ? colors.border : '#DCE5E2',
-              },
-            ]}
-          >
-            <Text style={[styles.emptyTitle, { color: isDark ? colors.text : '#173D3B' }]}>
-              Nenhum conteúdo encontrado
-            </Text>
-            <Text style={[styles.emptySubtitle, { color: isDark ? colors.textMuted : '#667775' }]}>
-              Tente buscar por outro assunto ou limpar os filtros.
-            </Text>
-            <TouchableOpacity onPress={clearFilters} style={styles.emptyButton}>
-              <Text style={styles.emptyButtonText}>Limpar filtros</Text>
+        {/* 5. Seção "CONTEÚDO EM DESTAQUE" */}
+        {featuredArticle && !searchQuery && selectedFilter === 'all' && (
+          <View style={styles.sectionWrap}>
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={() => router.push(`/contents/${featuredArticle.slug || featuredArticle.id}` as any)}
+              style={[
+                styles.featuredCard,
+                {
+                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                  borderColor: isDark ? '#334155' : '#E5EAE8',
+                },
+              ]}
+              accessibilityRole="link"
+              accessibilityLabel={`Destaque: ${featuredArticle.title}`}
+            >
+              {/* Capa do Destaque */}
+              <View style={styles.featuredCoverWrapper}>
+                <ArticleCoverImage
+                  slug={featuredArticle.slug || featuredArticle.id}
+                  category={featuredArticle.category}
+                  width="100%"
+                  height="100%"
+                  borderRadius={12}
+                />
+              </View>
+
+              {/* Informações do Destaque */}
+              <View style={styles.featuredContent}>
+                <Text style={[styles.featuredCategory, { color: getCategoryBadgeColor(featuredArticle.category) }]}>
+                  {featuredArticle.category.toUpperCase()}
+                </Text>
+
+                <Text
+                  numberOfLines={2}
+                  style={[styles.featuredTitle, { color: isDark ? '#FFFFFF' : '#17332F' }]}
+                >
+                  {featuredArticle.title}
+                </Text>
+
+                <Text
+                  numberOfLines={3}
+                  style={[styles.featuredSummary, { color: isDark ? '#F1F5F9' : '#5F706C' }]}>
+                  {featuredArticle.summary}
+                </Text>
+
+                <View style={styles.featuredFooter}>
+                  <View style={styles.timeWrap}>
+                    <Clock size={14} color={isDark ? '#E2E8F0' : '#708885'} strokeWidth={1.8} />
+                    <Text style={[styles.timeText, { color: isDark ? '#E2E8F0' : '#708885' }]}>
+                      {featuredArticle.readingTimeMinutes || featuredArticle.readTimeMinutes || 5} min
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    onPress={() => handleToggleFavorite(featuredArticle.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      featuredArticle.isFavorite
+                        ? `Remover ${featuredArticle.title} dos favoritos`
+                        : `Salvar ${featuredArticle.title} nos favoritos`
+                    }
+                    style={styles.favBtn}
+                  >
+                    <Bookmark
+                      size={18}
+                      color={
+                        featuredArticle.isFavorite
+                          ? isDark
+                            ? '#5ECFC3'
+                            : '#247B74'
+                          : isDark
+                          ? '#E2E8F0'
+                          : '#8C9E9B'
+                      }
+                      fill={featuredArticle.isFavorite ? (isDark ? '#5ECFC3' : '#247B74') : 'none'}
+                      strokeWidth={1.8}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
             </TouchableOpacity>
           </View>
-        ) : (
-          <View
-            style={[
-              styles.articlesCardWrap,
-              {
-                backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                borderColor: isDark ? colors.border : '#DCE5E2',
-              },
-            ]}
-          >
-            {visibleArticles.map((article) => (
-              <ContentCard
-                key={article.id}
-                article={article}
-                onToggleFavorite={handleToggleFavorite}
-              />
-            ))}
-          </View>
         )}
 
-        {/* Botão "Carregar Mais Conteúdos" (10 em 10 na aba Todos) */}
-        {hasMoreToLoad && (
-          <TouchableOpacity
-            onPress={loadMoreArticles}
-            activeOpacity={0.8}
-            style={[
-              styles.loadMoreButton,
-              {
-                backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
-                borderColor: isDark ? colors.border : '#D4E8E2',
-              },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Carregar mais 10 conteúdos"
-          >
-            <Text style={styles.loadMoreButtonText}>
-              + Carregar mais conteúdos ({visibleArticles.length} de {filteredArticles.length})
+        {/* 6. Seção "Todos os conteúdos" */}
+        <View style={styles.sectionWrap}>
+          <View style={styles.sectionHeaderRow}>
+            <Text
+              accessibilityRole="header"
+              aria-level={2}
+              style={[styles.sectionTitle, { color: isDark ? '#FFFFFF' : '#17332F' }]}
+            >
+              Todos os conteúdos
             </Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      </View>
+            <Text style={[styles.sectionCountText, { color: isDark ? '#E2E8F0' : '#5F706C' }]}>
+              {filteredArticles.length} artigos
+            </Text>
+          </View>
 
-      {/* Modal de Filtros Avançados */}
+          {/* Grade de Artigos */}
+          {visibleArticles.length === 0 ? (
+            <View
+              style={[
+                styles.emptyStateBox,
+                {
+                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                  borderColor: isDark ? '#334155' : '#E5EAE8',
+                },
+              ]}
+            >
+              <Text style={[styles.emptyStateTitle, { color: isDark ? '#FFFFFF' : '#17332F' }]}>
+                Nenhum conteúdo encontrado
+              </Text>
+              <Text style={[styles.emptyStateDesc, { color: isDark ? '#F1F5F9' : '#5F706C' }]}>
+                Tente buscar com outros termos ou selecione outra categoria.
+              </Text>
+              <TouchableOpacity
+                onPress={clearFilters}
+                style={[styles.clearFilterBtn, { backgroundColor: isDark ? '#5ECFC3' : '#247B74' }]}
+              >
+                <Text style={{ color: isDark ? '#111827' : '#FFFFFF', fontWeight: '700', fontSize: 13 }}>
+                  Ver todos os conteúdos
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.articlesGrid}>
+              {visibleArticles.map((article) => (
+                <View
+                  key={article.id}
+                  style={[
+                    styles.gridCol,
+                    {
+                      width: numColumns === 1 ? '100%' : `${100 / numColumns - 1.5}%`,
+                    },
+                  ]}
+                >
+                  <ContentCard
+                    article={article}
+                    onToggleFavorite={handleToggleFavorite}
+                  />
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* 7. Botão "Ver mais conteúdos >" */}
+          {hasMoreToLoad && (
+            <TouchableOpacity
+              onPress={loadMoreArticles}
+              activeOpacity={0.8}
+              style={[
+                styles.loadMoreBtn,
+                {
+                  backgroundColor: isDark ? '#183B38' : '#EAF7F3',
+                  borderColor: isDark ? '#2C5D58' : '#D1ECE5',
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Carregar mais conteúdos da lista"
+            >
+              <Text style={[styles.loadMoreText, { color: isDark ? '#5ECFC3' : '#247B74' }]}>
+                Ver mais conteúdos ({visibleArticles.length} de {filteredArticles.length})
+              </Text>
+              <ChevronRight size={16} color={isDark ? '#5ECFC3' : '#247B74'} strokeWidth={2.2} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </ScrollView>
+
+      {/* Modal de Filtros Rápidos */}
       <Modal
         visible={isFilterModalOpen}
         transparent
@@ -500,23 +573,26 @@ export default function ContentScreen() {
         <View style={styles.modalOverlay}>
           <View
             style={[
-              styles.modalContent,
+              styles.filterModalCard,
               {
-                backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                borderColor: colors.border,
+                backgroundColor: isDark ? '#172033' : '#FFFFFF',
+                borderColor: isDark ? '#334155' : '#DDE6E3',
               },
             ]}
           >
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: isDark ? colors.text : '#173D3B' }]}>
-                Filtrar Artigos
+              <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#17332F' }]}>
+                Filtrar conteúdos
               </Text>
-              <TouchableOpacity onPress={() => setIsFilterModalOpen(false)}>
-                <X size={20} color="#8C9E9B" />
+              <TouchableOpacity
+                onPress={() => setIsFilterModalOpen(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <X size={20} color={isDark ? '#F1F5F9' : '#5F706C'} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.filterOptionsList}>
+            <ScrollView style={{ maxHeight: 360 }}>
               {filterOptions.map((opt) => {
                 const isSelected = selectedFilter === opt.id;
                 return (
@@ -529,7 +605,7 @@ export default function ContentScreen() {
                     style={[
                       styles.filterOptionItem,
                       isSelected && {
-                        backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
+                        backgroundColor: isDark ? '#183B38' : '#EAF7F3',
                       },
                     ]}
                   >
@@ -538,21 +614,25 @@ export default function ContentScreen() {
                         styles.filterOptionText,
                         {
                           color: isSelected
-                            ? '#2F7F7C'
+                            ? isDark
+                              ? '#5ECFC3'
+                              : '#247B74'
                             : isDark
-                            ? colors.text
-                            : '#173D3B',
-                          fontWeight: isSelected ? '700' : '400',
+                            ? '#FFFFFF'
+                            : '#17332F',
+                          fontWeight: isSelected ? '700' : '500',
                         },
                       ]}
                     >
                       {opt.label}
                     </Text>
-                    {isSelected && <CheckCircle2 size={16} color="#2F7F7C" />}
+                    {isSelected && (
+                      <Check size={18} color={isDark ? '#5ECFC3' : '#247B74'} strokeWidth={2.5} />
+                    )}
                   </TouchableOpacity>
                 );
               })}
-            </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -561,351 +641,334 @@ export default function ContentScreen() {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 90,
+    gap: 16,
+    maxWidth: 960,
+    width: '100%',
+    alignSelf: 'center',
+  },
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 14,
-    paddingTop: 4,
   },
-  title: {
-    fontSize: 26,
+  headerTitle: {
+    fontSize: 28,
     fontWeight: '800',
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
   },
-  subtitle: {
-    fontSize: 13,
-    marginTop: 2,
-    lineHeight: 18,
+  headerSubtitle: {
+    fontSize: 14,
+    marginTop: 3,
+    lineHeight: 20,
   },
-  weeklyBadgeBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  weeklyBadgeCount: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  weeklyBadgeLabel: {
-    fontSize: 10,
-  },
-
-  // Search and Filter
-  searchFilterRow: {
+  weeklyBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  weeklyCountText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  weeklySubText: {
+    fontSize: 11,
+    marginTop: -1,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
   },
   searchBar: {
     flex: 1,
-    height: 44,
-    borderRadius: 14,
+    height: 48,
+    borderRadius: 12,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 14,
+    gap: 10,
   },
   searchInput: {
     flex: 1,
-    fontSize: 13,
-    paddingVertical: 8,
+    height: '100%',
+    fontSize: 14,
   },
-  filterButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+  filterBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  activeFiltersRow: {
+  categoriesRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 12,
+    gap: 8,
   },
-  activeFiltersLabel: {
-    fontSize: 11,
+  categoryChip: {
+    paddingHorizontal: 16,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryChipText: {
+    fontSize: 13.5,
+  },
+  sectionWrap: {
+    gap: 10,
+    marginTop: 4,
+  },
+  continueCard: {
+    flexDirection: 'row',
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 12,
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
+      },
+    }),
+  },
+  continueThumb: {
+    width: 110,
+    height: 85,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  continueBody: {
+    flex: 1,
+    justifyContent: 'space-between',
+    gap: 4,
+  },
+  continueBadge: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  continueTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  progressTrack: {
+    flex: 1,
+    height: 5,
+    borderRadius: 2.5,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2.5,
+  },
+  progressPctText: {
+    fontSize: 11.5,
     fontWeight: '600',
   },
-  activeFilterChip: {
+  continueBtn: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#E7F3EF',
-    borderColor: '#2F7F7C',
-    borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    height: 32,
+    paddingHorizontal: 12,
     borderRadius: 8,
+    marginTop: 2,
   },
-  activeFilterChipText: {
-    fontSize: 11,
+  continueBtnText: {
+    fontSize: 12.5,
     fontWeight: '700',
-    color: '#2F7F7C',
   },
-  clearFiltersBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-  },
-  clearFiltersBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#D9534F',
-  },
-
-  // Category Tabs
-  categoriesWrapper: {
-    marginBottom: 16,
-  },
-  categoriesScroll: {
-    flexDirection: 'row',
-    gap: 16,
-    paddingVertical: 2,
-  },
-  categoryTab: {
-    paddingVertical: 6,
-    position: 'relative',
-  },
-  categoryTabActive: {},
-  categoryTabText: {
-    fontSize: 13,
-  },
-  activeUnderline: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 2.5,
-    backgroundColor: '#2F7F7C',
-    borderRadius: 2,
-  },
-
-  // Hero Card
-  heroCard: {
-    borderRadius: 20,
+  featuredCard: {
+    borderRadius: 16,
     borderWidth: 1,
-    padding: 18,
+    padding: 12,
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
+    gap: 14,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
+      },
+    }),
+  },
+  featuredCoverWrapper: {
+    width: 140,
+    height: 140,
+    borderRadius: 12,
     overflow: 'hidden',
   },
-  heroLeftCol: {
+  featuredContent: {
     flex: 1,
-    paddingRight: 10,
+    justifyContent: 'space-between',
+    gap: 4,
   },
-  heroBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#2F7F7C',
-    letterSpacing: 0.6,
-    marginBottom: 6,
+  featuredCategory: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
-  heroTitle: {
+  featuredTitle: {
     fontSize: 16,
     fontWeight: '800',
-    lineHeight: 22,
-    marginBottom: 6,
+    lineHeight: 21,
   },
-  heroSummary: {
-    fontSize: 12,
-    lineHeight: 17,
-    marginBottom: 12,
+  featuredSummary: {
+    fontSize: 13,
+    lineHeight: 18,
   },
-  heroFooter: {
+  featuredFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingTop: 4,
   },
-  heroReadTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  heroReadTimeText: {
-    fontSize: 11,
-    color: '#8C9E9B',
-  },
-  heroReadButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#2F7F7C',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 10,
-  },
-  heroReadButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  heroRightIllustration: {
-    width: 120,
-    height: 120,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // For You Section
-  forYouSection: {
-    marginBottom: 20,
-  },
-  forYouScroll: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingVertical: 4,
-  },
-  forYouCard: {
-    width: 170,
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 12,
-  },
-  forYouCatLabel: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#2F7F7C',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  forYouTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 16,
-    height: 32,
-    marginBottom: 8,
-  },
-  forYouFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  forYouTime: {
-    fontSize: 10,
-    color: '#8C9E9B',
-  },
-
-  // Section Headers
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-  },
-  sectionSubtitle: {
-    fontSize: 11,
-  },
-  sectionCountText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-
-  // Articles List Card
-  articlesListSection: {
-    paddingBottom: 40,
-  },
-  articlesCardWrap: {
-    borderRadius: 18,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  loadMoreButton: {
-    marginTop: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadMoreButtonText: {
-    color: '#2F7F7C',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-
-  // Empty State
-  emptyWrap: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 24,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '800',
     marginBottom: 4,
   },
-  emptySubtitle: {
-    fontSize: 12,
-    textAlign: 'center',
-    marginBottom: 14,
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
   },
-  emptyButton: {
-    backgroundColor: '#2F7F7C',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 10,
+  sectionCountText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
-  emptyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
+  articlesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  gridCol: {
+    marginBottom: 2,
+  },
+  loadMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 6,
+  },
+  loadMoreText: {
+    fontSize: 14,
     fontWeight: '700',
   },
-
-  // Modal
+  emptyStateBox: {
+    padding: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  emptyStateTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  emptyStateDesc: {
+    fontSize: 13.5,
+    textAlign: 'center',
+  },
+  clearFilterBtn: {
+    marginTop: 8,
+    paddingHorizontal: 16,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    justifyContent: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
     alignItems: 'center',
-    padding: 20,
-    zIndex: 1000,
+    justifyContent: 'center',
+    padding: 16,
   },
-  modalContent: {
+  filterModalCard: {
     width: '100%',
     maxWidth: 380,
-    borderRadius: 20,
-    padding: 18,
+    borderRadius: 16,
     borderWidth: 1,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    elevation: 8,
+    padding: 16,
+    gap: 12,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#DDE6E3',
   },
   modalTitle: {
     fontSize: 16,
-    fontWeight: '800',
-  },
-  filterOptionsList: {
-    gap: 4,
+    fontWeight: '700',
   },
   filterOptionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    height: 44,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 8,
+    marginBottom: 4,
   },
   filterOptionText: {
-    fontSize: 13,
+    fontSize: 14,
+  },
+  timeWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  timeText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  favBtn: {
+    padding: 4,
   },
 });
