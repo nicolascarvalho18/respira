@@ -36,6 +36,12 @@ const EDITORIAL_IMAGE_COVERS: Record<string, any> = {
   'exercicios-de-respiracao-para-o-periodo-noturno': require('../../../assets/images/exercicios-de-respiracao-para-o-periodo-noturno.jpg'),
   'a-importancia-de-manter-horarios-regulares': require('../../../assets/images/a-importancia-de-manter-horarios-regulares.jpg'),
   'habitos-durante-o-dia-que-ajudam-a-dormir-melhor': require('../../../assets/images/habitos-durante-o-dia-que-ajudam-a-dormir-melhor.jpg'),
+  // Bem-estar (1 a 5)
+  'a-importancia-das-pequenas-pausas-durante-o-dia': require('../../../assets/images/a-importancia-das-pequenas-pausas-durante-o-dia.jpg'),
+  'como-praticar-autocuidado-em-uma-rotina-corrida': require('../../../assets/images/como-praticar-autocuidado-em-uma-rotina-corrida.jpg'),
+  'descansar-tambem-faz-parte-da-produtividade': require('../../../assets/images/descansar-tambem-faz-parte-da-produtividade.jpg'),
+  'como-diminuir-a-sobrecarga-mental': require('../../../assets/images/como-diminuir-a-sobrecarga-mental.jpg'),
+  'movimento-e-atividade-fisica-para-o-bem-estar': require('../../../assets/images/movimento-e-atividade-fisica-para-o-bem-estar.jpg'),
 };
 
 export interface ArticleCoverProps {
