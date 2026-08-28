@@ -16,10 +16,10 @@ import {
   X,
   Clock,
   Bookmark,
-  TrendingUp,
   SlidersHorizontal,
   ChevronRight,
   Check,
+  Sparkles,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
 import { ContentCard } from '../../src/components/content/ContentCard';
@@ -40,7 +40,7 @@ const CATEGORIES = [
 
 export default function ContentScreen() {
   const router = useRouter();
-  const { colors, isDark } = useTheme();
+  const { isDark } = useTheme();
   const { width } = useWindowDimensions();
   const { showToast } = useToast();
 
@@ -55,7 +55,6 @@ export default function ContentScreen() {
     selectedCategory,
     searchQuery,
     selectedFilter,
-    pageLimit,
     setSelectedCategory,
     setSearchQuery,
     setSelectedFilter,
@@ -83,57 +82,49 @@ export default function ContentScreen() {
     }
   };
 
-  // Cálculo de leitura semanal real
-  const weeklyReadCount = useMemo(() => {
-    return articles.filter((a) => (a.readProgress || 0) >= 90).length;
-  }, [articles]);
+  // Artigo de Destaque Editorial por Categoria (ou geral)
+  const featuredArticle: Article | undefined = useMemo(() => {
+    if (searchQuery.trim().length > 0) return undefined; // Oculta destaque durante busca
 
-  // Artigo em andamento ("Continuar lendo")
-  const inProgressArticle: Article | undefined = useMemo(() => {
-    // 1. Procurar artigo com progresso entre 10% e 89%
-    const found = articles.find(
-      (a) => (a.readProgress || 0) > 0 && (a.readProgress || 0) < 90
-    );
-    if (found) return found;
-
-    // 2. Se houver o artigo específico de sono com progresso, fallback demonstrativo amigável
-    const sleepDemo = articles.find(
-      (a) => a.slug === 'como-desacelerar-a-mente-antes-de-dormir'
-    );
-    if (sleepDemo && (sleepDemo.readProgress || 0) > 0) return sleepDemo;
-
-    return undefined;
-  }, [articles]);
-
-  // Artigo em destaque curado
-  const featuredArticle: Article = useMemo(() => {
     if (selectedCategory === 'Sono') {
       return (
-        articles.find((a) => a.slug === 'como-criar-uma-rotina-noturna-saudavel') ||
-        articles[0]
+        articles.find((a) => a.slug === 'como-desacelerar-a-mente-antes-de-dormir') ||
+        articles.find((a) => normalizeText(a.category).includes('sono'))
       );
     }
     if (selectedCategory === 'Bem-estar') {
       return (
         articles.find((a) => a.slug === 'a-importancia-das-pequenas-pausas-durante-o-dia') ||
-        articles[0]
+        articles.find((a) => normalizeText(a.category).includes('bem-estar'))
       );
     }
     if (selectedCategory === 'Regulação') {
       return (
         articles.find((a) => a.slug === 'o-que-e-regulacao-emocional') ||
-        articles[0]
+        articles.find((a) => normalizeText(a.category).includes('regulacao'))
       );
     }
-    // Padrão (Todos ou Ansiedade)
-    return (
-      articles.find((a) => a.slug === 'o-que-e-ansiedade-e-como-ela-funciona') ||
-      articles[0]
-    );
-  }, [articles, selectedCategory]);
+    if (selectedCategory === 'Ansiedade') {
+      return (
+        articles.find((a) => a.slug === 'o-que-e-ansiedade-e-como-ela-funciona') ||
+        articles.find((a) => normalizeText(a.category).includes('ansiedade'))
+      );
+    }
+
+    // Todos: Destaque Principal
+    return articles.find((a) => a.slug === 'o-que-e-ansiedade-e-como-ela-funciona') || articles[0];
+  }, [articles, selectedCategory, searchQuery]);
 
   const filteredArticles = getFilteredArticles();
   const visibleArticles = getVisibleArticles();
+
+  // Para não repetir o artigo em destaque na lista principal quando em "Todos"
+  const displayArticles = useMemo(() => {
+    if (!featuredArticle || searchQuery.trim().length > 0 || selectedFilter !== 'all') {
+      return visibleArticles;
+    }
+    return visibleArticles.filter((a) => a.id !== featuredArticle.id);
+  }, [visibleArticles, featuredArticle, searchQuery, selectedFilter]);
 
   const hasMoreToLoad = visibleArticles.length < filteredArticles.length;
 
@@ -148,29 +139,16 @@ export default function ContentScreen() {
     { id: 'recent', label: 'Mais recentes' },
   ];
 
-  // Grid responsiveness: 3 colunas em telas maiores ou 320-430px (2 a 3 colunas compactas)
+  // Grid responsiveness:
+  // Mobile (< 580px): 1 card por linha
+  // Tablet (580px - 860px): 2 cards por linha
+  // Desktop (>= 860px): 3 cards por linha
   const isDesktop = width >= 860;
   const isTablet = width >= 580 && width < 860;
-  const numColumns = isDesktop ? 3 : isTablet ? 3 : width < 360 ? 1 : 3;
-
-  const getCategoryColor = (catId: string, isActive: boolean) => {
-    if (isActive) {
-      if (catId === 'Ansiedade') return { bg: isDark ? '#FB923C' : '#C85A32', text: '#FFFFFF' };
-      if (catId === 'Sono') return { bg: isDark ? '#A78BFA' : '#5A489B', text: '#FFFFFF' };
-      if (catId === 'Bem-estar') return { bg: isDark ? '#68D391' : '#2E7D5B', text: '#FFFFFF' };
-      if (catId === 'Regulação') return { bg: isDark ? '#60A5FA' : '#2D6A9F', text: '#FFFFFF' };
-      return { bg: isDark ? '#5ECFC3' : '#247B74', text: isDark ? '#111827' : '#FFFFFF' };
-    }
-    // Inativo
-    if (catId === 'Ansiedade') return { bg: isDark ? '#2D1F1B' : '#FDF0E9', text: isDark ? '#FDBA74' : '#C85A32' };
-    if (catId === 'Sono') return { bg: isDark ? '#231E38' : '#F0EDF9', text: isDark ? '#C4B5FD' : '#5A489B' };
-    if (catId === 'Bem-estar') return { bg: isDark ? '#1C2E24' : '#EDF7F1', text: isDark ? '#86EFAC' : '#2E7D5B' };
-    if (catId === 'Regulação') return { bg: isDark ? '#1E2838' : '#EBF2F9', text: isDark ? '#93C5FD' : '#2D6A9F' };
-    return { bg: isDark ? '#1F2937' : '#F0F4F3', text: isDark ? '#E2E8F0' : '#5F706C' };
-  };
+  const numColumns = isDesktop ? 3 : isTablet ? 2 : 1;
 
   const getCategoryBadgeColor = (catName: string) => {
-    const norm = normalizeText(catName);
+    const norm = normalizeText(catName || '');
     if (norm.includes('sono')) return isDark ? '#A78BFA' : '#5A489B';
     if (norm.includes('ansiedade')) return isDark ? '#FB923C' : '#C85A32';
     if (norm.includes('regulacao') || norm.includes('atencao')) return isDark ? '#60A5FA' : '#2D6A9F';
@@ -181,49 +159,33 @@ export default function ContentScreen() {
     <AppShell>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={[
+          styles.contentContainer,
+          { paddingHorizontal: width < 380 ? 16 : 20 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* 1. Cabeçalho com Título, Subtítulo e Indicador de Leitura Semanal */}
-        <View style={styles.headerRow}>
-          <View style={{ flex: 1, paddingRight: 10 }}>
-            <Text
-              accessibilityRole="header"
-              aria-level={1}
-              style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#17332F' }]}
-            >
-              Conteúdos
-            </Text>
-            <Text style={[styles.headerSubtitle, { color: isDark ? '#F1F5F9' : '#5F706C' }]}>
-              Informação confiável para cuidar da mente e da rotina.
-            </Text>
-          </View>
-
-          {/* Indicador de progresso semanal (Oculto se 0 lidos) */}
-          {weeklyReadCount > 0 && (
-            <View
-              style={[
-                styles.weeklyBadge,
-                {
-                  backgroundColor: isDark ? '#183B38' : '#EAF7F3',
-                  borderColor: isDark ? '#2C5D58' : '#D1ECE5',
-                },
-              ]}
-            >
-              <TrendingUp size={16} color={isDark ? '#5ECFC3' : '#247B74'} strokeWidth={2.2} />
-              <View>
-                <Text style={[styles.weeklyCountText, { color: isDark ? '#5ECFC3' : '#176B61' }]}>
-                  {weeklyReadCount} lidos
-                </Text>
-                <Text style={[styles.weeklySubText, { color: isDark ? '#E2E8F0' : '#5F706C' }]}>
-                  esta semana
-                </Text>
-              </View>
-            </View>
-          )}
+        {/* 1. Cabeçalho Equilibrado */}
+        <View style={styles.headerBlock}>
+          <Text
+            accessibilityRole="header"
+            aria-level={1}
+            style={[
+              styles.headerTitle,
+              {
+                fontSize: width < 380 ? 24 : 26,
+                color: isDark ? '#FFFFFF' : '#17332F',
+              },
+            ]}
+          >
+            Conteúdos
+          </Text>
+          <Text style={[styles.headerSubtitle, { color: isDark ? '#F1F5F9' : '#5F706C' }]}>
+            Informação confiável para cuidar da mente e da rotina.
+          </Text>
         </View>
 
-        {/* 2. Barra de Busca e Botão de Filtros */}
+        {/* 2. Barra de Busca e Botão Quadrado de Filtro */}
         <View style={styles.searchRow}>
           <View
             style={[
@@ -265,138 +227,106 @@ export default function ContentScreen() {
             accessibilityRole="button"
             accessibilityLabel="Abrir opções de filtro"
             style={[
-              styles.filterBtn,
+              styles.filterSquareBtn,
               {
                 backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                borderColor: selectedFilter !== 'all' ? (isDark ? '#5ECFC3' : '#247B74') : isDark ? '#334155' : '#E5EAE8',
+                borderColor:
+                  selectedFilter !== 'all'
+                    ? isDark
+                      ? '#5ECFC3'
+                      : '#247B74'
+                    : isDark
+                    ? '#334155'
+                    : '#E5EAE8',
               },
             ]}
           >
             <SlidersHorizontal
               size={18}
-              color={selectedFilter !== 'all' ? (isDark ? '#5ECFC3' : '#247B74') : isDark ? '#F1F5F9' : '#5F706C'}
+              color={
+                selectedFilter !== 'all'
+                  ? isDark
+                    ? '#5ECFC3'
+                    : '#247B74'
+                  : isDark
+                  ? '#F1F5F9'
+                  : '#5F706C'
+              }
               strokeWidth={2}
             />
           </TouchableOpacity>
         </View>
 
-        {/* 3. Chips de Categorias */}
-        <View style={styles.categoriesRow}>
-          {CATEGORIES.map((cat) => {
-            const isActive = selectedCategory === cat.id;
-            const colorsScheme = getCategoryColor(cat.id, isActive);
-            return (
-              <TouchableOpacity
-                key={cat.id}
-                onPress={() => setSelectedCategory(cat.id)}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel={`Filtrar por categoria ${cat.label}`}
-                style={[
-                  styles.categoryChip,
-                  {
-                    backgroundColor: colorsScheme.bg,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.categoryChipText,
-                    {
-                      color: colorsScheme.text,
-                      fontWeight: isActive ? '700' : '600',
-                    },
-                  ]}
-                >
-                  {cat.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* 4. Seção "CONTINUAR LENDO" (Exibida apenas quando houver artigo em andamento) */}
-        {inProgressArticle && !searchQuery && selectedFilter === 'all' && (
-          <View style={styles.sectionWrap}>
-            <View
-              style={[
-                styles.continueCard,
-                {
-                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
-                  borderColor: isDark ? '#334155' : '#E5EAE8',
-                },
-              ]}
-            >
-              {/* Miniatura à esquerda */}
-              <View style={styles.continueThumb}>
-                <ArticleCoverImage
-                  slug={inProgressArticle.slug || inProgressArticle.id}
-                  category={inProgressArticle.category}
-                  width="100%"
-                  height="100%"
-                  borderRadius={10}
-                />
-              </View>
-
-              {/* Informações à direita */}
-              <View style={styles.continueBody}>
-                <Text style={[styles.continueBadge, { color: isDark ? '#5ECFC3' : '#247B74' }]}>
-                  CONTINUAR LENDO
-                </Text>
-                <Text
-                  numberOfLines={2}
-                  style={[styles.continueTitle, { color: isDark ? '#FFFFFF' : '#17332F' }]}
-                >
-                  {inProgressArticle.title}
-                </Text>
-
-                {/* Barra de Progresso */}
-                <View style={styles.progressRow}>
-                  <View style={[styles.progressTrack, { backgroundColor: isDark ? '#334155' : '#E5EAE8' }]}>
-                    <View
-                      style={[
-                        styles.progressFill,
-                        {
-                          width: `${inProgressArticle.readProgress || 65}%`,
-                          backgroundColor: isDark ? '#5ECFC3' : '#247B74',
-                        },
-                      ]}
-                    />
-                  </View>
-                  <Text style={[styles.progressPctText, { color: isDark ? '#E2E8F0' : '#5F706C' }]}>
-                    {inProgressArticle.readProgress || 65}%
-                  </Text>
-                </View>
-
-                {/* Botão Continuar */}
+        {/* 3. Categorias em Linha Única com Rolagem Horizontal Suave */}
+        <View style={styles.categoriesSection}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoriesScrollContent}
+          >
+            {CATEGORIES.map((cat) => {
+              const isActive = selectedCategory === cat.id;
+              return (
                 <TouchableOpacity
-                  onPress={() => router.push(`/contents/${inProgressArticle.slug || inProgressArticle.id}` as any)}
-                  activeOpacity={0.85}
+                  key={cat.id}
+                  onPress={() => setSelectedCategory(cat.id)}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Filtrar por categoria ${cat.label}`}
                   style={[
-                    styles.continueBtn,
-                    {
+                    styles.categoryChip,
+                    isActive && {
                       backgroundColor: isDark ? '#5ECFC3' : '#247B74',
                     },
+                    !isActive && {
+                      backgroundColor: isDark ? '#1F2937' : '#F0F4F3',
+                    },
                   ]}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Continuar lendo ${inProgressArticle.title}`}
                 >
-                  <Text style={[styles.continueBtnText, { color: isDark ? '#111827' : '#FFFFFF' }]}>
-                    Continuar
+                  <Text
+                    style={[
+                      styles.categoryChipText,
+                      {
+                        color: isActive
+                          ? isDark
+                            ? '#111827'
+                            : '#FFFFFF'
+                          : isDark
+                          ? '#E2E8F0'
+                          : '#5F706C',
+                        fontWeight: isActive ? '700' : '600',
+                      },
+                    ]}
+                  >
+                    {cat.label}
                   </Text>
-                  <ChevronRight size={16} color={isDark ? '#111827' : '#FFFFFF'} strokeWidth={2.2} />
                 </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {/* 4. Seção "Em destaque" */}
+        {featuredArticle && (
+          <View style={styles.sectionBlock}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.badgeSectionTitleWrap}>
+                <Sparkles size={16} color={isDark ? '#5ECFC3' : '#247B74'} strokeWidth={2.2} />
+                <Text
+                  accessibilityRole="header"
+                  aria-level={2}
+                  style={[styles.sectionTitle, { color: isDark ? '#FFFFFF' : '#17332F' }]}
+                >
+                  Em destaque
+                </Text>
               </View>
             </View>
-          </View>
-        )}
 
-        {/* 5. Seção "CONTEÚDO EM DESTAQUE" */}
-        {featuredArticle && !searchQuery && selectedFilter === 'all' && (
-          <View style={styles.sectionWrap}>
             <TouchableOpacity
               activeOpacity={0.88}
-              onPress={() => router.push(`/contents/${featuredArticle.slug || featuredArticle.id}` as any)}
+              onPress={() =>
+                router.push(`/contents/${featuredArticle.slug || featuredArticle.id}` as any)
+              }
               style={[
                 styles.featuredCard,
                 {
@@ -407,22 +337,40 @@ export default function ContentScreen() {
               accessibilityRole="link"
               accessibilityLabel={`Destaque: ${featuredArticle.title}`}
             >
-              {/* Capa do Destaque */}
-              <View style={styles.featuredCoverWrapper}>
+              {/* Capa Ampla Superior */}
+              <View style={styles.featuredCoverBox}>
                 <ArticleCoverImage
                   slug={featuredArticle.slug || featuredArticle.id}
                   category={featuredArticle.category}
-                  width="100%"
-                  height="100%"
-                  borderRadius={12}
+                  height={180}
+                  borderRadius={0}
                 />
               </View>
 
               {/* Informações do Destaque */}
-              <View style={styles.featuredContent}>
-                <Text style={[styles.featuredCategory, { color: getCategoryBadgeColor(featuredArticle.category) }]}>
-                  {featuredArticle.category.toUpperCase()}
-                </Text>
+              <View style={styles.featuredBody}>
+                <View style={styles.featuredTopMeta}>
+                  <Text
+                    style={[
+                      styles.featuredCategory,
+                      { color: getCategoryBadgeColor(featuredArticle.category) },
+                    ]}
+                  >
+                    {featuredArticle.category.toUpperCase()}
+                  </Text>
+                  <View style={styles.dotSeparator} />
+                  <View style={styles.timeInlineWrap}>
+                    <Clock size={12} color={isDark ? '#CBD5E1' : '#708885'} strokeWidth={1.8} />
+                    <Text
+                      style={[styles.timeInlineText, { color: isDark ? '#CBD5E1' : '#708885' }]}
+                    >
+                      {featuredArticle.readingTimeMinutes ||
+                        featuredArticle.readTimeMinutes ||
+                        5}{' '}
+                      min de leitura
+                    </Text>
+                  </View>
+                </View>
 
                 <Text
                   numberOfLines={2}
@@ -433,20 +381,23 @@ export default function ContentScreen() {
 
                 <Text
                   numberOfLines={3}
-                  style={[styles.featuredSummary, { color: isDark ? '#F1F5F9' : '#5F706C' }]}>
+                  style={[styles.featuredSummary, { color: isDark ? '#F1F5F9' : '#5F706C' }]}
+                >
                   {featuredArticle.summary}
                 </Text>
 
                 <View style={styles.featuredFooter}>
-                  <View style={styles.timeWrap}>
-                    <Clock size={14} color={isDark ? '#E2E8F0' : '#708885'} strokeWidth={1.8} />
-                    <Text style={[styles.timeText, { color: isDark ? '#E2E8F0' : '#708885' }]}>
-                      {featuredArticle.readingTimeMinutes || featuredArticle.readTimeMinutes || 5} min
-                    </Text>
-                  </View>
+                  <Text
+                    style={[
+                      styles.readPromptText,
+                      { color: isDark ? '#5ECFC3' : '#247B74' },
+                    ]}
+                  >
+                    Ler artigo completo
+                  </Text>
 
                   <TouchableOpacity
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                     onPress={() => handleToggleFavorite(featuredArticle.id)}
                     accessibilityRole="button"
                     accessibilityLabel={
@@ -464,10 +415,16 @@ export default function ContentScreen() {
                             ? '#5ECFC3'
                             : '#247B74'
                           : isDark
-                          ? '#E2E8F0'
+                          ? '#CBD5E1'
                           : '#8C9E9B'
                       }
-                      fill={featuredArticle.isFavorite ? (isDark ? '#5ECFC3' : '#247B74') : 'none'}
+                      fill={
+                        featuredArticle.isFavorite
+                          ? isDark
+                            ? '#5ECFC3'
+                            : '#247B74'
+                          : 'none'
+                      }
                       strokeWidth={1.8}
                     />
                   </TouchableOpacity>
@@ -477,8 +434,8 @@ export default function ContentScreen() {
           </View>
         )}
 
-        {/* 6. Seção "Todos os conteúdos" */}
-        <View style={styles.sectionWrap}>
+        {/* 5. Seção "Todos os conteúdos" */}
+        <View style={styles.sectionBlock}>
           <View style={styles.sectionHeaderRow}>
             <Text
               accessibilityRole="header"
@@ -492,8 +449,8 @@ export default function ContentScreen() {
             </Text>
           </View>
 
-          {/* Grade de Artigos */}
-          {visibleArticles.length === 0 ? (
+          {/* Grade de Cards: 1 por linha no celular, 2 no tablet, 3 no desktop */}
+          {displayArticles.length === 0 ? (
             <View
               style={[
                 styles.emptyStateBox,
@@ -511,35 +468,51 @@ export default function ContentScreen() {
               </Text>
               <TouchableOpacity
                 onPress={clearFilters}
-                style={[styles.clearFilterBtn, { backgroundColor: isDark ? '#5ECFC3' : '#247B74' }]}
+                style={[
+                  styles.clearFilterBtn,
+                  { backgroundColor: isDark ? '#5ECFC3' : '#247B74' },
+                ]}
               >
-                <Text style={{ color: isDark ? '#111827' : '#FFFFFF', fontWeight: '700', fontSize: 13 }}>
+                <Text
+                  style={{
+                    color: isDark ? '#111827' : '#FFFFFF',
+                    fontWeight: '700',
+                    fontSize: 13.5,
+                  }}
+                >
                   Ver todos os conteúdos
                 </Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.articlesGrid}>
-              {visibleArticles.map((article) => (
+              {displayArticles.map((article) => (
                 <View
                   key={article.id}
                   style={[
                     styles.gridCol,
                     {
-                      width: numColumns === 1 ? '100%' : `${100 / numColumns - 1.5}%`,
+                      width:
+                        numColumns === 1
+                          ? '100%'
+                          : numColumns === 2
+                          ? '48.5%'
+                          : '32%',
                     },
                   ]}
                 >
                   <ContentCard
                     article={article}
                     onToggleFavorite={handleToggleFavorite}
+                    coverHeight={numColumns === 1 ? 165 : 135}
+                    showSummary
                   />
                 </View>
               ))}
             </View>
           )}
 
-          {/* 7. Botão "Ver mais conteúdos >" */}
+          {/* 6. Botão "Ver mais conteúdos" */}
           {hasMoreToLoad && (
             <TouchableOpacity
               onPress={loadMoreArticles}
@@ -645,45 +618,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 90,
+    paddingBottom: 110,
     gap: 16,
     maxWidth: 960,
     width: '100%',
     alignSelf: 'center',
   },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+  headerBlock: {
+    gap: 3,
   },
   headerTitle: {
-    fontSize: 28,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   },
   headerSubtitle: {
     fontSize: 14,
-    marginTop: 3,
     lineHeight: 20,
-  },
-  weeklyBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  weeklyCountText: {
-    fontSize: 13.5,
-    fontWeight: '700',
-  },
-  weeklySubText: {
-    fontSize: 11,
-    marginTop: -1,
   },
   searchRow: {
     flexDirection: 'row',
@@ -705,7 +656,7 @@ const styles = StyleSheet.create({
     height: '100%',
     fontSize: 14,
   },
-  filterBtn: {
+  filterSquareBtn: {
     width: 48,
     height: 48,
     borderRadius: 12,
@@ -713,10 +664,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  categoriesRow: {
+  categoriesSection: {
+    marginTop: -2,
+    marginBottom: 4,
+  },
+  categoriesScrollContent: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
+    paddingRight: 16,
   },
   categoryChip: {
     paddingHorizontal: 16,
@@ -728,151 +683,111 @@ const styles = StyleSheet.create({
   categoryChipText: {
     fontSize: 13.5,
   },
-  sectionWrap: {
-    gap: 10,
-    marginTop: 4,
-  },
-  continueCard: {
-    flexDirection: 'row',
-    padding: 12,
-    borderRadius: 16,
-    borderWidth: 1,
+  sectionBlock: {
     gap: 12,
-    alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 2,
-      },
-      web: {
-        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
-      },
-    }),
-  },
-  continueThumb: {
-    width: 110,
-    height: 85,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  continueBody: {
-    flex: 1,
-    justifyContent: 'space-between',
-    gap: 4,
-  },
-  continueBadge: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  continueTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 18,
-  },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  progressTrack: {
-    flex: 1,
-    height: 5,
-    borderRadius: 2.5,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 2.5,
-  },
-  progressPctText: {
-    fontSize: 11.5,
-    fontWeight: '600',
-  },
-  continueBtn: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    height: 32,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginTop: 2,
-  },
-  continueBtnText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-  },
-  featuredCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 12,
-    flexDirection: 'row',
-    gap: 14,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 2,
-      },
-      web: {
-        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)',
-      },
-    }),
-  },
-  featuredCoverWrapper: {
-    width: 140,
-    height: 140,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  featuredContent: {
-    flex: 1,
-    justifyContent: 'space-between',
-    gap: 4,
-  },
-  featuredCategory: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.4,
-  },
-  featuredTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    lineHeight: 21,
-  },
-  featuredSummary: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  featuredFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 4,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+  },
+  badgeSectionTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '800',
+    letterSpacing: -0.2,
   },
   sectionCountText: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  featuredCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.05)',
+      },
+    }),
+  },
+  featuredCoverBox: {
+    width: '100%',
+    height: 180,
+    backgroundColor: '#F8FAF9',
+  },
+  featuredBody: {
+    padding: 16,
+    gap: 6,
+  },
+  featuredTopMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  featuredCategory: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  dotSeparator: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#8C9E9B',
+  },
+  timeInlineWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  timeInlineText: {
+    fontSize: 11.5,
+    fontWeight: '500',
+  },
+  featuredTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    lineHeight: 23,
+    letterSpacing: -0.2,
+  },
+  featuredSummary: {
+    fontSize: 13.5,
+    lineHeight: 19,
+    marginTop: 2,
+  },
+  featuredFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5EAE8',
+  },
+  readPromptText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  favBtn: {
+    padding: 4,
+    minWidth: 32,
+    minHeight: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   articlesGrid: {
     flexDirection: 'row',
@@ -880,7 +795,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   gridCol: {
-    marginBottom: 2,
+    marginBottom: 0,
   },
   loadMoreBtn: {
     flexDirection: 'row',
@@ -890,7 +805,7 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 12,
     borderWidth: 1,
-    marginTop: 6,
+    marginTop: 4,
   },
   loadMoreText: {
     fontSize: 14,
@@ -915,7 +830,7 @@ const styles = StyleSheet.create({
   clearFilterBtn: {
     marginTop: 8,
     paddingHorizontal: 16,
-    height: 40,
+    height: 42,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -958,17 +873,5 @@ const styles = StyleSheet.create({
   },
   filterOptionText: {
     fontSize: 14,
-  },
-  timeWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  timeText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  favBtn: {
-    padding: 4,
   },
 });
