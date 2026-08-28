@@ -30,6 +30,12 @@ const EDITORIAL_IMAGE_COVERS: Record<string, any> = {
   'a-relacao-entre-ansiedade-e-dificuldade-para-dormir': require('../../../assets/images/a-relacao-entre-ansiedade-e-dificuldade-para-dormir.jpg'),
   'como-as-telas-afetam-a-qualidade-do-sono': require('../../../assets/images/como-as-telas-afetam-a-qualidade-do-sono.jpg'),
   'como-preparar-o-quarto-para-descansar-melhor': require('../../../assets/images/como-preparar-o-quarto-para-descansar-melhor.jpg'),
+  // Sono (6 a 10)
+  'o-que-fazer-quando-o-sono-nao-chega': require('../../../assets/images/o-que-fazer-quando-o-sono-nao-chega.jpg'),
+  'por-que-acordamos-cansados-mesmo-depois-de-dormir': require('../../../assets/images/por-que-acordamos-cansados-mesmo-depois-de-dormir.jpg'),
+  'exercicios-de-respiracao-para-o-periodo-noturno': require('../../../assets/images/exercicios-de-respiracao-para-o-periodo-noturno.jpg'),
+  'a-importancia-de-manter-horarios-regulares': require('../../../assets/images/a-importancia-de-manter-horarios-regulares.jpg'),
+  'habitos-durante-o-dia-que-ajudam-a-dormir-melhor': require('../../../assets/images/habitos-durante-o-dia-que-ajudam-a-dormir-melhor.jpg'),
 };
 
 export interface ArticleCoverProps {
