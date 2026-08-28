@@ -160,10 +160,12 @@ describe('Relatório de QA Completo — Novas Funcionalidades e Correções Resp
       expect(COLORS.light.text).toBe('#1F2927');
       expect(COLORS.light.accent).toBe('#D87556');
 
-      expect(COLORS.dark.primary).toBe('#389B93');
+      expect(COLORS.dark.primary).toBe('#5ECFC3');
       expect(COLORS.dark.background).toBe('#121918');
       expect(COLORS.dark.surface).toBe('#1C2624');
-      expect(COLORS.dark.text).toBe('#F2F5F4');
+      expect(COLORS.dark.text).toBe('#FFFFFF');
+      expect(COLORS.dark.textSecondary).toBe('#F1F5F9');
+      expect(COLORS.dark.textMuted).toBe('#E2E8F0');
 
       expect(SPACING.xs).toBe(4);
       expect(SPACING.sm).toBe(8);

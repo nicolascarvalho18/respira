@@ -197,6 +197,11 @@ export default function ProfileScreen() {
       ? '1 dispositivo'
       : `${sessions.length} dispositivos`;
 
+  const primaryAccent = isDark ? '#5ECFC3' : '#247B74';
+  const successColor = isDark ? '#65D6A6' : '#247B74';
+  const dangerColor = isDark ? '#F28B82' : '#C84E45';
+  const iconMuted = isDark ? '#E2E8F0' : '#8F9B97';
+
   return (
     <AppShell>
       <View style={[styles.container, isDesktop && styles.containerDesktop]}>
@@ -205,11 +210,11 @@ export default function ProfileScreen() {
           <Text
             accessibilityRole="header"
             aria-level={1}
-            style={[styles.pageTitle, { color: isDark ? colors.text : '#1F2927' }]}
+            style={[styles.pageTitle, { color: isDark ? '#FFFFFF' : '#1F2927' }]}
           >
             Perfil
           </Text>
-          <Text style={[styles.pageSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
+          <Text style={[styles.pageSubtitle, { color: isDark ? '#F1F5F9' : '#68736F' }]}>
             Sua conta, preferências e privacidade
           </Text>
         </View>
@@ -240,8 +245,8 @@ export default function ProfileScreen() {
                   style={styles.avatarImage}
                 />
               ) : (
-                <View style={[styles.avatarInitials, { backgroundColor: isDark ? '#1C3833' : '#EDF7F5' }]}>
-                  <Text style={styles.avatarInitialsText}>{initials}</Text>
+                <View style={[styles.avatarInitials, { backgroundColor: isDark ? '#243330' : '#EDF7F5' }]}>
+                  <Text style={[styles.avatarInitialsText, { color: primaryAccent }]}>{initials}</Text>
                 </View>
               )}
 
@@ -249,7 +254,7 @@ export default function ProfileScreen() {
               <View
                 style={[
                   styles.cameraBadge,
-                  { borderColor: isDark ? colors.surface : '#FFFFFF' },
+                  { backgroundColor: primaryAccent, borderColor: isDark ? colors.surface : '#FFFFFF' },
                 ]}
               >
                 <Camera size={13} color="#FFFFFF" strokeWidth={2} />
@@ -261,14 +266,14 @@ export default function ProfileScreen() {
               <Text
                 accessibilityRole="header"
                 aria-level={2}
-                style={[styles.profileName, { color: isDark ? colors.text : '#1F2927' }]}
+                style={[styles.profileName, { color: isDark ? '#FFFFFF' : '#1F2927' }]}
                 numberOfLines={1}
               >
                 {userName}
               </Text>
 
               <Text
-                style={[styles.profileEmail, { color: isDark ? colors.textMuted : '#68736F' }]}
+                style={[styles.profileEmail, { color: isDark ? '#E2E8F0' : '#68736F' }]}
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
@@ -276,13 +281,13 @@ export default function ProfileScreen() {
               </Text>
 
               <View style={styles.verifiedRow}>
-                <CheckCircle2 size={15} color="#247B74" strokeWidth={2} style={{ marginRight: 6 }} />
-                <Text style={styles.verifiedText}>E-mail verificado</Text>
+                <CheckCircle2 size={15} color={successColor} strokeWidth={2} style={{ marginRight: 6 }} />
+                <Text style={[styles.verifiedText, { color: successColor }]}>E-mail verificado</Text>
               </View>
 
               {userBio && userBio.trim().length > 0 && (
                 <Text
-                  style={[styles.profileBio, { color: isDark ? colors.textMuted : '#4A5553' }]}
+                  style={[styles.profileBio, { color: isDark ? '#F1F5F9' : '#4A5553' }]}
                   numberOfLines={2}
                 >
                   {userBio}
@@ -297,10 +302,13 @@ export default function ProfileScreen() {
             activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityLabel="Editar perfil"
-            style={styles.editProfileBtn}
+            style={[
+              styles.editProfileBtn,
+              { borderColor: primaryAccent },
+            ]}
           >
-            <Pencil size={15} color="#247B74" strokeWidth={2} style={{ marginRight: 8 }} />
-            <Text style={styles.editProfileBtnText}>Editar perfil</Text>
+            <Pencil size={15} color={primaryAccent} strokeWidth={2} style={{ marginRight: 8 }} />
+            <Text style={[styles.editProfileBtnText, { color: primaryAccent }]}>Editar perfil</Text>
           </TouchableOpacity>
         </View>
 
@@ -317,7 +325,7 @@ export default function ProfileScreen() {
           <Text
             accessibilityRole="header"
             aria-level={3}
-            style={[styles.sectionCardTitle, { color: isDark ? colors.text : '#1F2927' }]}
+            style={[styles.sectionCardTitle, { color: isDark ? '#FFFFFF' : '#1F2927' }]}
           >
             Preferências
           </Text>
@@ -331,29 +339,29 @@ export default function ProfileScreen() {
             style={[styles.cardRow, { borderBottomColor: isDark ? colors.border : '#F0F4F2' }]}
           >
             <View style={styles.rowLeft}>
-              <Sun size={20} color="#247B74" strokeWidth={1.75} style={styles.rowIcon} />
-              <Text style={[styles.rowTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+              <Sun size={20} color={primaryAccent} strokeWidth={1.75} style={styles.rowIcon} />
+              <Text style={[styles.rowTitle, { color: isDark ? '#FFFFFF' : '#1F2927' }]}>
                 Aparência
               </Text>
             </View>
 
             <View style={styles.rowRight}>
-              <Text style={[styles.rowValueText, { color: isDark ? colors.textMuted : '#68736F' }]}>
+              <Text style={[styles.rowValueText, { color: isDark ? '#E2E8F0' : '#68736F' }]}>
                 {appearanceLabel}
               </Text>
-              <ChevronRight size={18} color={isDark ? colors.textMuted : '#8F9B97'} strokeWidth={1.75} />
+              <ChevronRight size={18} color={iconMuted} strokeWidth={1.75} />
             </View>
           </TouchableOpacity>
 
           {/* Item: Reduzir movimento */}
           <View style={[styles.cardRow, { borderBottomColor: isDark ? colors.border : '#F0F4F2' }]}>
             <View style={styles.rowLeft}>
-              <Waves size={20} color="#247B74" strokeWidth={1.75} style={styles.rowIcon} />
+              <Waves size={20} color={primaryAccent} strokeWidth={1.75} style={styles.rowIcon} />
               <View style={styles.rowTextCol}>
-                <Text style={[styles.rowTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+                <Text style={[styles.rowTitle, { color: isDark ? '#FFFFFF' : '#1F2927' }]}>
                   Reduzir movimento
                 </Text>
-                <Text style={[styles.rowSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                <Text style={[styles.rowSubtitle, { color: isDark ? '#F1F5F9' : '#68736F' }]}>
                   Limita animações e efeitos de transição
                 </Text>
               </View>
@@ -362,7 +370,7 @@ export default function ProfileScreen() {
             <Switch
               value={reducedMotion}
               onValueChange={handleToggleReducedMotion}
-              trackColor={{ false: '#DFE4E1', true: '#247B74' }}
+              trackColor={{ false: '#DFE4E1', true: primaryAccent }}
               thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
             />
           </View>
@@ -376,18 +384,18 @@ export default function ProfileScreen() {
             style={[styles.cardRow, { borderBottomWidth: 0 }]}
           >
             <View style={styles.rowLeft}>
-              <Bell size={20} color="#247B74" strokeWidth={1.75} style={styles.rowIcon} />
+              <Bell size={20} color={primaryAccent} strokeWidth={1.75} style={styles.rowIcon} />
               <View style={styles.rowTextCol}>
-                <Text style={[styles.rowTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+                <Text style={[styles.rowTitle, { color: isDark ? '#FFFFFF' : '#1F2927' }]}>
                   Lembretes
                 </Text>
-                <Text style={[styles.rowSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                <Text style={[styles.rowSubtitle, { color: isDark ? '#F1F5F9' : '#68736F' }]}>
                   Horários e frequência
                 </Text>
               </View>
             </View>
 
-            <ChevronRight size={18} color={isDark ? colors.textMuted : '#8F9B97'} strokeWidth={1.75} />
+            <ChevronRight size={18} color={iconMuted} strokeWidth={1.75} />
           </TouchableOpacity>
         </View>
 
@@ -404,7 +412,7 @@ export default function ProfileScreen() {
           <Text
             accessibilityRole="header"
             aria-level={3}
-            style={[styles.sectionCardTitle, { color: isDark ? colors.text : '#1F2927' }]}
+            style={[styles.sectionCardTitle, { color: isDark ? '#FFFFFF' : '#1F2927' }]}
           >
             Privacidade e dados
           </Text>
@@ -418,18 +426,18 @@ export default function ProfileScreen() {
             style={[styles.cardRow, { borderBottomColor: isDark ? colors.border : '#F0F4F2' }]}
           >
             <View style={styles.rowLeft}>
-              <MessageCircle size={20} color="#247B74" strokeWidth={1.75} style={styles.rowIcon} />
+              <MessageCircle size={20} color={primaryAccent} strokeWidth={1.75} style={styles.rowIcon} />
               <View style={styles.rowTextCol}>
-                <Text style={[styles.rowTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+                <Text style={[styles.rowTitle, { color: isDark ? '#FFFFFF' : '#1F2927' }]}>
                   Histórico de conversas
                 </Text>
-                <Text style={[styles.rowSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                <Text style={[styles.rowSubtitle, { color: isDark ? '#F1F5F9' : '#68736F' }]}>
                   Salvar novas conversas
                 </Text>
               </View>
             </View>
 
-            <ChevronRight size={18} color={isDark ? colors.textMuted : '#8F9B97'} strokeWidth={1.75} />
+            <ChevronRight size={18} color={iconMuted} strokeWidth={1.75} />
           </TouchableOpacity>
 
           {/* Item: Relatório mensal */}
@@ -441,18 +449,18 @@ export default function ProfileScreen() {
             style={[styles.cardRow, { borderBottomColor: isDark ? colors.border : '#F0F4F2' }]}
           >
             <View style={styles.rowLeft}>
-              <FileText size={20} color="#247B74" strokeWidth={1.75} style={styles.rowIcon} />
+              <FileText size={20} color={primaryAccent} strokeWidth={1.75} style={styles.rowIcon} />
               <View style={styles.rowTextCol}>
-                <Text style={[styles.rowTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+                <Text style={[styles.rowTitle, { color: isDark ? '#FFFFFF' : '#1F2927' }]}>
                   Relatório mensal
                 </Text>
-                <Text style={[styles.rowSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                <Text style={[styles.rowSubtitle, { color: isDark ? '#F1F5F9' : '#68736F' }]}>
                   Gerar resumo em PDF
                 </Text>
               </View>
             </View>
 
-            <ChevronRight size={18} color={isDark ? colors.textMuted : '#8F9B97'} strokeWidth={1.75} />
+            <ChevronRight size={18} color={iconMuted} strokeWidth={1.75} />
           </TouchableOpacity>
 
           {/* Item: Exportar meus dados */}
@@ -464,18 +472,18 @@ export default function ProfileScreen() {
             style={[styles.cardRow, { borderBottomWidth: 0 }]}
           >
             <View style={styles.rowLeft}>
-              <CloudDownload size={20} color="#247B74" strokeWidth={1.75} style={styles.rowIcon} />
+              <CloudDownload size={20} color={primaryAccent} strokeWidth={1.75} style={styles.rowIcon} />
               <View style={styles.rowTextCol}>
-                <Text style={[styles.rowTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+                <Text style={[styles.rowTitle, { color: isDark ? '#FFFFFF' : '#1F2927' }]}>
                   Exportar meus dados
                 </Text>
-                <Text style={[styles.rowSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                <Text style={[styles.rowSubtitle, { color: isDark ? '#F1F5F9' : '#68736F' }]}>
                   Baixar suas informações
                 </Text>
               </View>
             </View>
 
-            <ChevronRight size={18} color={isDark ? colors.textMuted : '#8F9B97'} strokeWidth={1.75} />
+            <ChevronRight size={18} color={iconMuted} strokeWidth={1.75} />
           </TouchableOpacity>
         </View>
 
@@ -492,7 +500,7 @@ export default function ProfileScreen() {
           <Text
             accessibilityRole="header"
             aria-level={3}
-            style={[styles.sectionCardTitle, { color: isDark ? colors.text : '#1F2927' }]}
+            style={[styles.sectionCardTitle, { color: isDark ? '#FFFFFF' : '#1F2927' }]}
           >
             Segurança
           </Text>
@@ -506,18 +514,18 @@ export default function ProfileScreen() {
             style={[styles.cardRow, { borderBottomColor: isDark ? colors.border : '#F0F4F2' }]}
           >
             <View style={styles.rowLeft}>
-              <Lock size={20} color="#247B74" strokeWidth={1.75} style={styles.rowIcon} />
+              <Lock size={20} color={primaryAccent} strokeWidth={1.75} style={styles.rowIcon} />
               <View style={styles.rowTextCol}>
-                <Text style={[styles.rowTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+                <Text style={[styles.rowTitle, { color: isDark ? '#FFFFFF' : '#1F2927' }]}>
                   Alterar senha
                 </Text>
-                <Text style={[styles.rowSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                <Text style={[styles.rowSubtitle, { color: isDark ? '#F1F5F9' : '#68736F' }]}>
                   Proteja sua conta
                 </Text>
               </View>
             </View>
 
-            <ChevronRight size={18} color={isDark ? colors.textMuted : '#8F9B97'} strokeWidth={1.75} />
+            <ChevronRight size={18} color={iconMuted} strokeWidth={1.75} />
           </TouchableOpacity>
 
           {/* Item: Sessões e dispositivos */}
@@ -529,18 +537,18 @@ export default function ProfileScreen() {
             style={[styles.cardRow, { borderBottomWidth: 0 }]}
           >
             <View style={styles.rowLeft}>
-              <Monitor size={20} color="#247B74" strokeWidth={1.75} style={styles.rowIcon} />
+              <Monitor size={20} color={primaryAccent} strokeWidth={1.75} style={styles.rowIcon} />
               <View style={styles.rowTextCol}>
-                <Text style={[styles.rowTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+                <Text style={[styles.rowTitle, { color: isDark ? '#FFFFFF' : '#1F2927' }]}>
                   Sessões e dispositivos
                 </Text>
-                <Text style={[styles.rowSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                <Text style={[styles.rowSubtitle, { color: isDark ? '#F1F5F9' : '#68736F' }]}>
                   {sessionsCountLabel}
                 </Text>
               </View>
             </View>
 
-            <ChevronRight size={18} color={isDark ? colors.textMuted : '#8F9B97'} strokeWidth={1.75} />
+            <ChevronRight size={18} color={iconMuted} strokeWidth={1.75} />
           </TouchableOpacity>
         </View>
 
@@ -554,23 +562,23 @@ export default function ProfileScreen() {
             styles.dangerCard,
             {
               backgroundColor: isDark ? colors.surface : '#FFFFFF',
-              borderColor: isDark ? colors.border : '#FCE8E6',
+              borderColor: isDark ? '#4A2320' : '#FCE8E6',
             },
           ]}
         >
           <View style={styles.rowLeft}>
-            <Trash2 size={20} color="#C84E45" strokeWidth={1.75} style={styles.rowIcon} />
+            <Trash2 size={20} color={dangerColor} strokeWidth={1.75} style={styles.rowIcon} />
             <View style={styles.rowTextCol}>
-              <Text style={[styles.rowTitle, { color: '#C84E45' }]}>
+              <Text style={[styles.rowTitle, { color: dangerColor }]}>
                 Excluir conta
               </Text>
-              <Text style={[styles.rowSubtitle, { color: '#D9655B' }]}>
+              <Text style={[styles.rowSubtitle, { color: isDark ? '#F1F5F9' : '#D9655B' }]}>
                 Exclua permanentemente sua conta e seus dados
               </Text>
             </View>
           </View>
 
-          <ChevronRight size={18} color="#C84E45" strokeWidth={1.75} />
+          <ChevronRight size={18} color={dangerColor} strokeWidth={1.75} />
         </TouchableOpacity>
 
         {/* 7. SAIR DA CONTA */}
@@ -587,8 +595,8 @@ export default function ProfileScreen() {
             },
           ]}
         >
-          <LogOut size={17} color="#C84E45" strokeWidth={1.75} style={{ marginRight: 8 }} />
-          <Text style={styles.logoutBtnText}>Sair da conta</Text>
+          <LogOut size={17} color={dangerColor} strokeWidth={1.75} style={{ marginRight: 8 }} />
+          <Text style={[styles.logoutBtnText, { color: dangerColor }]}>Sair da conta</Text>
         </TouchableOpacity>
       </View>
 
@@ -671,7 +679,7 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 80, // espaço extra para menu inferior fixo
+    paddingBottom: 80,
   },
   containerDesktop: {
     maxWidth: 640,
@@ -740,7 +748,6 @@ const styles = StyleSheet.create({
   avatarInitialsText: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#247B74',
   },
   cameraBadge: {
     position: 'absolute',
@@ -749,7 +756,6 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#247B74',
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
@@ -778,7 +784,6 @@ const styles = StyleSheet.create({
   verifiedText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#247B74',
   },
   profileBio: {
     fontSize: 13.5,
@@ -792,7 +797,6 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#247B74',
     backgroundColor: 'transparent',
     marginTop: 16,
     width: '100%',
@@ -800,7 +804,6 @@ const styles = StyleSheet.create({
   editProfileBtnText: {
     fontSize: 14.5,
     fontWeight: '600',
-    color: '#247B74',
   },
 
   // Cards de Seções (Preferências, Privacidade, Segurança)
@@ -900,6 +903,5 @@ const styles = StyleSheet.create({
   logoutBtnText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#C84E45',
   },
 });

@@ -26,11 +26,51 @@ export default function RootLayout() {
   const fetchArticles = useContentStore((s) => s.fetchArticles);
   const fetchMessages = useChatStore((s) => s.fetchMessages);
 
+  const mode = useThemeStore((s) => s.mode);
+
   useEffect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.lang = 'pt-BR';
-    }
+      document.documentElement.setAttribute('data-theme', mode);
 
+      // Injetar variáveis CSS e regras de alto contraste do tema escuro
+      const styleId = 'respira-dark-theme-style';
+      let styleTag = document.getElementById(styleId);
+      if (!styleTag) {
+        styleTag = document.createElement('style');
+        styleTag.id = styleId;
+        document.head.appendChild(styleTag);
+      }
+      styleTag.textContent = `
+        :root {
+          --text-primary: #1F2927;
+          --text-secondary: #68736F;
+          --text-muted: #8F9B97;
+          --icon-default: #8F9B97;
+          --placeholder: #8F9B97;
+        }
+        [data-theme="dark"] {
+          --text-primary: #FFFFFF;
+          --text-secondary: #F1F5F9;
+          --text-muted: #E2E8F0;
+          --icon-default: #E2E8F0;
+          --placeholder: #CBD5E1;
+        }
+        [data-theme="dark"] body,
+        [data-theme="dark"] h1,
+        [data-theme="dark"] h2,
+        [data-theme="dark"] h3,
+        [data-theme="dark"] h4,
+        [data-theme="dark"] p,
+        [data-theme="dark"] span,
+        [data-theme="dark"] label {
+          color: var(--text-primary);
+        }
+      `;
+    }
+  }, [mode]);
+
+  useEffect(() => {
     async function bootstrap() {
       await initializeTheme();
       await initializeAuth();
