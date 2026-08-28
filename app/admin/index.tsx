@@ -162,7 +162,7 @@ export default function AdminScreen() {
     try {
       if (editingPracticeId) {
         await updatePractice(editingPracticeId, payload);
-        showToast({ message: 'Prática atualizada com sucesso!', type: 'success' });
+        showToast({ message: 'Prática atualizada', type: 'success' });
       } else {
         await createPractice({
           ...payload,
@@ -177,7 +177,7 @@ export default function AdminScreen() {
           benefits: ['Acalma a mente e relaxa o corpo.'],
           careAndLimitations: ['Interrompa se sentir desconforto.'],
         } as any);
-        showToast({ message: 'Nova prática cadastrada no catálogo!', type: 'success' });
+        showToast({ message: 'Prática cadastrada', type: 'success' });
       }
       setIsEditModalOpen(false);
     } catch {
@@ -189,7 +189,7 @@ export default function AdminScreen() {
     if (!practiceToDeleteId) return;
     try {
       await deletePractice(practiceToDeleteId);
-      showToast({ message: 'Prática removida do catálogo.', type: 'success' });
+      showToast({ message: 'Prática removida', type: 'success' });
       setPracticeToDeleteId(null);
     } catch {
       showToast({ message: 'Erro ao remover prática.', type: 'error' });

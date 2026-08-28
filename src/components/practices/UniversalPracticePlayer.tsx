@@ -130,7 +130,7 @@ export const UniversalPracticePlayer: React.FC<UniversalPracticePlayerProps> = (
     setSelectedFeeling(feeling);
     await recordPostFeeling(userId, practice.id, feeling);
     showToast({
-      message: 'Sensação registrada no seu histórico com sucesso.',
+      message: 'Sensação registrada',
       type: 'info',
     });
   };

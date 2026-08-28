@@ -160,7 +160,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       setSavedAvatarUrl(updated.avatarUrl || null);
       setSelectedAvatarFile(null);
 
-      showToast({ message: 'Perfil atualizado com sucesso', type: 'success' });
+      showToast({ message: 'Alterações salvas', type: 'success' });
       onClose();
     } catch (err: any) {
       console.error('Profile update error:', err);

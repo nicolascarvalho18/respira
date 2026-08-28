@@ -221,7 +221,7 @@ export default function DiaryScreen() {
     try {
       setIsDeleting(true);
       await deleteRecord(recordToDelete);
-      showToast({ message: 'Registro removido com sucesso.', type: 'success' });
+      showToast({ message: 'Registro excluído', type: 'success' });
       setRecordToDelete(null);
       setSelectedRecordForDetail(null);
     } catch {

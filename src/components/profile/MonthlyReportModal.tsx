@@ -93,7 +93,7 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
 
       await pdfReportService.exportOrPrintReport(html, fileName);
 
-      showToast({ message: 'Relatório gerado com dados atualizados.', type: 'success' });
+      showToast({ message: 'Relatório pronto', type: 'success' });
       onClose();
     } catch (_err) {
       showToast({ message: 'Erro ao gerar relatório em PDF. Tente novamente.', type: 'error' });

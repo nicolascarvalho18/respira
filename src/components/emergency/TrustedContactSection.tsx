@@ -163,7 +163,7 @@ export const TrustedContactSection: React.FC = () => {
         contactIsAware,
       });
 
-      showToast({ message: 'Contato de confiança salvo com sucesso!', type: 'success' });
+      showToast({ message: 'Contato salvo', type: 'success' });
       setIsModalOpen(false);
       await loadContacts();
     } catch {
@@ -177,7 +177,7 @@ export const TrustedContactSection: React.FC = () => {
     if (!contactToDelete) return;
     try {
       await trustedContactService.deleteContact(contactToDelete.id);
-      showToast({ message: 'Contato removido.', type: 'success' });
+      showToast({ message: 'Contato removido', type: 'success' });
       setContactToDelete(null);
       await loadContacts();
     } catch {
@@ -219,7 +219,7 @@ export const TrustedContactSection: React.FC = () => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       await navigator.clipboard.writeText(customMessage);
     }
-    showToast({ message: 'Mensagem copiada para a área de transferência!', type: 'success' });
+    showToast({ message: 'Mensagem copiada', type: 'success' });
   };
 
   return (

@@ -102,7 +102,7 @@ export default function RegisterScreen() {
         termsAccepted: data.termsAccepted,
         personalizationAccepted: data.personalizationAccepted,
       });
-      showToast({ message: 'Conta criada com sucesso! Bem-vindo(a) ao Respira.', type: 'success' });
+      showToast({ message: 'Conta criada', type: 'success' });
       router.replace('/(tabs)');
     } catch (err: any) {
       setFormError(err.message || 'Erro ao realizar cadastro.');

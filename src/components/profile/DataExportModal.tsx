@@ -68,7 +68,7 @@ export const DataExportModal: React.FC<DataExportModalProps> = ({
       }
 
       setIsCompleted(true);
-      showToast({ message: 'Arquivo de exportação gerado com sucesso.', type: 'success' });
+      showToast({ message: 'Arquivo pronto para baixar', type: 'success' });
     } catch {
       showToast({ message: 'Erro ao gerar pacote de exportação.', type: 'error' });
     } finally {

@@ -97,7 +97,7 @@ export default function EditMoodScreen() {
         activities: selectedActivities,
         notes: notes.trim() || undefined,
       });
-      showToast({ message: 'Registro atualizado com sucesso!', type: 'success' });
+      showToast({ message: 'Alterações salvas', type: 'success' });
       router.back();
     } catch {
       showToast({ message: 'Erro ao atualizar check-in.', type: 'error' });

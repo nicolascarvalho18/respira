@@ -49,7 +49,7 @@ export default function ConsentScreen() {
       {savedSuccess && (
         <View style={[styles.successBox, { backgroundColor: colors.highlight }]}>
           <Text style={[styles.successText, { color: colors.primaryDark }]}>
-            Preferências de consentimento atualizadas com sucesso!
+            Preferências salvas
           </Text>
         </View>
       )}

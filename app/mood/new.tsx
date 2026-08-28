@@ -324,7 +324,7 @@ export default function NewMoodScreen() {
       });
 
       await storage.removeItem(DRAFT_STORAGE_KEY);
-      showToast({ message: 'Registro de humor salvo com sucesso!', type: 'success' });
+      showToast({ message: 'Momento registrado', type: 'success' });
       router.replace('/(tabs)/diary');
     } catch {
       showToast({ message: 'Erro ao salvar registro. Tente novamente.', type: 'error' });

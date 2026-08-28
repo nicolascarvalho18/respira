@@ -139,7 +139,7 @@ export default function ProfileScreen() {
         await userService.updateAvatar(user.id, null);
       }
       updateUser({ avatarUrl: finalUrl ?? undefined });
-      showToast({ message: 'Foto atualizada com sucesso', type: 'success' });
+      showToast({ message: 'Foto salva', type: 'success' });
     } catch (err: any) {
       showToast({ message: err.message || 'Não foi possível salvar a foto.', type: 'error' });
       throw err;
@@ -151,7 +151,7 @@ export default function ProfileScreen() {
     try {
       const updated = await userService.revokeSession(user.id, sessionId);
       setSessions(updated);
-      showToast({ message: 'Sessão desconectada com sucesso', type: 'success' });
+      showToast({ message: 'Sessão desconectada', type: 'success' });
     } catch {
       showToast({ message: 'Erro ao desconectar sessão', type: 'error' });
     }
@@ -162,7 +162,7 @@ export default function ProfileScreen() {
     try {
       const updated = await userService.revokeAllOtherSessions(user.id, 'session-current');
       setSessions(updated);
-      showToast({ message: 'Outras sessões foram desconectadas', type: 'success' });
+      showToast({ message: 'Outras sessões encerradas', type: 'success' });
     } catch {
       showToast({ message: 'Erro ao desconectar outras sessões', type: 'error' });
     }
@@ -181,7 +181,7 @@ export default function ProfileScreen() {
     if (!user) return;
     await userService.deleteAccount(user.id, 'EXCLUIR MINHA CONTA', password);
     await logout();
-    showToast({ message: 'Conta excluída permanentemente.', type: 'info' });
+    showToast({ message: 'Conta excluída', type: 'info' });
     router.replace('/(auth)/login' as any);
   };
 

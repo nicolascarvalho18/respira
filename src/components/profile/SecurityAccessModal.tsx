@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   View,
@@ -123,7 +123,7 @@ export const SecurityAccessModal: React.FC<SecurityAccessModalProps> = ({
         if (!res.success) throw new Error(res.message);
       }
 
-      showToast({ message: 'Senha alterada com sucesso', type: 'success' });
+      showToast({ message: 'Senha alterada', type: 'success' });
       setPasswordChangedSuccess(true);
       setCurrentPassword('');
       setNewPassword('');
@@ -178,7 +178,7 @@ export const SecurityAccessModal: React.FC<SecurityAccessModalProps> = ({
             <View style={styles.successContainer}>
               <CheckCircle2 size={48} color="#247B74" strokeWidth={1.75} style={{ marginBottom: 12 }} />
               <Text style={[styles.successTitle, { color: isDark ? colors.text : '#1F2927' }]}>
-                Senha alterada com sucesso
+                Senha alterada
               </Text>
               <Text style={[styles.successDesc, { color: isDark ? colors.textMuted : '#68736F' }]}>
                 Sua credencial de acesso foi atualizada com segurança.

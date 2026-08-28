@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform } from 'react-native';
-import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react-native';
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, Animated, Platform } from 'react-native';
+import { Check, AlertCircle, AlertTriangle, Info } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
+import { useAuth } from '../../hooks/useAuth';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -22,22 +23,41 @@ const ToastContext = createContext<ToastContextData>({
 });
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { colors, isDark } = useTheme();
+  const { isDark } = useTheme();
+  const { user } = useAuth();
+  const reducedMotion = user?.preferences?.reducedMotion ?? false;
+
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
-  const [fadeAnim] = useState(new Animated.Value(0));
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const timeoutRef = useRef<any>(null);
 
   const hideToast = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    if (reducedMotion) {
+      fadeAnim.setValue(0);
+      setToast(null);
+      return;
+    }
+
     Animated.timing(fadeAnim, {
       toValue: 0,
-      duration: 200,
+      duration: 180,
       useNativeDriver: Platform.OS !== 'web',
     }).start(() => {
       setToast(null);
     });
-  }, [fadeAnim]);
+  }, [fadeAnim, reducedMotion]);
 
   const showToast = useCallback(
     (options: ToastOptions | string) => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
       const opts: ToastOptions =
         typeof options === 'string' ? { message: options, type: 'info' } : options;
 
@@ -46,49 +66,58 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         type: opts.type || 'info',
       });
 
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 250,
-        useNativeDriver: Platform.OS !== 'web',
-      }).start();
+      if (reducedMotion) {
+        fadeAnim.setValue(1);
+      } else {
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: Platform.OS !== 'web',
+        }).start();
+      }
 
-      const duration = opts.duration || 3500;
-      setTimeout(() => {
+      // Desaparece automaticamente após 2,5 segundos
+      const duration = opts.duration || 2500;
+      timeoutRef.current = setTimeout(() => {
         hideToast();
       }, duration);
     },
-    [fadeAnim, hideToast]
+    [fadeAnim, hideToast, reducedMotion]
   );
 
   const getToastStyle = (type: ToastType) => {
     switch (type) {
       case 'success':
         return {
-          bg: isDark ? colors.successLight : '#E8F5EF',
-          border: colors.success,
-          text: isDark ? '#C7E8D8' : '#1F533E',
-          icon: <CheckCircle2 size={20} color={colors.success} />,
+          bg: isDark ? '#183B38' : '#EAF7F3',
+          border: isDark ? '#2C5D58' : '#B8E0D8',
+          text: isDark ? '#FFFFFF' : '#176B61',
+          iconColor: isDark ? '#5ECFC3' : '#238C82',
+          icon: <Check size={17} color={isDark ? '#5ECFC3' : '#238C82'} strokeWidth={2.5} />,
         };
       case 'error':
         return {
-          bg: isDark ? colors.errorLight : '#FDF0F0',
-          border: colors.error,
-          text: isDark ? '#F5C6C6' : '#732222',
-          icon: <AlertCircle size={20} color={colors.error} />,
+          bg: isDark ? '#3D1D1B' : '#FDECEB',
+          border: isDark ? '#5E2E2A' : '#F8C8C6',
+          text: isDark ? '#FFFFFF' : '#9B2C2C',
+          iconColor: isDark ? '#F28B82' : '#C84E45',
+          icon: <AlertCircle size={17} color={isDark ? '#F28B82' : '#C84E45'} strokeWidth={2.2} />,
         };
       case 'warning':
         return {
-          bg: isDark ? colors.warningLight : '#FDF2EC',
-          border: colors.warning,
-          text: isDark ? '#F7D0C0' : '#8A4126',
-          icon: <AlertTriangle size={20} color={colors.warning} />,
+          bg: isDark ? '#3A2714' : '#FFF7E6',
+          border: isDark ? '#5D3F20' : '#FFE0B2',
+          text: isDark ? '#FFFFFF' : '#975A16',
+          iconColor: isDark ? '#F28B82' : '#D87556',
+          icon: <AlertTriangle size={17} color={isDark ? '#F28B82' : '#D87556'} strokeWidth={2.2} />,
         };
       default:
         return {
-          bg: isDark ? colors.infoLight : '#EDF4F9',
-          border: colors.info,
-          text: isDark ? '#BED8EB' : '#1C4B6B',
-          icon: <Info size={20} color={colors.info} />,
+          bg: isDark ? '#183B38' : '#EAF7F3',
+          border: isDark ? '#2C5D58' : '#B8E0D8',
+          text: isDark ? '#FFFFFF' : '#176B61',
+          iconColor: isDark ? '#5ECFC3' : '#238C82',
+          icon: <Info size={17} color={isDark ? '#5ECFC3' : '#238C82'} strokeWidth={2.2} />,
         };
     }
   };
@@ -99,14 +128,14 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {toast && (
         <Animated.View
           style={[
-            styles.toastContainer,
+            styles.toastWrapper,
             {
               opacity: fadeAnim,
               transform: [
                 {
                   translateY: fadeAnim.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [-20, 0],
+                    outputRange: [-10, 0],
                   }),
                 },
               ],
@@ -120,23 +149,23 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             return (
               <View
                 style={[
-                  styles.toastBubble,
+                  styles.toastPill,
                   {
                     backgroundColor: style.bg,
                     borderColor: style.border,
                   },
                 ]}
               >
-                {style.icon}
-                <Text style={[styles.toastText, { color: style.text }]}>{toast.message}</Text>
-                <TouchableOpacity
-                  onPress={hideToast}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityLabel="Fechar aviso"
-                  style={styles.closeBtn}
+                <View style={styles.iconWrap}>{style.icon}</View>
+                <Text
+                  style={[
+                    styles.toastMessage,
+                    { color: style.text },
+                  ]}
+                  numberOfLines={2}
                 >
-                  <X size={16} color={style.text} />
-                </TouchableOpacity>
+                  {toast.message}
+                </Text>
               </View>
             );
           })()}
@@ -151,38 +180,50 @@ export function useToast() {
 }
 
 const styles = StyleSheet.create({
-  toastContainer: {
+  toastWrapper: {
     position: 'absolute',
-    top: 50,
-    left: 20,
-    right: 20,
-    zIndex: 99999,
+    top: Platform.OS === 'ios' ? 52 : 24,
+    left: 16,
+    right: 16,
+    zIndex: 999999,
     alignItems: 'center',
-    pointerEvents: 'box-none',
+    justifyContent: 'center',
+    pointerEvents: 'none',
   },
-  toastBubble: {
-    maxWidth: 500,
-    width: '100%',
+  toastPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    minHeight: 44,
+    maxHeight: 52,
+    paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 6,
-    gap: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignSelf: 'center',
+    maxWidth: '90%',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+      },
+    }),
   },
-  toastText: {
-    flex: 1,
-    fontSize: 14,
+  iconWrap: {
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toastMessage: {
+    fontSize: 14.5,
     fontWeight: '600',
-    lineHeight: 20,
-  },
-  closeBtn: {
-    padding: 4,
+    letterSpacing: -0.15,
   },
 });
