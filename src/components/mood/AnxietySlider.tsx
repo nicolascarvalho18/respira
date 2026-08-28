@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Platform,
   LayoutChangeEvent,
+  PanResponder,
 } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
 
@@ -16,6 +17,20 @@ export interface AnxietySliderProps {
   hideHeader?: boolean;
 }
 
+export const ANXIETY_DESCRIPTIONS = [
+  'Tranquilo', // 0
+  'Tranquilo', // 1
+  'Tranquilo', // 2
+  'Leve',      // 3
+  'Leve',      // 4
+  'Moderado',  // 5
+  'Moderado',  // 6
+  'Elevado',   // 7
+  'Elevado',   // 8
+  'Intenso',   // 9
+  'Intenso',   // 10
+];
+
 export const AnxietySlider: React.FC<AnxietySliderProps> = ({
   value,
   onChange,
@@ -23,11 +38,13 @@ export const AnxietySlider: React.FC<AnxietySliderProps> = ({
   hideHeader = false,
 }) => {
   const { colors, isDark } = useTheme();
-  const [trackWidth, setTrackWidth] = useState(280);
+  const [trackWidth, setTrackWidth] = useState(300);
+  const trackRef = useRef<View>(null);
 
-  const currentValue = value ?? 0;
-  const clampedValue = Math.min(10, Math.max(0, currentValue));
+  const currentValue = value ?? 3;
+  const clampedValue = Math.min(10, Math.max(0, Math.round(currentValue)));
   const progressRatio = clampedValue / 10;
+  const description = ANXIETY_DESCRIPTIONS[clampedValue] || 'Tranquilo';
 
   const handleLayout = (e: LayoutChangeEvent) => {
     const width = e.nativeEvent.layout.width;
@@ -36,140 +53,157 @@ export const AnxietySlider: React.FC<AnxietySliderProps> = ({
     }
   };
 
-  const handleTrackPress = (locationX: number) => {
+  const updateFromPosition = (locationX: number) => {
     if (disabled || trackWidth <= 0) return;
     const ratio = Math.min(1, Math.max(0, locationX / trackWidth));
-    const stepVal = Math.round(ratio * 10);
+    const stepVal = Math.min(10, Math.max(0, Math.round(ratio * 10)));
     onChange(stepVal);
   };
 
+  // PanResponder para dispositivos móveis nativos (iOS e Android)
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => !disabled,
+      onMoveShouldSetPanResponder: () => !disabled,
+      onPanResponderGrant: (evt) => {
+        updateFromPosition(evt.nativeEvent.locationX);
+      },
+      onPanResponderMove: (evt) => {
+        updateFromPosition(evt.nativeEvent.locationX);
+      },
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderRelease: (evt) => {
+        updateFromPosition(evt.nativeEvent.locationX);
+      },
+    })
+  ).current;
+
   return (
     <View style={styles.container}>
-      {/* Valor Atual */}
+      {/* 1. Valor Atual no Topo (“X de 10”) */}
       {!hideHeader && (
         <View style={styles.valueRow}>
           <Text
             style={[
               styles.currentValueText,
-              { color: '#247B74' },
+              { color: isDark ? '#5ECFC3' : '#238C82' },
             ]}
           >
-            {value !== null ? `${value} de 10` : '0 de 10'}
+            {`${clampedValue} de 10`}
           </Text>
         </View>
       )}
 
-      {/* Rótulos dos extremos (0 e 10) */}
+      {/* 2. Rótulos dos Extremos (0 e 10) */}
       <View style={styles.topLabelsRow}>
-        <Text style={[styles.endpointNumber, { color: isDark ? colors.text : '#1F2927' }]}>
+        <Text style={[styles.endpointNumber, { color: isDark ? '#FFFFFF' : '#1F2927' }]}>
           0
         </Text>
-        <Text style={[styles.endpointNumber, { color: isDark ? colors.text : '#1F2927' }]}>
+        <Text style={[styles.endpointNumber, { color: isDark ? '#FFFFFF' : '#1F2927' }]}>
           10
         </Text>
       </View>
 
-      {/* Slider Interativo */}
+      {/* 3. Slider Interativo Responsivo */}
       <View
+        ref={trackRef}
         style={styles.sliderContainer}
         onLayout={handleLayout}
+        {...(Platform.OS !== 'web' ? panResponder.panHandlers : {})}
         accessibilityRole="adjustable"
-        accessibilityLabel={`Nível de ansiedade ${clampedValue} de 10`}
-        accessibilityValue={{ min: 0, max: 10, now: clampedValue }}
-        {...(Platform.OS === 'web'
-          ? ({
-              tabIndex: 0,
-              onKeyDown: (e: React.KeyboardEvent) => {
-                if (disabled) return;
-                if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
-                  e.preventDefault();
-                  onChange(Math.min(10, clampedValue + 1));
-                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
-                  e.preventDefault();
-                  onChange(Math.max(0, clampedValue - 1));
-                } else if (e.key === 'Home') {
-                  e.preventDefault();
-                  onChange(0);
-                } else if (e.key === 'End') {
-                  e.preventDefault();
-                  onChange(10);
-                }
-              },
-            } as any)
-          : {})}
+        aria-label="Nível de ansiedade"
+        aria-valuemin={0}
+        aria-valuemax={10}
+        aria-valuenow={clampedValue}
+        aria-valuetext={description}
       >
-        {/* Trilho base */}
+        {/* Trilho base cinza */}
         <View
           style={[
             styles.trackBg,
-            { backgroundColor: isDark ? '#2D3835' : '#D8DEDB' },
+            { backgroundColor: isDark ? '#334155' : '#E2E8F0' },
           ]}
         />
 
-        {/* Trilho preenchido */}
+        {/* Trilho preenchido verde-água (sem bolinhas intermediárias) */}
         <View
           style={[
             styles.trackFill,
             {
               width: `${progressRatio * 100}%`,
-              backgroundColor: '#247B74',
+              backgroundColor: isDark ? '#5ECFC3' : '#238C82',
             },
           ]}
         />
 
-        {/* Marcações discretas (Ticks) */}
-        {Array.from({ length: 11 }, (_, i) => {
-          const tickRatio = i / 10;
-          const isPassed = i <= clampedValue;
-          return (
-            <View
-              key={i}
-              style={[
-                styles.tickDot,
-                {
-                  left: `${tickRatio * 100}%`,
-                  backgroundColor: isPassed ? '#247B74' : isDark ? '#3D4D49' : '#C4CDCA',
-                },
-              ]}
-            />
-          );
-        })}
-
-        {/* Knob (Thumb) */}
+        {/* Círculo / Knob (28px de diâmetro, sombra e borda branca de 2.5px) */}
         <View
+          pointerEvents="none"
           style={[
             styles.thumbKnob,
             {
               left: `${progressRatio * 100}%`,
-              backgroundColor: '#247B74',
+              backgroundColor: isDark ? '#5ECFC3' : '#238C82',
               borderColor: '#FFFFFF',
             },
           ]}
         />
 
-        {/* Zonas de Toque Acessíveis para cada passo de 0 a 10 */}
-        <View style={styles.touchAreaRow}>
+        {/* No Web: Input Range real com toque fluido e acessibilidade nativa */}
+        {Platform.OS === 'web' && (
+          <input
+            type="range"
+            min={0}
+            max={10}
+            step={1}
+            value={clampedValue}
+            disabled={disabled}
+            onChange={(e) => onChange(Number(e.target.value))}
+            onInput={(e: any) => onChange(Number(e.target.value))}
+            aria-label="Nível de ansiedade"
+            aria-valuemin={0}
+            aria-valuemax={10}
+            aria-valuenow={clampedValue}
+            aria-valuetext={description}
+            className="anxiety-slider-input"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: 44,
+              opacity: 0,
+              cursor: disabled ? 'not-allowed' : 'pointer',
+              touchAction: 'pan-y',
+              margin: 0,
+              zIndex: 10,
+            }}
+          />
+        )}
+
+        {/* Passos acessíveis para Screen Readers e Testes Automatizados */}
+        <View style={styles.touchAreaRow} pointerEvents={Platform.OS === 'web' ? 'none' : 'auto'}>
           {Array.from({ length: 11 }, (_, num) => (
             <TouchableOpacity
               key={num}
               disabled={disabled}
               onPress={() => onChange(num)}
               accessibilityRole="radio"
-              accessibilityLabel={`Nível de ansiedade ${num} de 10`}
-              accessibilityState={{ checked: value === num, selected: value === num }}
+              accessibilityLabel={`Nível de ansiedade ${num} de 10: ${ANXIETY_DESCRIPTIONS[num]}`}
+              accessibilityState={{ checked: clampedValue === num, selected: clampedValue === num }}
               style={styles.touchStep}
-              activeOpacity={0.7}
+              activeOpacity={1}
             />
           ))}
         </View>
       </View>
 
-      {/* Rótulos Descritivos Inferiores */}
+      {/* 4. Rótulos Descritivos Inferiores ("Tranquilo" e "Intenso") */}
       <View style={styles.bottomLabelsRow}>
-        <Text style={[styles.bottomLabelText, { color: isDark ? colors.textMuted : '#68736F' }]}>
+        <Text style={[styles.bottomLabelText, { color: isDark ? '#CBD5E1' : '#708885' }]}>
           Tranquilo
         </Text>
-        <Text style={[styles.bottomLabelText, { color: isDark ? colors.textMuted : '#68736F' }]}>
+        <Text style={[styles.bottomLabelText, { color: isDark ? '#CBD5E1' : '#708885' }]}>
           Intenso
         </Text>
       </View>
@@ -183,59 +217,62 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   valueRow: {
-    marginBottom: 8,
+    marginBottom: 6,
   },
   currentValueText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
   topLabelsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 4,
     paddingHorizontal: 2,
   },
   endpointNumber: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   sliderContainer: {
-    height: 32,
+    height: 44,
     justifyContent: 'center',
     position: 'relative',
     width: '100%',
   },
   trackBg: {
-    height: 4,
-    borderRadius: 2,
+    height: 7,
+    borderRadius: 3.5,
     width: '100%',
     position: 'absolute',
   },
   trackFill: {
-    height: 4,
-    borderRadius: 2,
+    height: 7,
+    borderRadius: 3.5,
     position: 'absolute',
-  },
-  tickDot: {
-    position: 'absolute',
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginLeft: -2,
-    top: 14,
   },
   thumbKnob: {
     position: 'absolute',
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderWidth: 2.5,
-    marginLeft: -11,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-    elevation: 2,
+    marginLeft: -14,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
+      },
+    }),
   },
   touchAreaRow: {
     ...StyleSheet.absoluteFillObject,
@@ -247,13 +284,13 @@ const styles = StyleSheet.create({
   },
   bottomLabelsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 6,
+    marginTop: 4,
     paddingHorizontal: 2,
   },
   bottomLabelText: {
-    fontSize: 13,
-    fontWeight: '400',
+    fontSize: 13.5,
+    fontWeight: '500',
   },
 });
-
