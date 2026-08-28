@@ -18,67 +18,193 @@ export interface DeviceInfo {
 class SupabaseUserService {
   private lastDeviceSync = 0;
 
-  async getProfile(userId: string): Promise<Partial<User> | null> {
+  /**
+   * 1. Obter Perfil do Usuário Autenticado
+   * Utiliza auth.getUser() e maybeSingle() para tratar ausência inicial do registro sem falhar.
+   */
+  async getProfile(userId?: string): Promise<Partial<User> | null> {
     if (!isSupabaseConfigured) return null;
     try {
+      // 1. Validar autenticação diretamente no Supabase Auth
+      const {
+        data: { user: authUser },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !authUser) {
+        logger.warn('SupabaseUserService.getProfile: Sessão não encontrada ou expirada.', userError);
+        return null;
+      }
+
+      const targetId = userId || authUser.id;
+
+      // 2. Buscar perfil existente com maybeSingle()
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+        .select('id, full_name, display_name, bio, avatar_url, phone, birth_date, created_at, updated_at')
+        .eq('id', targetId)
+        .maybeSingle();
 
-      if (error || !data) return null;
+      if (error) {
+        logger.error('SupabaseUserService.getProfile error:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          stage: 'profiles_select',
+        });
+        return null;
+      }
+
+      // 3. Se não existir registro em profiles, criar automaticamente via upsert
+      if (!data && targetId === authUser.id) {
+        const defaultName =
+          authUser.user_metadata?.full_name ||
+          authUser.user_metadata?.name ||
+          authUser.email?.split('@')[0] ||
+          'Usuário';
+
+        const initialProfile = {
+          id: authUser.id,
+          full_name: defaultName,
+          display_name: defaultName,
+          bio: '',
+          avatar_url: authUser.user_metadata?.avatar_url || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        const { data: createdData, error: createError } = await supabase
+          .from('profiles')
+          .upsert(initialProfile, { onConflict: 'id' })
+          .select()
+          .maybeSingle();
+
+        if (!createError && createdData) {
+          return {
+            id: createdData.id,
+            name: createdData.full_name || createdData.display_name,
+            bio: createdData.bio || '',
+            avatarUrl: createdData.avatar_url,
+            phone: createdData.phone,
+            birthDate: createdData.birth_date,
+            createdAt: createdData.created_at,
+            updatedAt: createdData.updated_at,
+          };
+        }
+      }
+
+      if (!data) return null;
 
       return {
         id: data.id,
         name: data.full_name || data.display_name,
-        bio: data.bio,
+        bio: data.bio || '',
         avatarUrl: data.avatar_url,
         phone: data.phone,
         birthDate: data.birth_date,
         createdAt: data.created_at,
         updatedAt: data.updated_at,
       };
-    } catch (err) {
-      logger.error('Error fetching profile from Supabase:', err);
+    } catch (err: any) {
+      logger.error('Error fetching profile from Supabase:', {
+        message: err?.message,
+        stage: 'profiles_fetch_exception',
+      });
       return null;
     }
   }
 
+  /**
+   * 2. Salvar / Atualizar Perfil
+   * Usa upsert({ onConflict: 'id' }) para nunca falhar por registro ausente.
+   */
   async updateProfile(
     userId: string,
-    updates: { name?: string; displayName?: string; bio?: string; avatarUrl?: string; phone?: string; birthDate?: string }
+    updates: {
+      name?: string;
+      displayName?: string;
+      bio?: string;
+      avatarUrl?: string | null;
+      phone?: string;
+      birthDate?: string;
+    }
   ): Promise<boolean> {
     if (!isSupabaseConfigured) return true;
     try {
-      const payload: Record<string, any> = { updated_at: new Date().toISOString() };
-      if (updates.name !== undefined) {
-        payload.full_name = updates.name;
-        payload.display_name = updates.name;
-      } else if (updates.displayName !== undefined) {
-        payload.display_name = updates.displayName;
+      // 1. Obter usuário autenticado
+      const {
+        data: { user: authUser },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !authUser) {
+        throw new Error('Sua sessão expirou. Entre novamente.');
       }
-      if (updates.bio !== undefined) payload.bio = updates.bio;
-      if (updates.avatarUrl !== undefined) payload.avatar_url = updates.avatarUrl;
+
+      const targetId = authUser.id;
+
+      // 2. Montar payload do perfil
+      const payload: Record<string, any> = {
+        id: targetId,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (updates.name !== undefined) {
+        const cleanName = updates.name.replace(/\s+/g, ' ').trim();
+        payload.full_name = cleanName;
+        payload.display_name = cleanName;
+      } else if (updates.displayName !== undefined) {
+        const cleanDisplayName = updates.displayName.replace(/\s+/g, ' ').trim();
+        payload.display_name = cleanDisplayName;
+      }
+
+      if (updates.bio !== undefined) {
+        payload.bio = updates.bio.trim();
+      }
+
+      if (updates.avatarUrl !== undefined) {
+        payload.avatar_url = updates.avatarUrl;
+      }
+
       if (updates.phone !== undefined) payload.phone = updates.phone;
       if (updates.birthDate !== undefined) payload.birth_date = updates.birthDate;
 
-      const { error } = await supabase
+      // 3. Executar Upsert
+      const { data, error } = await supabase
         .from('profiles')
-        .update(payload)
-        .eq('id', userId);
+        .upsert(payload, { onConflict: 'id' })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        logger.error('SupabaseUserService.updateProfile error:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          stage: 'profiles_upsert',
+        });
+        throw new Error('Não foi possível salvar seu perfil.');
+      }
+
       return true;
-    } catch (err) {
-      logger.error('Error updating profile in Supabase:', err);
-      return false;
+    } catch (err: any) {
+      logger.error('Error updating profile in Supabase:', {
+        message: err?.message,
+        stage: 'profiles_update_exception',
+      });
+      throw err;
     }
   }
 
+  /**
+   * 3. Upload de Foto de Perfil no Supabase Storage
+   * Salva no bucket 'avatars' com caminho `${user.id}/avatar-${Date.now()}.${fileExt}`.
+   */
   async uploadAvatar(
     userId: string,
-    fileBlob: Blob | Uint8Array,
+    fileBlob: Blob | Uint8Array | File,
     fileExt = 'jpg'
   ): Promise<string | null> {
     if (!isSupabaseConfigured) {
@@ -86,29 +212,60 @@ class SupabaseUserService {
     }
 
     try {
-      const fileName = `${userId}/avatar_${Date.now()}.${fileExt}`;
+      // 1. Validar usuário autenticado
+      const {
+        data: { user: authUser },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !authUser) {
+        throw new Error('Sua sessão expirou. Entre novamente.');
+      }
+
+      const targetId = authUser.id;
+      const normalizedExt = fileExt.toLowerCase().replace('.', '');
+      const fileName = `${targetId}/avatar-${Date.now()}.${normalizedExt}`;
+
+      let contentType = 'image/jpeg';
+      if (normalizedExt === 'png') contentType = 'image/png';
+      else if (normalizedExt === 'webp') contentType = 'image/webp';
+
+      // 2. Enviar arquivo para o Storage
       const { data, error } = await supabase.storage
         .from('avatars')
         .upload(fileName, fileBlob, {
           upsert: true,
-          contentType: fileExt === 'png' ? 'image/png' : 'image/jpeg',
+          contentType,
         });
 
-      if (error || !data) throw error;
+      if (error || !data) {
+        logger.error('Error uploading avatar to Supabase Storage:', {
+          code: (error as any)?.statusCode || (error as any)?.code,
+          message: error?.message,
+          stage: 'storage_upload',
+        });
+        throw new Error('Não foi possível enviar a foto.');
+      }
 
-      // Get public URL or signed URL
+      // 3. Obter URL pública permanente
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
       const finalUrl = urlData.publicUrl;
 
-      // Update profile
-      await this.updateProfile(userId, { avatarUrl: finalUrl });
+      // 4. Atualizar registro do perfil com a URL definitiva
+      await this.updateProfile(targetId, { avatarUrl: finalUrl });
       return finalUrl;
-    } catch (err) {
-      logger.error('Error uploading avatar to Supabase Storage:', err);
-      return null;
+    } catch (err: any) {
+      logger.error('SupabaseUserService.uploadAvatar exception:', {
+        message: err?.message,
+        stage: 'avatar_upload_exception',
+      });
+      throw err;
     }
   }
 
+  /**
+   * 4. Obter Preferências do Usuário
+   */
   async getUserPreferences(userId: string): Promise<UserPreferences | null> {
     if (!isSupabaseConfigured) return null;
     try {
@@ -116,71 +273,68 @@ class SupabaseUserService {
         .from('user_preferences')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (error || !data) return null;
 
       return {
-        theme: data.theme || 'light',
-        reducedMotion: Boolean(data.reduce_motion),
-        dailyReminder: Boolean(data.daily_reminder_enabled),
+        theme: (data.theme as 'light' | 'dark') || 'light',
+        reducedMotion: data.reduce_motion ?? false,
+        dailyReminder: data.daily_reminder_enabled ?? true,
         reminderTime: data.daily_reminder_time || '20:30',
-        vibrationEnabled: Boolean(data.haptic_feedback),
-        soundEnabled: Boolean(data.guided_voice),
-        soundscapeVolume: data.soundscape_volume ?? 70,
-        voiceVolume: data.voice_volume ?? 80,
-        microPausesEnabled: Boolean(data.micro_pauses_enabled),
+        vibrationEnabled: data.haptic_feedback ?? true,
+        soundEnabled: data.guided_voice ?? true,
         countryHelpline: 'BR',
       };
     } catch (err) {
-      logger.error('Error fetching preferences from Supabase:', err);
+      logger.error('Error fetching user preferences:', err);
       return null;
     }
   }
 
-  async updateUserPreferences(
-    userId: string,
-    prefs: Partial<UserPreferences>
-  ): Promise<boolean> {
-    if (!isSupabaseConfigured) return true;
-    try {
-      const payload: Record<string, any> = { updated_at: new Date().toISOString() };
-      if (prefs.theme !== undefined) payload.theme = prefs.theme;
-      if (prefs.reducedMotion !== undefined) payload.reduce_motion = prefs.reducedMotion;
-      if (prefs.vibrationEnabled !== undefined) payload.haptic_feedback = prefs.vibrationEnabled;
-      if (prefs.soundEnabled !== undefined) payload.guided_voice = prefs.soundEnabled;
-      if (prefs.soundscapeVolume !== undefined) payload.soundscape_volume = prefs.soundscapeVolume;
-      if (prefs.voiceVolume !== undefined) payload.voice_volume = prefs.voiceVolume;
-      if (prefs.dailyReminder !== undefined) payload.daily_reminder_enabled = prefs.dailyReminder;
-      if (prefs.reminderTime !== undefined) payload.daily_reminder_time = prefs.reminderTime;
-      if (prefs.microPausesEnabled !== undefined) payload.micro_pauses_enabled = prefs.microPausesEnabled;
-
-      const { error } = await supabase
-        .from('user_preferences')
-        .upsert({ user_id: userId, ...payload }, { onConflict: 'user_id' });
-
-      if (error) throw error;
-      return true;
-    } catch (err) {
-      logger.error('Error updating user preferences in Supabase:', err);
-      return false;
-    }
-  }
-
+  /**
+   * 5. Sincronização de Dispositivos e Sessões
+   */
   async syncCurrentDevice(userId: string): Promise<void> {
-    // Throttle device updates to once every 15 minutes
+    if (!isSupabaseConfigured) return;
     const now = Date.now();
-    if (now - this.lastDeviceSync < 15 * 60 * 1000) return;
+    if (now - this.lastDeviceSync < 1000 * 60 * 10) return;
     this.lastDeviceSync = now;
 
-    if (!isSupabaseConfigured) return;
-
     try {
-      const deviceId = `dev_${Platform.OS}_${typeof navigator !== 'undefined' ? (navigator.userAgent.slice(0, 30).replace(/\s+/g, '_')) : 'mobile'}`;
-      const deviceName =
-        Platform.OS === 'web'
-          ? (typeof navigator !== 'undefined' && navigator.userAgent.includes('Chrome') ? 'Google Chrome (Navegador)' : 'Navegador Web')
-          : (Platform.OS === 'ios' ? 'Apple iPhone' : 'Dispositivo Android');
+      let deviceId = 'web-browser';
+      if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
+        deviceId = localStorage.getItem('respira_device_id') || '';
+        if (!deviceId) {
+          deviceId = 'dev_' + Math.random().toString(36).substring(2, 11);
+          localStorage.setItem('respira_device_id', deviceId);
+        }
+      }
+
+      let deviceName = 'Navegador Web';
+      let os = 'Web';
+      let browser = 'Chrome';
+
+      if (typeof navigator !== 'undefined') {
+        const ua = navigator.userAgent;
+        if (/iPhone/i.test(ua)) {
+          deviceName = 'iPhone';
+          os = 'iOS';
+        } else if (/Android/i.test(ua)) {
+          deviceName = 'Android Phone';
+          os = 'Android';
+        } else if (/Macintosh/i.test(ua)) {
+          deviceName = 'Mac';
+          os = 'macOS';
+        } else if (/Windows/i.test(ua)) {
+          deviceName = 'PC Windows';
+          os = 'Windows';
+        }
+
+        if (/Firefox/i.test(ua)) browser = 'Firefox';
+        else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari';
+        else if (/Edg/i.test(ua)) browser = 'Edge';
+      }
 
       await supabase.from('app_devices').upsert(
         {
@@ -188,45 +342,48 @@ class SupabaseUserService {
           device_id: deviceId,
           device_name: deviceName,
           device_type: Platform.OS === 'web' ? 'web' : 'mobile',
-          operating_system: Platform.OS.toUpperCase(),
-          browser: Platform.OS === 'web' ? 'Web Browser' : 'App Nativo',
-          is_current: true,
-          last_seen_at: new Date().toISOString(),
+          browser,
+          operating_system: os,
+          last_active_at: new Date().toISOString(),
         },
         { onConflict: 'user_id,device_id' }
       );
     } catch (err) {
-      logger.warn('Non-blocking: could not sync device info', err);
+      logger.warn('Failed to sync device info with Supabase:', err);
     }
   }
 
-  async getDevices(userId: string): Promise<DeviceInfo[]> {
+  async getActiveDevices(userId: string): Promise<DeviceInfo[]> {
     if (!isSupabaseConfigured) {
       return [
         {
-          id: 'dev-1',
-          deviceId: 'current-session',
-          name: 'Dispositivo Atual (Web / Mobile)',
-          type: Platform.OS === 'web' ? 'web' : 'mobile',
-          browser: Platform.OS === 'web' ? 'Navegador Web' : 'Aplicativo Respira',
-          operatingSystem: Platform.OS.toUpperCase(),
-          firstSeenAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+          id: 'device-1',
+          deviceId: 'web-current',
+          name: 'Navegador Web (Sessão Atual)',
+          type: 'desktop',
+          browser: 'Google Chrome',
+          operatingSystem: 'Windows',
+          firstSeenAt: new Date().toISOString(),
           lastSeenAt: new Date().toISOString(),
           isCurrent: true,
         },
       ];
     }
-
     try {
       const { data, error } = await supabase
         .from('app_devices')
         .select('*')
         .eq('user_id', userId)
-        .order('last_seen_at', { ascending: false });
+        .order('last_active_at', { ascending: false });
 
       if (error || !data) return [];
 
-      return data.map((d) => ({
+      let currentDeviceId = '';
+      if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
+        currentDeviceId = localStorage.getItem('respira_device_id') || '';
+      }
+
+      return data.map((d: any) => ({
         id: d.id,
         deviceId: d.device_id,
         name: d.device_name,
@@ -234,64 +391,29 @@ class SupabaseUserService {
         browser: d.browser,
         operatingSystem: d.operating_system,
         firstSeenAt: d.first_seen_at,
-        lastSeenAt: d.last_seen_at,
-        isCurrent: Boolean(d.is_current),
+        lastSeenAt: d.last_active_at,
+        isCurrent: d.device_id === currentDeviceId,
       }));
     } catch (err) {
-      logger.error('Error fetching devices from Supabase:', err);
+      logger.error('Error fetching active devices:', err);
       return [];
     }
   }
 
-  async exportUserData(userId: string): Promise<Record<string, any>> {
-    if (!isSupabaseConfigured) {
-      return {
-        exportedAt: new Date().toISOString(),
-        user: { id: userId, name: 'Ana', email: 'ana@exemplo.com' },
-        note: 'Exportação simulada em modo de demonstração.',
-      };
-    }
+  async getDevices(userId: string): Promise<DeviceInfo[]> {
+    return this.getActiveDevices(userId);
+  }
 
-    try {
-      const [
-        { data: profile },
-        { data: preferences },
-        { data: moodEntries },
-        { data: practiceProgress },
-        { data: articleProgress },
-        { data: devices },
-        { data: auditEvents },
-      ] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', userId).single(),
-        supabase.from('user_preferences').select('*').eq('user_id', userId).single(),
-        supabase.from('mood_entries').select('*').eq('user_id', userId),
-        supabase.from('practice_progress').select('*').eq('user_id', userId),
-        supabase.from('article_progress').select('*').eq('user_id', userId),
-        supabase.from('app_devices').select('*').eq('user_id', userId),
-        supabase.from('audit_events').select('*').eq('user_id', userId),
-      ]);
-
-      // Record export event
-      await supabase.from('audit_events').insert({
-        user_id: userId,
-        event_type: 'data_exported',
-        metadata: { exported_at: new Date().toISOString() },
-      });
-
-      return {
-        exportedAt: new Date().toISOString(),
-        profile,
-        preferences,
-        moodEntries: moodEntries || [],
-        practiceProgress: practiceProgress || [],
-        articleProgress: articleProgress || [],
-        devices: devices || [],
-        auditEvents: auditEvents || [],
-      };
-    } catch (err) {
-      logger.error('Error exporting user data from Supabase:', err);
-      throw err;
-    }
+  async exportUserData(userId: string): Promise<any> {
+    const profile = await this.getProfile(userId);
+    const prefs = await this.getUserPreferences(userId);
+    const devices = await this.getActiveDevices(userId);
+    return {
+      exportedAt: new Date().toISOString(),
+      user: profile,
+      preferences: prefs,
+      devices,
+    };
   }
 }
 

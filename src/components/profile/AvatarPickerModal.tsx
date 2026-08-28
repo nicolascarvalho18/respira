@@ -21,7 +21,7 @@ export interface AvatarPickerModalProps {
   currentAvatarUrl?: string | null;
   userName: string;
   onClose: () => void;
-  onSelectAvatar: (avatarUrl: string | null) => Promise<void>;
+  onSelectAvatar: (avatarUrl: string | null, file?: Blob | File) => Promise<void>;
 }
 
 export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
@@ -34,6 +34,7 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
   const { colors, isDark } = useTheme();
   const fileInputRef = useRef<any>(null);
 
+  const [selectedFile, setSelectedFile] = useState<File | Blob | null>(null);
   const [previewUri, setPreviewUri] = useState<string | null>(currentAvatarUrl || null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -64,6 +65,7 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
       return;
     }
 
+    setSelectedFile(file);
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
@@ -80,6 +82,7 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
   };
 
   const handleRemovePhoto = () => {
+    setSelectedFile(null);
     setPreviewUri(null);
     setErrorMessage(null);
   };
@@ -87,10 +90,10 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      await onSelectAvatar(previewUri);
+      await onSelectAvatar(previewUri, selectedFile || undefined);
       onClose();
-    } catch {
-      setErrorMessage('Erro ao salvar foto de perfil. Tente novamente.');
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Erro ao salvar foto de perfil. Tente novamente.');
     } finally {
       setIsSaving(false);
     }

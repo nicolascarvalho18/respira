@@ -128,14 +128,21 @@ export default function ProfileScreen() {
     });
   };
 
-  const handleAvatarChange = async (newAvatarUrl: string | null) => {
+  const handleAvatarChange = async (newAvatarUrl: string | null, file?: Blob | File) => {
     if (!user) return;
     try {
-      const updated = await userService.updateAvatar(user.id, newAvatarUrl);
-      updateUser({ avatarUrl: updated.avatarUrl });
+      let finalUrl = newAvatarUrl;
+      if (file) {
+        const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+        finalUrl = await userService.uploadAvatar(user.id, file, ext);
+      } else if (newAvatarUrl === null) {
+        await userService.updateAvatar(user.id, null);
+      }
+      updateUser({ avatarUrl: finalUrl ?? undefined });
       showToast({ message: 'Foto atualizada com sucesso', type: 'success' });
-    } catch {
-      showToast({ message: 'Erro ao atualizar foto de perfil', type: 'error' });
+    } catch (err: any) {
+      showToast({ message: err.message || 'Não foi possível salvar a foto.', type: 'error' });
+      throw err;
     }
   };
 

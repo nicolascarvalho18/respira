@@ -103,8 +103,32 @@ export class UserAccountService {
     data: { name?: string; bio?: string; avatarUrl?: string | null }
   ): Promise<User> {
     const users = await this.getUsers();
-    const index = users.findIndex((u) => u.id === userId);
-    if (index === -1) throw new Error('Usuário não encontrado.');
+    let index = users.findIndex((u) => u.id === userId);
+    if (index === -1) {
+      // Auto-provision user record if not yet created
+      const newUser: User = {
+        id: userId,
+        name: data.name || 'Usuário',
+        email: 'usuario@respira.app',
+        role: 'user',
+        bio: data.bio || '',
+        avatarUrl: data.avatarUrl || undefined,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isEmailVerified: true,
+        preferences: {
+          theme: 'light',
+          dailyReminder: true,
+          reminderTime: '20:30',
+          vibrationEnabled: true,
+          soundEnabled: true,
+          countryHelpline: 'BR',
+          reducedMotion: false,
+        },
+      };
+      users.push(newUser);
+      index = users.length - 1;
+    }
 
     let newName = users[index].name;
     if (data.name !== undefined) {

@@ -2,12 +2,31 @@ import { User, UserSession, SecurityEvent } from '../../types';
 import { storage } from '../storage/asyncStorage';
 import { secureStorage } from '../storage/secureStorage';
 import { userAccountService } from '../../server/services/userAccountService';
+import { supabaseUserService } from './supabaseUserService';
+import { isSupabaseConfigured } from '../supabase/client';
 import { logger } from '../../utils/logger';
 
 const CURRENT_USER_KEY = 'respira_current_user';
 
 class UserService {
   async updateProfile(userId: string, partial: Partial<User>): Promise<User> {
+    // 1. Atualizar no Supabase via upsert caso configurado
+    if (isSupabaseConfigured) {
+      try {
+        await supabaseUserService.updateProfile(userId, {
+          name: partial.name,
+          bio: partial.bio,
+          avatarUrl: partial.avatarUrl,
+          phone: partial.phone,
+          birthDate: partial.birthDate,
+        });
+      } catch (err) {
+        logger.error('Error updating profile in Supabase:', err);
+        throw err;
+      }
+    }
+
+    // 2. Atualizar no cache / local store
     const updatedUser = await userAccountService.updateProfileDetails(userId, {
       name: partial.name,
       bio: partial.bio,
@@ -18,7 +37,25 @@ class UserService {
     return updatedUser;
   }
 
+  async uploadAvatar(
+    userId: string,
+    fileBlob: Blob | File | Uint8Array,
+    fileExt = 'jpg'
+  ): Promise<string | null> {
+    if (isSupabaseConfigured) {
+      return await supabaseUserService.uploadAvatar(userId, fileBlob, fileExt);
+    }
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${Date.now()}`;
+  }
+
   async updateAvatar(userId: string, avatarUrl: string | null): Promise<User> {
+    if (isSupabaseConfigured) {
+      try {
+        await supabaseUserService.updateProfile(userId, { avatarUrl });
+      } catch (err) {
+        logger.error('Error updating avatar in Supabase:', err);
+      }
+    }
     const updated = await userAccountService.updateAvatar(userId, avatarUrl);
     await storage.setItem(CURRENT_USER_KEY, updated);
     return updated;

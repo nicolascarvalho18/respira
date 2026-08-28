@@ -68,6 +68,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
         .toUpperCase()
     : 'N';
 
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | Blob | null>(null);
+
   const handleFileChange = (event: any) => {
     setAvatarError(null);
     const file = event.target?.files?.[0];
@@ -84,6 +86,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       return;
     }
 
+    setSelectedAvatarFile(file);
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
@@ -100,6 +103,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   };
 
   const handleRemoveAvatar = () => {
+    setSelectedAvatarFile(null);
     setAvatarUri(null);
     setAvatarError(null);
   };
@@ -132,22 +136,39 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
     try {
       setIsSaving(true);
+
+      // 1. Upload da foto se houver novo arquivo selecionado
+      let finalAvatarUrl: string | null = avatarUri;
+      if (selectedAvatarFile) {
+        try {
+          const ext = selectedAvatarFile.type === 'image/png' ? 'png' : selectedAvatarFile.type === 'image/webp' ? 'webp' : 'jpg';
+          finalAvatarUrl = await userService.uploadAvatar(user.id, selectedAvatarFile, ext);
+        } catch (uploadErr: any) {
+          setAvatarError(uploadErr?.message || 'Não foi possível enviar a foto.');
+          setIsSaving(false);
+          return;
+        }
+      } else if (avatarUri === null) {
+        finalAvatarUrl = null;
+      }
+
+      // 2. Salvar nome, biografia e foto via upsert
       const updated = await userService.updateProfile(user.id, {
         name: sanitizedName,
-        bio: sanitizedBio || undefined,
-        avatarUrl: avatarUri || undefined,
+        bio: sanitizedBio,
+        avatarUrl: finalAvatarUrl ?? undefined,
       });
 
       await updateUser({
         name: updated.name,
         bio: updated.bio,
-        avatarUrl: updated.avatarUrl,
+        avatarUrl: updated.avatarUrl ?? undefined,
       });
 
       showToast({ message: 'Perfil atualizado com sucesso', type: 'success' });
       onClose();
     } catch (err: any) {
-      showToast({ message: err.message || 'Erro ao salvar alterações.', type: 'error' });
+      showToast({ message: err.message || 'Não foi possível salvar seu perfil.', type: 'error' });
     } finally {
       setIsSaving(false);
     }

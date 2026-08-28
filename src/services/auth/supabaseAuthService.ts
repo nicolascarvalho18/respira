@@ -133,24 +133,50 @@ class SupabaseAuthService {
         return { user: null, error: 'Usuário não encontrado.' };
       }
 
-      // Fetch additional profile data
-      const { data: profile } = await supabase
+      // Fetch additional profile data with maybeSingle
+      let { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', data.user.id)
-        .single();
+        .maybeSingle();
+
+      if (!profile) {
+        const defaultName =
+          data.user.user_metadata?.full_name ||
+          data.user.user_metadata?.name ||
+          normalizedEmail.split('@')[0];
+
+        const initialProfile = {
+          id: data.user.id,
+          full_name: defaultName,
+          display_name: defaultName,
+          bio: '',
+          avatar_url: data.user.user_metadata?.avatar_url || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        const { data: createdProfile } = await supabase
+          .from('profiles')
+          .upsert(initialProfile, { onConflict: 'id' })
+          .select()
+          .maybeSingle();
+
+        profile = createdProfile || initialProfile;
+      }
 
       const userObj: User = {
         id: data.user.id,
-        name: profile?.display_name || data.user.user_metadata?.name || normalizedEmail.split('@')[0],
+        name: profile?.full_name || profile?.display_name || data.user.user_metadata?.name || normalizedEmail.split('@')[0],
         email: data.user.email || normalizedEmail,
         role: 'user',
+        bio: profile?.bio || '',
         avatarUrl: profile?.avatar_url,
         phone: profile?.phone,
         birthDate: profile?.birth_date,
         isEmailVerified: Boolean(data.user.email_confirmed_at),
         createdAt: data.user.created_at,
-        updatedAt: data.user.updated_at || data.user.created_at,
+        updatedAt: profile?.updated_at || data.user.updated_at || data.user.created_at,
       };
 
       return { user: userObj };
@@ -267,23 +293,50 @@ class SupabaseAuthService {
       const { data } = await supabase.auth.getUser();
       if (!data.user) return null;
 
-      const { data: profile } = await supabase
+      let { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', data.user.id)
-        .single();
+        .maybeSingle();
+
+      if (!profile) {
+        const defaultName =
+          data.user.user_metadata?.full_name ||
+          data.user.user_metadata?.name ||
+          data.user.email?.split('@')[0] ||
+          'Usuário';
+
+        const initialProfile = {
+          id: data.user.id,
+          full_name: defaultName,
+          display_name: defaultName,
+          bio: '',
+          avatar_url: data.user.user_metadata?.avatar_url || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        const { data: createdProfile } = await supabase
+          .from('profiles')
+          .upsert(initialProfile, { onConflict: 'id' })
+          .select()
+          .maybeSingle();
+
+        profile = createdProfile || initialProfile;
+      }
 
       return {
         id: data.user.id,
-        name: profile?.display_name || data.user.user_metadata?.name || 'Usuário',
+        name: profile?.full_name || profile?.display_name || data.user.user_metadata?.name || 'Usuário',
         email: data.user.email || '',
         role: 'user',
+        bio: profile?.bio || '',
         avatarUrl: profile?.avatar_url,
         phone: profile?.phone,
         birthDate: profile?.birth_date,
         isEmailVerified: Boolean(data.user.email_confirmed_at),
         createdAt: data.user.created_at,
-        updatedAt: data.user.updated_at || data.user.created_at,
+        updatedAt: profile?.updated_at || data.user.updated_at || data.user.created_at,
       };
     } catch (err) {
       logger.error('Error getting current Supabase user:', err);
