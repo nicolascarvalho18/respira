@@ -33,7 +33,9 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
   const [name, setName] = useState(user?.name || '');
   const [bio, setBio] = useState(user?.bio || '');
-  const [avatarUri, setAvatarUri] = useState<string | null>(user?.avatarUrl || null);
+  const [savedAvatarUrl, setSavedAvatarUrl] = useState<string | null>(user?.avatarUrl || null);
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(user?.avatarUrl || null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [bioError, setBioError] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
@@ -43,32 +45,19 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     if (visible && user) {
       setName(user.name || '');
       setBio(user.bio || '');
-      setAvatarUri(user.avatarUrl || null);
+      setSavedAvatarUrl(user.avatarUrl || null);
+      setAvatarPreviewUrl(user.avatarUrl || null);
+      setSelectedAvatarFile(null);
       setNameError(null);
       setBioError(null);
       setAvatarError(null);
     }
   }, [visible, user]);
 
-  const initials = name
-    ? name
-        .trim()
-        .split(' ')
-        .map((n) => n[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase()
-    : user?.name
-    ? user.name
-        .trim()
-        .split(' ')
-        .map((n) => n[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase()
-    : 'N';
-
-  const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | Blob | null>(null);
+  const initials = (name || user?.name || 'U')
+    .trim()
+    .charAt(0)
+    .toUpperCase() || 'U';
 
   const handleFileChange = (event: any) => {
     setAvatarError(null);
@@ -87,13 +76,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     }
 
     setSelectedAvatarFile(file);
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setAvatarUri(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    if (typeof URL !== 'undefined' && URL.createObjectURL) {
+      const objectUrl = URL.createObjectURL(file);
+      setAvatarPreviewUrl(objectUrl);
+    }
   };
 
   const handleTriggerUpload = () => {
@@ -104,7 +90,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
   const handleRemoveAvatar = () => {
     setSelectedAvatarFile(null);
-    setAvatarUri(null);
+    setAvatarPreviewUrl(null);
     setAvatarError(null);
   };
 
@@ -137,37 +123,47 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     try {
       setIsSaving(true);
 
-      // 1. Upload da foto se houver novo arquivo selecionado
-      let finalAvatarUrl: string | null = avatarUri;
+      // 1. Determinar a URL da foto de perfil
+      let finalAvatarUrl: string | null = savedAvatarUrl;
+
+      // 2. Se houver um novo arquivo selecionado, fazer upload real no Supabase Storage
       if (selectedAvatarFile) {
         try {
-          const ext = selectedAvatarFile.type === 'image/png' ? 'png' : selectedAvatarFile.type === 'image/webp' ? 'webp' : 'jpg';
-          finalAvatarUrl = await userService.uploadAvatar(user.id, selectedAvatarFile, ext);
+          const extension = selectedAvatarFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+          finalAvatarUrl = await userService.uploadAvatar(user.id, selectedAvatarFile, extension);
         } catch (uploadErr: any) {
-          setAvatarError(uploadErr?.message || 'Não foi possível enviar a foto.');
+          console.error('Storage upload error:', uploadErr);
+          setAvatarError('Não foi possível salvar a foto');
           setIsSaving(false);
           return;
         }
-      } else if (avatarUri === null) {
+      } else if (avatarPreviewUrl === null) {
+        // Usuário removeu a foto
         finalAvatarUrl = null;
       }
 
-      // 2. Salvar nome, biografia e foto via upsert
+      // 3. Salvar nome, biografia e avatar_url no banco via upsert
       const updated = await userService.updateProfile(user.id, {
         name: sanitizedName,
         bio: sanitizedBio,
         avatarUrl: finalAvatarUrl ?? undefined,
       });
 
+      // 4. Atualizar o estado global
       await updateUser({
         name: updated.name,
         bio: updated.bio,
         avatarUrl: updated.avatarUrl ?? undefined,
       });
 
+      // 5. Atualizar savedAvatarUrl e limpar arquivo temporário
+      setSavedAvatarUrl(updated.avatarUrl || null);
+      setSelectedAvatarFile(null);
+
       showToast({ message: 'Perfil atualizado com sucesso', type: 'success' });
       onClose();
     } catch (err: any) {
+      console.error('Profile update error:', err);
       showToast({ message: err.message || 'Não foi possível salvar seu perfil.', type: 'error' });
     } finally {
       setIsSaving(false);
@@ -177,7 +173,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const isUnchanged =
     name.trim() === (user?.name || '').trim() &&
     bio.trim() === (user?.bio || '').trim() &&
-    avatarUri === (user?.avatarUrl || null);
+    avatarPreviewUrl === (user?.avatarUrl || null) &&
+    !selectedAvatarFile;
 
   if (!visible) return null;
 
@@ -221,9 +218,9 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             {/* 1. Foto de perfil */}
             <View style={styles.avatarSection}>
               <View style={styles.avatarPreviewWrap}>
-                {avatarUri ? (
+                {avatarPreviewUrl ? (
                   <Image
-                    source={{ uri: avatarUri }}
+                    source={{ uri: avatarPreviewUrl }}
                     accessibilityLabel={`Foto de perfil de ${name}`}
                     style={styles.avatarImage}
                   />
@@ -255,15 +252,15 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                   <Text style={styles.avatarActionText}>Escolher foto</Text>
                 </TouchableOpacity>
 
-                {avatarUri && (
+                {avatarPreviewUrl && (
                   <TouchableOpacity
                     onPress={handleRemoveAvatar}
                     accessibilityRole="button"
                     accessibilityLabel="Remover foto"
-                    style={[styles.avatarActionBtn, { borderColor: '#E0E5E2' }]}
+                    style={[styles.avatarActionBtn, { borderColor: '#D9534F' }]}
                   >
-                    <Trash2 size={14} color="#C84E45" strokeWidth={1.75} style={{ marginRight: 4 }} />
-                    <Text style={[styles.avatarActionText, { color: '#C84E45' }]}>Remover</Text>
+                    <Trash2 size={14} color="#D9534F" strokeWidth={1.75} style={{ marginRight: 4 }} />
+                    <Text style={[styles.avatarActionText, { color: '#D9534F' }]}>Remover</Text>
                   </TouchableOpacity>
                 )}
               </View>

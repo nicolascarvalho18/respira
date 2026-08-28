@@ -188,13 +188,10 @@ export default function ProfileScreen() {
   const userName = user?.name || 'Nicolas Carvalho';
   const userEmail = user?.email || 'nicolasbdhshdh@gmail.com';
   const userBio = user?.bio || 'Desenvolvedor e estudante de tecnologia.';
-  const initials = userName
+  const initials = (userName || 'U')
     .trim()
-    .split(' ')
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
+    .charAt(0)
+    .toUpperCase() || 'U';
 
   const appearanceLabel = mode === 'dark' ? 'Escuro' : 'Claro';
 

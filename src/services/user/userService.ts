@@ -45,7 +45,16 @@ class UserService {
     if (isSupabaseConfigured) {
       return await supabaseUserService.uploadAvatar(userId, fileBlob, fileExt);
     }
-    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${Date.now()}`;
+    if (typeof FileReader !== 'undefined' && fileBlob instanceof Blob) {
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          resolve(reader.result as string);
+        };
+        reader.readAsDataURL(fileBlob);
+      });
+    }
+    return null;
   }
 
   async updateAvatar(userId: string, avatarUrl: string | null): Promise<User> {

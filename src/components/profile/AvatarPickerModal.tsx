@@ -39,15 +39,10 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const initials = userName
-    ? userName
-        .trim()
-        .split(' ')
-        .map((n) => n[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase()
-    : 'N';
+  const initials = (userName || 'U')
+    .trim()
+    .charAt(0)
+    .toUpperCase() || 'U';
 
   const handleFileChange = (event: any) => {
     setErrorMessage(null);
@@ -66,13 +61,10 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
     }
 
     setSelectedFile(file);
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setPreviewUri(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    if (typeof URL !== 'undefined' && URL.createObjectURL) {
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewUri(objectUrl);
+    }
   };
 
   const handleTriggerUpload = () => {

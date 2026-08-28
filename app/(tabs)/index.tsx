@@ -238,9 +238,17 @@ export default function HomeScreen() {
       {/* 1. Cabeçalho Superior */}
       <View style={styles.topHeader}>
         <View style={styles.userGreetingRow}>
-          <View style={[styles.avatarCircle, { backgroundColor: '#247B74' }]}>
-            <Text style={styles.avatarLetter}>{userInitial}</Text>
-          </View>
+          {user?.avatarUrl ? (
+            <Image
+              source={{ uri: user.avatarUrl }}
+              accessibilityLabel={`Foto de perfil de ${userName}`}
+              style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#EDF7F5' }}
+            />
+          ) : (
+            <View style={[styles.avatarCircle, { backgroundColor: '#247B74' }]}>
+              <Text style={styles.avatarLetter}>{userInitial}</Text>
+            </View>
+          )}
           <View style={styles.headerTextGroup}>
             <Text
               accessibilityRole="header"

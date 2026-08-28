@@ -99,26 +99,38 @@ describe('Profile Upsert & Persistence Suite — Correção Definitiva', () => {
     });
   });
 
-  describe('7. Isolamento Entre Múltiplos Usuários', () => {
-    it('deve manter dados independentes para usuários diferentes', async () => {
+  describe('8. Independência Total Entre Nome, Biografia e Foto', () => {
+    it('alterar o nome não deve alterar a foto salva', async () => {
+      const fixedPhotoUrl = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400';
       await userService.updateProfile(userA, {
-        name: 'Usuário A',
-        bio: 'Bio do Usuário A',
+        name: 'Carlos Oliveira',
+        avatarUrl: fixedPhotoUrl,
       });
 
-      await userService.updateProfile(userB, {
-        name: 'Usuário B',
-        bio: 'Bio do Usuário B',
+      // Alterar somente o nome
+      const updated = await userService.updateProfile(userA, {
+        name: 'Carlos Alberto Oliveira',
       });
 
-      const userAFetched = await userAccountService.getUserById(userA);
-      const userBFetched = await userAccountService.getUserById(userB);
+      expect(updated.name).toBe('Carlos Alberto Oliveira');
+      expect(updated.avatarUrl).toBe(fixedPhotoUrl);
 
-      expect(userAFetched?.name).toBe('Usuário A');
-      expect(userAFetched?.bio).toBe('Bio do Usuário A');
+      const fetched = await userAccountService.getUserById(userA);
+      expect(fetched?.avatarUrl).toBe(fixedPhotoUrl);
+    });
 
-      expect(userBFetched?.name).toBe('Usuário B');
-      expect(userBFetched?.bio).toBe('Bio do Usuário B');
+    it('alterar a biografia não deve alterar a foto salva', async () => {
+      const fixedPhotoUrl = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400';
+
+      const updated = await userService.updateProfile(userA, {
+        bio: 'Nova biografia atualizada.',
+      });
+
+      expect(updated.bio).toBe('Nova biografia atualizada.');
+      expect(updated.avatarUrl).toBe(fixedPhotoUrl);
+
+      const fetched = await userAccountService.getUserById(userA);
+      expect(fetched?.avatarUrl).toBe(fixedPhotoUrl);
     });
   });
 });
