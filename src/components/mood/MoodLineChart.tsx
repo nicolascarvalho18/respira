@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import Svg, {
   Path,
@@ -18,384 +19,498 @@ export interface MoodLineChartProps {
   records: MoodRecord[];
   days?: 7 | 30 | 90;
   metric?: 'mood' | 'anxiety';
-  onSelectRecord?: (record: MoodRecord) => void;
+  onNavigateNew?: () => void;
+  isLoading?: boolean;
+  hasError?: boolean;
+  onRetry?: () => void;
 }
 
-interface DayPoint {
+export interface ChartDayPoint {
+  dateStr: string;
   dayLabel: string;
-  fullDate: string;
-  shortDate: string;
-  mood: number; // 1 to 5
-  anxiety: number; // 0 to 10
-  isToday: boolean;
-  record?: MoodRecord;
+  fullDateLabel: string;
+  value: number; // Média diária calculada
+  count: number; // Quantidade de registros no dia
+  records: MoodRecord[];
 }
 
 export const MoodLineChart: React.FC<MoodLineChartProps> = ({
   records,
-  days = 7,
+  days = 30,
   metric = 'mood',
-  onSelectRecord,
+  onNavigateNew,
+  isLoading = false,
+  hasError = false,
+  onRetry,
 }) => {
   const { colors, isDark } = useTheme();
+  const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
 
-  // Helper to build timeline points for 7, 30, or 90 days
-  const buildTimelineData = (): DayPoint[] => {
-    const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    const now = new Date();
-    const count = days === 7 ? 7 : days === 30 ? 10 : 12; // aggregate points if larger period
+  // 1. Filtrar registros dentro do período selecionado (7, 30 ou 90 dias)
+  const now = new Date();
+  const cutoffTime = now.getTime() - days * 24 * 60 * 60 * 1000;
+  const periodRecords = records.filter((r) => {
+    const time = new Date(r.createdAt).getTime();
+    return time >= cutoffTime;
+  });
 
-    const points: DayPoint[] = [];
-
-    if (days === 7) {
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(now);
-        d.setDate(now.getDate() - i);
-        const dayLabel = dayNames[d.getDay()];
-        const dateStr = d.toISOString().slice(0, 10);
-        const shortDate = `${d.getDate()} ${d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}`;
-        const isToday = i === 0;
-
-        const dayRecords = records.filter(
-          (r) => r.createdAt.slice(0, 10) === dateStr
-        );
-
-        let mood = 3;
-        let anxiety = 4;
-        let matchedRecord: MoodRecord | undefined;
-
-        if (dayRecords.length > 0) {
-          matchedRecord = dayRecords[dayRecords.length - 1];
-          mood = matchedRecord.mood;
-          anxiety = matchedRecord.anxietyLevel;
-        } else {
-          // Illustrative trend fallback matching reference image
-          const sampleMoods = [3, 4, 5, 4.1, 2.1, 3, 2.4];
-          const sampleAnxieties = [3, 4, 2, 7, 6, 4, 3];
-          mood = sampleMoods[6 - i] || 3;
-          anxiety = sampleAnxieties[6 - i] || 4;
-        }
-
-        points.push({
-          dayLabel,
-          fullDate: dateStr,
-          shortDate,
-          mood,
-          anxiety,
-          isToday,
-          record: matchedRecord,
-        });
-      }
-    } else {
-      // 30 or 90 days aggregated view
-      const step = Math.floor(days / count);
-      for (let i = count - 1; i >= 0; i--) {
-        const d = new Date(now);
-        d.setDate(now.getDate() - i * step);
-        const dateStr = d.toISOString().slice(0, 10);
-        const shortDate = `${d.getDate()}/${d.getMonth() + 1}`;
-        const isToday = i === 0;
-
-        const matching = records.filter(
-          (r) => r.createdAt.slice(0, 10) <= dateStr
-        );
-
-        let mood = 3.5;
-        let anxiety = 4.2;
-        let matchedRecord: MoodRecord | undefined;
-
-        if (matching.length > 0) {
-          matchedRecord = matching[matching.length - 1];
-          mood = matchedRecord.mood;
-          anxiety = matchedRecord.anxietyLevel;
-        }
-
-        points.push({
-          dayLabel: shortDate,
-          fullDate: dateStr,
-          shortDate,
-          mood,
-          anxiety,
-          isToday,
-          record: matchedRecord,
-        });
-      }
+  // 2. Agregação por dia (sem inventar dias vazios)
+  const dailyGroups: Record<string, MoodRecord[]> = {};
+  periodRecords.forEach((r) => {
+    const dayKey = r.createdAt.slice(0, 10);
+    if (!dailyGroups[dayKey]) {
+      dailyGroups[dayKey] = [];
     }
+    dailyGroups[dayKey].push(r);
+  });
 
-    return points;
-  };
+  // Ordenar cronologicamente
+  const sortedDates = Object.keys(dailyGroups).sort(
+    (a, b) => new Date(a).getTime() - new Date(b).getTime()
+  );
 
-  const dataPoints = buildTimelineData();
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  // Construir data points reais
+  const dataPoints: ChartDayPoint[] = sortedDates.map((dateStr) => {
+    const dayRecs = dailyGroups[dateStr];
+    const sum = dayRecs.reduce(
+      (acc, r) => acc + (metric === 'mood' ? r.mood : r.anxietyLevel),
+      0
+    );
+    const avg = sum / dayRecs.length;
 
-  // SVG Chart Dimensions
+    const d = new Date(dateStr + 'T12:00:00');
+    const dayOfMonth = d.getDate();
+    const monthShort = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+    const dayLabel = `${dayOfMonth} ${monthShort}`;
+
+    return {
+      dateStr,
+      dayLabel,
+      fullDateLabel: d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }),
+      value: Number(avg.toFixed(2)),
+      count: dayRecs.length,
+      records: dayRecs,
+    };
+  });
+
+  // Estado de Carregamento
+  if (isLoading) {
+    return (
+      <View style={styles.stateContainer}>
+        <View style={[styles.skeletonLine, { backgroundColor: isDark ? '#2A3634' : '#E8ECEA' }]} />
+        <View style={[styles.skeletonLineShort, { backgroundColor: isDark ? '#2A3634' : '#E8ECEA' }]} />
+      </View>
+    );
+  }
+
+  // Estado de Erro
+  if (hasError) {
+    return (
+      <View style={styles.stateContainer}>
+        <Text style={[styles.stateTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+          Não foi possível carregar o resumo.
+        </Text>
+        {onRetry && (
+          <TouchableOpacity onPress={onRetry} style={styles.actionBtn}>
+            <Text style={styles.actionBtnText}>Tentar novamente</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
+
+  // Estado Sem Dados no Período
+  if (dataPoints.length === 0) {
+    return (
+      <View style={styles.stateContainer}>
+        <Text style={[styles.stateTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+          Ainda não há dados neste período
+        </Text>
+        <Text style={[styles.stateSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
+          Registre como você está para começar a acompanhar suas mudanças.
+        </Text>
+        {onNavigateNew && (
+          <TouchableOpacity onPress={onNavigateNew} style={styles.actionBtn}>
+            <Text style={styles.actionBtnText}>Registrar momento</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
+
+  // Dimensões do Gráfico
   const chartWidth = 340;
-  const chartHeight = 150;
-  const paddingLeft = 32;
-  const paddingRight = 18;
-  const paddingTop = 14;
-  const paddingBottom = 22;
+  const chartHeight = 180;
+  const paddingLeft = 28;
+  const paddingRight = 20;
+  const paddingTop = 20;
+  const paddingBottom = 30;
 
   const usableWidth = chartWidth - paddingLeft - paddingRight;
   const usableHeight = chartHeight - paddingTop - paddingBottom;
 
-  const getX = (index: number) => {
+  // Escala Vertical
+  const minY = metric === 'mood' ? 1 : 0;
+  const maxY = metric === 'mood' ? 5 : 10;
+  const rangeY = maxY - minY;
+
+  const scaleY = (val: number) => {
+    const clamped = Math.max(minY, Math.min(maxY, val));
+    return paddingTop + usableHeight - ((clamped - minY) / rangeY) * usableHeight;
+  };
+
+  const scaleX = (index: number) => {
+    if (dataPoints.length === 1) {
+      return paddingLeft + usableWidth / 2;
+    }
     return paddingLeft + (index / (dataPoints.length - 1)) * usableWidth;
   };
 
-  // Scales
-  // Humor: 1 to 5 (range: 4)
-  const getYMood = (val: number) => {
-    const clamped = Math.min(5, Math.max(1, val));
-    const ratio = (clamped - 1) / 4;
-    return paddingTop + usableHeight - ratio * usableHeight;
+  // Cores conforme design system
+  const lineColor = metric === 'mood' ? '#247B74' : '#D87556';
+  const areaColor = metric === 'mood' ? 'rgba(36, 123, 116, 0.05)' : 'rgba(216, 117, 86, 0.05)';
+  const gridColor = isDark ? 'rgba(255,255,255,0.08)' : '#E8ECEA';
+
+  // Gerar caminho SVG para a linha e a área
+  const pointsCoords = dataPoints.map((p, idx) => ({
+    x: scaleX(idx),
+    y: scaleY(p.value),
+    point: p,
+  }));
+
+  let pathLine = '';
+  let pathArea = '';
+
+  if (pointsCoords.length > 1) {
+    pathLine = `M ${pointsCoords[0].x} ${pointsCoords[0].y}`;
+    for (let i = 1; i < pointsCoords.length; i++) {
+      pathLine += ` L ${pointsCoords[i].x} ${pointsCoords[i].y}`;
+    }
+
+    const firstX = pointsCoords[0].x;
+    const lastX = pointsCoords[pointsCoords.length - 1].x;
+    const bottomY = scaleY(minY);
+    pathArea = `${pathLine} L ${lastX} ${bottomY} L ${firstX} ${bottomY} Z`;
+  }
+
+  // Linhas de Grade Horizontal
+  const yTicks = metric === 'mood' ? [1, 2, 3, 4, 5] : [0, 2, 4, 6, 8, 10];
+
+  // Rótulos do Eixo X com limite de exibição (máximo 6)
+  const getVisibleXLabels = () => {
+    if (dataPoints.length <= 6) {
+      return dataPoints.map((p, idx) => ({ index: idx, label: p.dayLabel, x: scaleX(idx) }));
+    }
+    // Selecionar no máximo 6 pontos uniformemente distribuídos
+    const step = (dataPoints.length - 1) / 5;
+    const visible = [];
+    for (let i = 0; i < 6; i++) {
+      const idx = Math.round(i * step);
+      if (idx < dataPoints.length) {
+        visible.push({ index: idx, label: dataPoints[idx].dayLabel, x: scaleX(idx) });
+      }
+    }
+    return visible;
   };
 
-  // Ansiedade: 0 to 10 (range: 10)
-  const getYAnxiety = (val: number) => {
-    const clamped = Math.min(10, Math.max(0, val));
-    const ratio = clamped / 10;
-    return paddingTop + usableHeight - ratio * usableHeight;
-  };
-
-  const isHumor = metric === 'mood';
-  const lineColor = isHumor ? '#247B74' : '#D87556';
-  const gridValues = isHumor ? [5, 4, 3, 2, 1] : [10, 8, 6, 4, 2, 0];
-
-  // Build SVG Path string
-  const linePath = dataPoints.reduce((acc, pt, idx) => {
-    const x = getX(idx);
-    const y = isHumor ? getYMood(pt.mood) : getYAnxiety(pt.anxiety);
-    return idx === 0 ? `M ${x} ${y}` : `${acc} L ${x} ${y}`;
-  }, '');
-
-  const activePoint = selectedIndex !== null ? dataPoints[selectedIndex] : null;
+  const xLabels = getVisibleXLabels();
+  const selectedPoint = selectedPointIndex !== null ? dataPoints[selectedPointIndex] : null;
 
   return (
-    <View style={styles.container}>
-      {/* Título do Gráfico */}
-      <Text style={[styles.chartHeading, { color: isDark ? colors.text : '#1F2927' }]}>
-        {isHumor ? `Humor nos últimos ${days} dias` : `Ansiedade nos últimos ${days} dias`}
-      </Text>
-
-      {/* Tooltip ao selecionar um ponto */}
-      {activePoint && (
-        <View
-          style={[
-            styles.tooltipBubble,
-            {
-              backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
-              borderColor: isDark ? colors.border : '#DCE2DF',
-            },
-          ]}
-        >
-          <Text style={[styles.tooltipDate, { color: isDark ? colors.textMuted : '#68736F' }]}>
-            {activePoint.shortDate}
-          </Text>
-          <Text style={[styles.tooltipValue, { color: lineColor }]}>
-            {isHumor
-              ? `Humor: ${activePoint.mood.toFixed(1).replace('.', ',')} de 5`
-              : `Ansiedade: ${activePoint.anxiety.toFixed(1).replace('.', ',')} de 10`}
-          </Text>
-        </View>
+    <View
+      style={styles.chartWrapper}
+      {...(Platform.OS === 'web'
+        ? ({
+            role: 'region',
+            'aria-label': `Gráfico de evolução de ${metric === 'mood' ? 'Humor' : 'Ansiedade'} no período de ${days} dias`,
+          } as any)
+        : {})}
+    >
+      {/* Tabela Oculta para Leitores de Tela (Acessibilidade WCAG) */}
+      {Platform.OS === 'web' && (
+        <table style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>
+          <caption>Dados de {metric === 'mood' ? 'Humor' : 'Ansiedade'} no período de {days} dias</caption>
+          <thead>
+            <tr>
+              <th scope="col">Data</th>
+              <th scope="col">{metric === 'mood' ? 'Humor (1 a 5)' : 'Ansiedade (0 a 10)'}</th>
+              <th scope="col">Registros</th>
+            </tr>
+          </thead>
+          <tbody>
+            {dataPoints.map((p, idx) => (
+              <tr key={idx}>
+                <td>{p.fullDateLabel}</td>
+                <td>{p.value.toString().replace('.', ',')}</td>
+                <td>{p.count}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
 
-      {/* Canvas SVG */}
+      {/* SVG Canvas do Gráfico */}
       <View style={styles.svgContainer}>
-        <Svg
-          width="100%"
-          height={chartHeight}
-          viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-        >
-          {/* Linhas de Grade Horizontais */}
-          {gridValues.map((val) => {
-            const y = isHumor ? getYMood(val) : getYAnxiety(val);
-            return (
-              <G key={val}>
+        <Svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
+          {/* 1. Grade Horizontal Discreta */}
+          <G>
+            {yTicks.map((tick) => {
+              const y = scaleY(tick);
+              return (
                 <Line
+                  key={`grid-${tick}`}
                   x1={paddingLeft}
                   y1={y}
                   x2={chartWidth - paddingRight}
                   y2={y}
-                  stroke={isDark ? '#2B3835' : '#E8ECEA'}
-                  strokeDasharray="3 3"
+                  stroke={gridColor}
                   strokeWidth="1"
+                  strokeDasharray="2,2"
+                />
+              );
+            })}
+          </G>
+
+          {/* 2. Área Preenchida Suave (5% opacidade) */}
+          {pathArea ? <Path d={pathArea} fill={areaColor} /> : null}
+
+          {/* 3. Linha Principal */}
+          {pathLine ? (
+            <Path
+              d={pathLine}
+              fill="none"
+              stroke={lineColor}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ) : null}
+
+          {/* 4. Marcadores Circulares Interativos (6px) */}
+          {pointsCoords.map((pt, idx) => {
+            const isSelected = selectedPointIndex === idx;
+            return (
+              <G key={`circle-${idx}`}>
+                <Circle
+                  cx={pt.x}
+                  cy={pt.y}
+                  r={isSelected ? 6 : 4}
+                  fill={lineColor}
+                  stroke={isDark ? '#1F2927' : '#FFFFFF'}
+                  strokeWidth={isSelected ? 2.5 : 1.5}
                 />
               </G>
             );
           })}
-
-          {/* Linha Vertical no Ponto Selecionado */}
-          {selectedIndex !== null && (
-            <Line
-              x1={getX(selectedIndex)}
-              y1={paddingTop}
-              x2={getX(selectedIndex)}
-              y2={chartHeight - paddingBottom}
-              stroke={isDark ? '#4D6B66' : '#C8DCD6'}
-              strokeDasharray="2 2"
-              strokeWidth="1.5"
-            />
-          )}
-
-          {/* Linha Principal da Métrica (Sem preenchimento em degradê, sem sombra) */}
-          <Path
-            d={linePath}
-            fill="none"
-            stroke={lineColor}
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-
-          {/* Marcador apenas no ponto ativo selecionado */}
-          {selectedIndex !== null && (
-            <Circle
-              cx={getX(selectedIndex)}
-              cy={isHumor ? getYMood(dataPoints[selectedIndex].mood) : getYAnxiety(dataPoints[selectedIndex].anxiety)}
-              r="4.5"
-              fill={lineColor}
-              stroke="#FFFFFF"
-              strokeWidth="2"
-            />
-          )}
         </Svg>
 
-        {/* Rótulos do Eixo Vertical (Y) à esquerda */}
-        <View style={styles.yAxisContainer} pointerEvents="none">
-          {gridValues.map((val) => (
-            <Text key={val} style={[styles.yAxisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}>
-              {val}
+        {/* 5. Escala Y nos Textos à Esquerda */}
+        <View style={[styles.yAxisLabels, { top: paddingTop - 8, height: usableHeight + 16 }]}>
+          {metric === 'mood' ? (
+            <>
+              <Text style={[styles.axisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}>5</Text>
+              <Text style={[styles.axisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}>4</Text>
+              <Text style={[styles.axisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}>3</Text>
+              <Text style={[styles.axisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}>2</Text>
+              <Text style={[styles.axisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}>1</Text>
+            </>
+          ) : (
+            <>
+              <Text style={[styles.axisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}>10</Text>
+              <Text style={[styles.axisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}>5</Text>
+              <Text style={[styles.axisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}>0</Text>
+            </>
+          )}
+        </View>
+
+        {/* 6. Touch Targets Transparentes sobre cada ponto */}
+        {pointsCoords.map((pt, idx) => (
+          <TouchableOpacity
+            key={`touch-${idx}`}
+            onPress={() => {
+              setSelectedPointIndex(selectedPointIndex === idx ? null : idx);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`${pt.point.fullDateLabel}: ${metric === 'mood' ? 'Humor' : 'Ansiedade'} ${pt.point.value.toString().replace('.', ',')}, ${pt.point.count} ${pt.point.count === 1 ? 'registro' : 'registros'}`}
+            style={[
+              styles.touchTarget,
+              {
+                left: `${(pt.x / chartWidth) * 100}%`,
+                top: `${(pt.y / chartHeight) * 100}%`,
+              },
+            ]}
+          />
+        ))}
+
+        {/* 7. Tooltip Flutuante */}
+        {selectedPoint && selectedPointIndex !== null && (
+          <View
+            style={[
+              styles.tooltipCard,
+              {
+                backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                borderColor: isDark ? colors.border : '#E0E5E2',
+                left: Math.max(
+                  10,
+                  Math.min(
+                    usableWidth - 60,
+                    scaleX(selectedPointIndex) - 55
+                  )
+                ),
+                top: Math.max(0, scaleY(selectedPoint.value) - 64),
+              },
+            ]}
+          >
+            <Text style={[styles.tooltipDate, { color: isDark ? colors.textMuted : '#68736F' }]}>
+              {selectedPoint.dayLabel}
             </Text>
-          ))}
-        </View>
-
-        {/* Colunas de Toque Invisíveis para Interação com o Gráfico */}
-        <View style={styles.touchOverlay}>
-          {dataPoints.map((pt, idx) => (
-            <TouchableOpacity
-              key={idx}
-              activeOpacity={0.8}
-              onPress={() => {
-                setSelectedIndex(selectedIndex === idx ? null : idx);
-                if (pt.record && onSelectRecord) onSelectRecord(pt.record);
-              }}
-              style={styles.touchBar}
-              accessibilityRole="button"
-              accessibilityLabel={`${pt.dayLabel}: ${isHumor ? `Humor ${pt.mood}` : `Ansiedade ${pt.anxiety}`}`}
-            />
-          ))}
-        </View>
+            <Text style={[styles.tooltipValue, { color: isDark ? colors.text : '#1F2927' }]}>
+              {metric === 'mood' ? 'Humor: ' : 'Ansiedade: '}
+              <Text style={{ fontWeight: '700', color: lineColor }}>
+                {selectedPoint.value.toFixed(1).replace('.', ',')}
+              </Text>{' '}
+              de {metric === 'mood' ? '5' : '10'}
+            </Text>
+            <Text style={[styles.tooltipCount, { color: isDark ? colors.textMuted : '#8F9B97' }]}>
+              {selectedPoint.count} {selectedPoint.count === 1 ? 'registro' : 'registros'}
+            </Text>
+          </View>
+        )}
       </View>
 
-      {/* Rótulos do Eixo Horizontal (X) */}
-      <View style={styles.xAxisContainer}>
-        {dataPoints.map((pt, idx) => {
-          const isSelected = idx === selectedIndex;
-          const isHighlight = pt.isToday || isSelected;
-          return (
-            <TouchableOpacity
-              key={idx}
-              onPress={() => {
-                setSelectedIndex(selectedIndex === idx ? null : idx);
-                if (pt.record && onSelectRecord) onSelectRecord(pt.record);
-              }}
-              style={styles.xAxisCol}
-            >
-              <Text
-                style={[
-                  styles.xAxisText,
-                  {
-                    color: isHighlight
-                      ? isDark
-                        ? colors.text
-                        : '#1F2927'
-                      : isDark
-                      ? colors.textMuted
-                      : '#68736F',
-                    fontWeight: isHighlight ? '700' : '400',
-                  },
-                ]}
-              >
-                {pt.dayLabel}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+      {/* 8. Rótulos do Eixo X */}
+      <View style={styles.xAxisLabelsRow}>
+        {xLabels.map((lbl, idx) => (
+          <Text
+            key={`xlbl-${idx}`}
+            style={[styles.xAxisText, { color: isDark ? colors.textMuted : '#8F9B97' }]}
+          >
+            {lbl.label}
+          </Text>
+        ))}
       </View>
+
+      {/* Mensagem Auxiliar para Caso de Registro Único */}
+      {dataPoints.length === 1 && (
+        <Text style={[styles.singlePointHint, { color: isDark ? colors.textMuted : '#68736F' }]}>
+          Adicione mais registros para visualizar a evolução.
+        </Text>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  chartWrapper: {
     width: '100%',
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  chartHeading: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 10,
-    paddingLeft: 2,
-  },
-  tooltipBubble: {
-    alignSelf: 'flex-start',
-    borderRadius: 6,
-    borderWidth: 1,
-    paddingHorizontal: 8,
     paddingVertical: 4,
-    marginBottom: 6,
-    marginLeft: 32,
-  },
-  tooltipDate: {
-    fontSize: 11,
-  },
-  tooltipValue: {
-    fontSize: 12,
-    fontWeight: '600',
   },
   svgContainer: {
     width: '100%',
+    height: 180,
     position: 'relative',
-    height: 150,
   },
-  yAxisContainer: {
+  yAxisLabels: {
     position: 'absolute',
-    left: 2,
-    top: 8,
-    bottom: 18,
+    left: 4,
     justifyContent: 'space-between',
+    pointerEvents: 'none',
   },
-  yAxisText: {
+  axisText: {
     fontSize: 11,
     fontWeight: '400',
   },
-  touchOverlay: {
-    position: 'absolute',
-    left: 32,
-    right: 18,
-    top: 0,
-    bottom: 0,
-    flexDirection: 'row',
-  },
-  touchBar: {
-    flex: 1,
-    height: '100%',
-  },
-  xAxisContainer: {
+  xAxisLabelsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingLeft: 28,
-    paddingRight: 14,
-    marginTop: 2,
-  },
-  xAxisCol: {
-    alignItems: 'center',
-    minWidth: 26,
+    paddingLeft: 26,
+    paddingRight: 18,
+    marginTop: 4,
   },
   xAxisText: {
+    fontSize: 11,
+    fontWeight: '400',
+  },
+  touchTarget: {
+    position: 'absolute',
+    width: 36,
+    height: 36,
+    marginLeft: -18,
+    marginTop: -18,
+    borderRadius: 18,
+    zIndex: 5,
+  },
+  tooltipCard: {
+    position: 'absolute',
+    zIndex: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+    minWidth: 110,
+    alignItems: 'center',
+  },
+  tooltipDate: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  tooltipValue: {
     fontSize: 12,
   },
+  tooltipCount: {
+    fontSize: 10,
+    marginTop: 2,
+  },
+  stateContainer: {
+    paddingVertical: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 180,
+  },
+  stateTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  stateSubtitle: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 14,
+    maxWidth: 280,
+  },
+  actionBtn: {
+    backgroundColor: '#247B74',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  actionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  singlePointHint: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  skeletonLine: {
+    width: '80%',
+    height: 12,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  skeletonLineShort: {
+    width: '50%',
+    height: 12,
+    borderRadius: 6,
+  },
 });
-
