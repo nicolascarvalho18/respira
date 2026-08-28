@@ -8,15 +8,11 @@ const CURRENT_USER_KEY = 'respira_current_user';
 
 class UserService {
   async updateProfile(userId: string, partial: Partial<User>): Promise<User> {
-    let updatedUser: User;
-    if (partial.name) {
-      updatedUser = await userAccountService.updateProfileName(userId, partial.name);
-    } else if (partial.avatarUrl !== undefined) {
-      updatedUser = await userAccountService.updateAvatar(userId, partial.avatarUrl || null);
-    } else {
-      const current = (await storage.getItem<User>(CURRENT_USER_KEY)) || ({} as User);
-      updatedUser = { ...current, ...partial, id: userId };
-    }
+    const updatedUser = await userAccountService.updateProfileDetails(userId, {
+      name: partial.name,
+      bio: partial.bio,
+      avatarUrl: partial.avatarUrl,
+    });
 
     await storage.setItem(CURRENT_USER_KEY, updatedUser);
     return updatedUser;

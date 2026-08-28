@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,6 @@ import {
   Bell,
   MessageCircle,
   FileText,
-  Download,
   KeyRound,
   MonitorSmartphone,
   LogOut,
@@ -34,7 +33,6 @@ import { useToast } from '../../src/components/ui/Toast';
 import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
 import { AvatarPickerModal } from '../../src/components/profile/AvatarPickerModal';
 import { EditProfileModal } from '../../src/components/profile/EditProfileModal';
-import { DataExportModal } from '../../src/components/profile/DataExportModal';
 import { SecurityAccessModal } from '../../src/components/profile/SecurityAccessModal';
 import { SessionsModal } from '../../src/components/profile/SessionsModal';
 import { NotificationSettingsModal } from '../../src/components/profile/NotificationSettingsModal';
@@ -43,6 +41,7 @@ import { AppearanceBottomSheet } from '../../src/components/profile/AppearanceBo
 import { ChatHistoryModal } from '../../src/components/profile/ChatHistoryModal';
 import { DeleteAccountModal } from '../../src/components/profile/DeleteAccountModal';
 import { userService } from '../../src/services/user/userService';
+import { chatService } from '../../src/services/chat/chatService';
 import { UserSession } from '../../src/types';
 
 export default function ProfileScreen() {
@@ -60,50 +59,32 @@ export default function ProfileScreen() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
   const [isMonthlyReportOpen, setIsMonthlyReportOpen] = useState(false);
-  const [isDataExportOpen, setIsDataExportOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isSessionsModalOpen, setIsSessionsModalOpen] = useState(false);
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // Switches
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(user?.preferences?.reducedMotion ?? false);
   const [saveChatHistory, setSaveChatHistory] = useState(true);
 
-  // Sessions state
-  const [sessions, setSessions] = useState<UserSession[]>([
-    {
-      id: 'sess-current',
-      userId: user?.id || 'user-demo-1',
-      deviceType: 'mobile',
-      browser: 'Chrome Mobile',
-      os: 'Android 14',
-      lastActiveAt: new Date().toISOString(),
-      isCurrent: true,
-      ipAddressMasked: '189.40.***.***',
-    },
-    {
-      id: 'sess-desktop',
-      userId: user?.id || 'user-demo-1',
-      deviceType: 'desktop',
-      browser: 'Chrome 124',
-      os: 'Windows 11',
-      lastActiveAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-      isCurrent: false,
-      ipAddressMasked: '189.40.***.***',
-    },
-  ]);
+  // Sessions state (carregadas dinamicamente do serviço)
+  const [sessions, setSessions] = useState<UserSession[]>([]);
 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       document.title = 'Perfil — Respira';
     }
 
+    // Carregar consentimento de histórico de chat
+    chatService.hasRetentionConsent().then(setSaveChatHistory).catch(() => {});
+
+    // Carregar sessões reais
     if (user?.id) {
       userService
         .getActiveSessions(user.id)
         .then((sess: UserSession[]) => {
-          if (sess && sess.length > 0) {
+          if (sess && Array.isArray(sess)) {
             setSessions(sess);
           }
         })
@@ -111,38 +92,69 @@ export default function ProfileScreen() {
     }
   }, [user]);
 
+  const handleToggleReducedMotion = async (val: boolean) => {
+    setReducedMotion(val);
+    if (user?.id) {
+      try {
+        await userService.updatePreferences(user.id, { reducedMotion: val });
+        updateUser({
+          preferences: {
+            ...user.preferences,
+            theme: user.preferences?.theme || 'light',
+            dailyReminder: user.preferences?.dailyReminder ?? true,
+            reminderTime: user.preferences?.reminderTime || '20:30',
+            vibrationEnabled: user.preferences?.vibrationEnabled ?? true,
+            soundEnabled: user.preferences?.soundEnabled ?? true,
+            countryHelpline: user.preferences?.countryHelpline || 'BR',
+            reducedMotion: val,
+          },
+        });
+      } catch {}
+    }
+  };
+
+  const handleToggleChatRetention = async (val: boolean) => {
+    setSaveChatHistory(val);
+    await chatService.setRetentionConsent(val);
+    if (user?.id) {
+      userService.updateConsents(user.id, { chatRetentionAccepted: val }).catch(() => {});
+    }
+    showToast({
+      message: val ? 'Histórico de conversas ativado' : 'Novas conversas não serão salvas',
+      type: 'info',
+    });
+  };
+
   const handleAvatarChange = async (newAvatarUrl: string | null) => {
     if (!user) return;
     try {
-      const updated = await userService.updateProfile(user.id, {
-        avatarUrl: newAvatarUrl || undefined,
-      });
-      await updateUser({ avatarUrl: updated.avatarUrl });
-      showToast({ message: 'Foto de perfil atualizada com sucesso.', type: 'success' });
+      const updated = await userService.updateAvatar(user.id, newAvatarUrl);
+      updateUser({ avatarUrl: updated.avatarUrl });
+      showToast({ message: 'Foto de perfil atualizada com sucesso', type: 'success' });
     } catch {
-      showToast({ message: 'Erro ao atualizar foto de perfil.', type: 'error' });
+      showToast({ message: 'Erro ao atualizar foto de perfil', type: 'error' });
     }
   };
 
   const handleRevokeSession = async (sessionId: string) => {
     if (!user) return;
     try {
-      await userService.revokeSession(user.id, sessionId);
-      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-      showToast({ message: 'Sessão desconectada com sucesso.', type: 'success' });
+      const updated = await userService.revokeSession(user.id, sessionId);
+      setSessions(updated);
+      showToast({ message: 'Sessão desconectada com sucesso', type: 'success' });
     } catch {
-      showToast({ message: 'Erro ao desconectar sessão.', type: 'error' });
+      showToast({ message: 'Erro ao desconectar sessão', type: 'error' });
     }
   };
 
   const handleRevokeOthers = async () => {
     if (!user) return;
     try {
-      await userService.revokeAllOtherSessions(user.id, 'sess-current');
-      setSessions((prev) => prev.filter((s) => s.isCurrent));
-      showToast({ message: 'Outras sessões foram desconectadas.', type: 'success' });
+      const updated = await userService.revokeAllOtherSessions(user.id, 'session-current');
+      setSessions(updated);
+      showToast({ message: 'Outras sessões foram desconectadas', type: 'success' });
     } catch {
-      showToast({ message: 'Erro ao desconectar outras sessões.', type: 'error' });
+      showToast({ message: 'Erro ao desconectar outras sessões', type: 'error' });
     }
   };
 
@@ -157,7 +169,7 @@ export default function ProfileScreen() {
 
   const handleDeleteAccount = async (password: string) => {
     if (!user) return;
-    await userService.deleteAccount(user.id, password);
+    await userService.deleteAccount(user.id, 'EXCLUIR MINHA CONTA', password);
     await logout();
     showToast({ message: 'Conta excluída permanentemente.', type: 'info' });
     router.replace('/(auth)/login' as any);
@@ -165,6 +177,7 @@ export default function ProfileScreen() {
 
   const userName = user?.name || 'Nicolas';
   const userEmail = user?.email || 'nicolasbdhshdh@gmail.com';
+  const userBio = user?.bio;
   const initials = userName
     .trim()
     .split(' ')
@@ -174,7 +187,14 @@ export default function ProfileScreen() {
     .toUpperCase();
 
   const appearanceLabel = mode === 'dark' ? 'Escuro' : 'Claro';
-  const sessionsCountLabel = `${sessions.length} ${sessions.length === 1 ? 'dispositivo conectado' : 'dispositivos conectados'}`;
+
+  // Descrição dinâmica real de dispositivos
+  const sessionsCountLabel =
+    sessions.length === 0
+      ? 'Nenhum outro dispositivo conectado'
+      : sessions.length === 1
+      ? '1 dispositivo conectado'
+      : `${sessions.length} dispositivos conectados`;
 
   return (
     <AppShell>
@@ -227,7 +247,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Nome, e-mail e status no centro */}
+          {/* Nome, biografia, e-mail e status no centro */}
           <View style={styles.userInfoColumn}>
             <Text
               accessibilityRole="header"
@@ -236,6 +256,15 @@ export default function ProfileScreen() {
             >
               {userName}
             </Text>
+
+            {userBio && userBio.trim().length > 0 && (
+              <Text
+                style={[styles.userBio, { color: isDark ? colors.textMuted : '#68736F' }]}
+                numberOfLines={3}
+              >
+                {userBio}
+              </Text>
+            )}
 
             <Text style={[styles.userEmail, { color: isDark ? colors.textMuted : '#68736F' }]}>
               {userEmail}
@@ -251,7 +280,7 @@ export default function ProfileScreen() {
           <TouchableOpacity
             onPress={() => setIsEditProfileOpen(true)}
             accessibilityRole="button"
-            accessibilityLabel="Editar nome do perfil"
+            accessibilityLabel="Editar perfil completo"
             style={[
               styles.editProfileBtn,
               {
@@ -316,7 +345,7 @@ export default function ProfileScreen() {
 
             <Switch
               value={reducedMotion}
-              onValueChange={setReducedMotion}
+              onValueChange={handleToggleReducedMotion}
               trackColor={{ false: '#DFE4E1', true: '#247B74' }}
               thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
             />
@@ -385,7 +414,7 @@ export default function ProfileScreen() {
             onPress={() => setIsMonthlyReportOpen(true)}
             accessibilityRole="button"
             accessibilityLabel="Relatório mensal, gerar um resumo em PDF"
-            style={[styles.settingRow, { borderBottomColor: isDark ? colors.border : '#E7EBE9' }]}
+            style={styles.settingRow}
           >
             <View style={styles.rowLeft}>
               <FileText size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} style={styles.rowIcon} />
@@ -395,28 +424,6 @@ export default function ProfileScreen() {
                 </Text>
                 <Text style={[styles.rowSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
                   Gerar um resumo em PDF
-                </Text>
-              </View>
-            </View>
-
-            <ChevronRight size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} />
-          </TouchableOpacity>
-
-          {/* Exportar dados */}
-          <TouchableOpacity
-            onPress={() => setIsDataExportOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Exportar dados, baixar uma cópia dos seus dados"
-            style={styles.settingRow}
-          >
-            <View style={styles.rowLeft}>
-              <Download size={20} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} style={styles.rowIcon} />
-              <View style={styles.rowTextWrap}>
-                <Text style={[styles.rowTitle, { color: isDark ? colors.text : '#1F2927' }]}>
-                  Exportar dados
-                </Text>
-                <Text style={[styles.rowSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
-                  Baixar uma cópia dos seus dados
                 </Text>
               </View>
             </View>
@@ -579,7 +586,7 @@ export default function ProfileScreen() {
         visible={isChatHistoryOpen}
         saveHistory={saveChatHistory}
         onClose={() => setIsChatHistoryOpen(false)}
-        onToggleSaveHistory={setSaveChatHistory}
+        onToggleSaveHistory={handleToggleChatRetention}
       />
 
       <MonthlyReportModal
@@ -587,14 +594,10 @@ export default function ProfileScreen() {
         onClose={() => setIsMonthlyReportOpen(false)}
       />
 
-      <DataExportModal
-        visible={isDataExportOpen}
-        onClose={() => setIsDataExportOpen(false)}
-      />
-
       <SecurityAccessModal
         visible={isSecurityModalOpen}
         onClose={() => setIsSecurityModalOpen(false)}
+        onRevokeOthers={handleRevokeOthers}
       />
 
       <SessionsModal
@@ -703,6 +706,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: -0.2,
     marginBottom: 2,
+  },
+  userBio: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,

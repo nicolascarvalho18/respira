@@ -240,6 +240,7 @@ export interface User {
   email: string;
   role: Role;
   avatarUrl?: string;
+  bio?: string;
   phone?: string;
   birthDate?: string;
   isEmailVerified: boolean;

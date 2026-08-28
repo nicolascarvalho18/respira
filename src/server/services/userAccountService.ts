@@ -95,56 +95,77 @@ export class UserAccountService {
   }
 
   /**
+    /**
    * 1. Profile Management
    */
-  async updateProfileName(userId: string, newName: string): Promise<User> {
-    if (!newName || newName.trim().length < 2) {
-      throw new Error('O nome deve ter pelo menos 2 caracteres.');
-    }
-    if (newName.length > 80) {
-      throw new Error('O nome não pode exceder 80 caracteres.');
-    }
-
+  async updateProfileDetails(
+    userId: string,
+    data: { name?: string; bio?: string; avatarUrl?: string | null }
+  ): Promise<User> {
     const users = await this.getUsers();
     const index = users.findIndex((u) => u.id === userId);
     if (index === -1) throw new Error('Usuário não encontrado.');
 
-    const updatedUser: User = {
-      ...users[index],
-      name: newName.trim(),
-      updatedAt: new Date().toISOString(),
-    };
+    let newName = users[index].name;
+    if (data.name !== undefined) {
+      const sanitizedName = data.name.replace(/\s+/g, ' ').trim();
+      if (!sanitizedName || sanitizedName.length < 2) {
+        throw new Error('O nome deve ter pelo menos 2 caracteres.');
+      }
+      if (sanitizedName.length > 80) {
+        throw new Error('O nome não pode exceder 80 caracteres.');
+      }
+      newName = sanitizedName;
+    }
 
-    users[index] = updatedUser;
-    await this.saveUsers(users);
+    let newBio = users[index].bio;
+    if (data.bio !== undefined) {
+      // Sanitizar removendo tags HTML
+      const sanitizedBio = data.bio.replace(/<[^>]*>?/gm, '').trim();
+      if (sanitizedBio.length > 180) {
+        throw new Error('A biografia não pode exceder 180 caracteres.');
+      }
+      newBio = sanitizedBio || undefined;
+    }
 
-    await this.logSecurityEvent(userId, 'profile_update', 'Nome de perfil atualizado.');
-    return updatedUser;
-  }
-
-  async updateAvatar(userId: string, avatarUrl: string | null): Promise<User> {
-    if (avatarUrl) {
-      // Validate file extension/type (no user SVGs for security)
-      const isAllowed = /\.(jpeg|jpg|png|webp)($|\?)/i.test(avatarUrl) || avatarUrl.startsWith('data:image/');
-      if (!isAllowed) {
-        throw new Error('Formato de imagem não suportado. Utilize JPEG, PNG ou WebP.');
+    let newAvatarUrl = users[index].avatarUrl;
+    if (data.avatarUrl !== undefined) {
+      if (data.avatarUrl) {
+        const isAllowed =
+          /\.(jpeg|jpg|png|webp)($|\?)/i.test(data.avatarUrl) ||
+          data.avatarUrl.startsWith('data:image/') ||
+          data.avatarUrl.startsWith('http');
+        if (!isAllowed) {
+          throw new Error('Formato de imagem não suportado. Utilize JPEG, PNG ou WebP.');
+        }
+        newAvatarUrl = data.avatarUrl;
+      } else {
+        newAvatarUrl = undefined;
       }
     }
 
-    const users = await this.getUsers();
-    const index = users.findIndex((u) => u.id === userId);
-    if (index === -1) throw new Error('Usuário não encontrado.');
-
     const updatedUser: User = {
       ...users[index],
-      avatarUrl: avatarUrl || undefined,
+      name: newName,
+      bio: newBio,
+      avatarUrl: newAvatarUrl,
       updatedAt: new Date().toISOString(),
     };
 
     users[index] = updatedUser;
     await this.saveUsers(users);
+    await this.logSecurityEvent(userId, 'profile_update', 'Perfil atualizado com sucesso.');
     return updatedUser;
   }
+
+  async updateProfileName(userId: string, newName: string): Promise<User> {
+    return this.updateProfileDetails(userId, { name: newName });
+  }
+
+  async updateAvatar(userId: string, avatarUrl: string | null): Promise<User> {
+    return this.updateProfileDetails(userId, { avatarUrl });
+  }
+
 
   /**
    * 2. Email Change (Two-Step Verification)

@@ -1,23 +1,23 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   Modal,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
   ScrollView,
 } from 'react-native';
 import {
   X,
   KeyRound,
-  Mail,
   Eye,
   EyeOff,
-  ShieldCheck,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
-import { AppButton } from '../ui/AppButton';
-import { AppInput } from '../ui/AppInput';
 import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/user/userService';
 import { supabaseAuthService } from '../../services/auth/supabaseAuthService';
@@ -27,76 +27,111 @@ import { validatePasswordStrength } from '../../utils/security';
 export interface SecurityAccessModalProps {
   visible: boolean;
   onClose: () => void;
+  onRevokeOthers?: () => Promise<void>;
 }
 
 export const SecurityAccessModal: React.FC<SecurityAccessModalProps> = ({
   visible,
   onClose,
+  onRevokeOthers,
 }) => {
   const { user } = useAuth();
   const { colors, isDark } = useTheme();
   const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'password' | 'email'>('password');
-
-  // Password state
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPasswords, setShowPasswords] = useState(false);
-  const [isSavingPassword, setIsSavingPassword] = useState(false);
 
-  // Email state
-  const [newEmail, setNewEmail] = useState('');
-  const [emailPassword, setEmailPassword] = useState('');
-  const [isRequestingEmail, setIsRequestingEmail] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const [currentPasswordError, setCurrentPasswordError] = useState<string | null>(null);
+  const [newPasswordError, setNewPasswordError] = useState<string | null>(null);
+  const [confirmPasswordError, setConfirmPasswordError] = useState<string | null>(null);
+  const [generalError, setGeneralError] = useState<string | null>(null);
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [passwordChangedSuccess, setPasswordChangedSuccess] = useState(false);
 
   if (!visible) return null;
 
-  const passwordStrength = validatePasswordStrength(newPassword);
+  const handleClose = () => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setCurrentPasswordError(null);
+    setNewPasswordError(null);
+    setConfirmPasswordError(null);
+    setGeneralError(null);
+    setPasswordChangedSuccess(false);
+    onClose();
+  };
 
   const handleChangePassword = async () => {
-    if (!user) return;
-    if (newPassword !== confirmPassword) {
-      showToast({ message: 'A nova senha e a confirmação não coincidem.', type: 'error' });
-      return;
+    if (isSaving) return;
+
+    setCurrentPasswordError(null);
+    setNewPasswordError(null);
+    setConfirmPasswordError(null);
+    setGeneralError(null);
+
+    let hasError = false;
+
+    if (!currentPassword) {
+      setCurrentPasswordError('Informe a sua senha atual.');
+      hasError = true;
     }
 
-    if (!passwordStrength.isValid) {
-      showToast({ message: passwordStrength.errors[0] || 'Senha não atende aos requisitos.', type: 'error' });
-      return;
+    if (!newPassword) {
+      setNewPasswordError('Informe a nova senha.');
+      hasError = true;
+    } else {
+      if (newPassword.length < 8) {
+        setNewPasswordError('A nova senha deve ter no mínimo 8 caracteres.');
+        hasError = true;
+      } else {
+        const hasLetter = /[a-zA-Z]/.test(newPassword);
+        const hasNumber = /[0-9]/.test(newPassword);
+        if (!hasLetter || !hasNumber) {
+          setNewPasswordError('A nova senha deve conter letras e números.');
+          hasError = true;
+        } else if (currentPassword && newPassword === currentPassword) {
+          setNewPasswordError('A nova senha não pode ser igual à senha atual.');
+          hasError = true;
+        }
+      }
     }
+
+    if (!confirmPassword) {
+      setConfirmPasswordError('Confirme a nova senha.');
+      hasError = true;
+    } else if (newPassword && confirmPassword !== newPassword) {
+      setConfirmPasswordError('A confirmação não coincide com a nova senha.');
+      hasError = true;
+    }
+
+    if (hasError) return;
 
     try {
-      setIsSavingPassword(true);
-      const res = await supabaseAuthService.updatePassword(newPassword);
-      if (!res.success) throw new Error(res.message);
+      setIsSaving(true);
+      if (user?.id) {
+        await userService.changePassword(user.id, currentPassword, newPassword);
+      } else {
+        const res = await supabaseAuthService.updatePassword(newPassword);
+        if (!res.success) throw new Error(res.message);
+      }
+
+      showToast({ message: 'Senha alterada com sucesso', type: 'success' });
+      setPasswordChangedSuccess(true);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      showToast({ message: res.message, type: 'success' });
-      onClose();
     } catch (err: any) {
-      showToast({ message: err.message || 'Erro ao alterar senha.', type: 'error' });
+      setGeneralError(err.message || 'Erro ao alterar senha. Verifique sua senha atual.');
     } finally {
-      setIsSavingPassword(false);
-    }
-  };
-
-  const handleRequestEmail = async () => {
-    if (!user || !newEmail.trim()) return;
-    try {
-      setIsRequestingEmail(true);
-      const res = await supabaseAuthService.updateEmail(newEmail.trim());
-      if (!res.success) throw new Error(res.message);
-      setNewEmail('');
-      setEmailPassword('');
-      showToast({ message: res.message, type: 'info' });
-      onClose();
-    } catch (err: any) {
-      showToast({ message: err.message || 'Erro ao solicitar alteração de e-mail.', type: 'error' });
-    } finally {
-      setIsRequestingEmail(false);
+      setIsSaving(false);
     }
   };
 
@@ -105,207 +140,249 @@ export const SecurityAccessModal: React.FC<SecurityAccessModalProps> = ({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onClose}
-      accessibilityViewIsModal
+      onRequestClose={handleClose}
     >
       <View style={styles.overlay}>
         <View
           style={[
-            styles.modalCard,
+            styles.card,
             {
               backgroundColor: isDark ? colors.surface : '#FFFFFF',
-              borderColor: colors.border,
+              borderColor: isDark ? colors.border : '#E0E5E2',
             },
           ]}
         >
-          {/* Header */}
-          <View style={styles.headerRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.title, { color: '#173D3B' }]}>Segurança e acesso</Text>
-              <Text style={[styles.subtitle, { color: '#667775' }]}>
-                Gerencie sua senha e credenciais de acesso
+          {/* Cabeçalho */}
+          <View style={styles.header}>
+            <View style={styles.titleRow}>
+              <KeyRound size={20} color="#247B74" strokeWidth={1.75} style={{ marginRight: 8 }} />
+              <Text
+                accessibilityRole="header"
+                aria-level={2}
+                style={[styles.title, { color: isDark ? colors.text : '#1F2927' }]}
+              >
+                Senha e acesso
               </Text>
             </View>
             <TouchableOpacity
-              onPress={onClose}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={handleClose}
               accessibilityRole="button"
-              accessibilityLabel="Fechar modal"
+              accessibilityLabel="Fechar janela"
+              style={styles.closeBtn}
             >
-              <X size={20} color="#8C9E9B" />
+              <X size={20} color={isDark ? colors.text : '#1F2927'} strokeWidth={1.75} />
             </TouchableOpacity>
           </View>
 
-          {/* Sub-tabs: Alterar Senha / Alterar E-mail */}
-          <View
-            style={[
-              styles.tabSelectorRow,
-              { backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5' },
-            ]}
-          >
-            <TouchableOpacity
-              onPress={() => setActiveTab('password')}
-              style={[
-                styles.tabBtn,
-                activeTab === 'password' && [
-                  styles.tabBtnActive,
-                  { backgroundColor: isDark ? colors.surface : '#FFFFFF' },
-                ],
-              ]}
-            >
-              <Text
-                style={[
-                  styles.tabBtnText,
-                  {
-                    color: activeTab === 'password' ? '#2F7F7C' : '#667775',
-                    fontWeight: activeTab === 'password' ? '700' : '500',
-                  },
-                ]}
-              >
-                Alterar Senha
+          {passwordChangedSuccess ? (
+            <View style={styles.successContainer}>
+              <CheckCircle2 size={48} color="#247B74" strokeWidth={1.75} style={{ marginBottom: 12 }} />
+              <Text style={[styles.successTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+                Senha alterada com sucesso
               </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setActiveTab('email')}
-              style={[
-                styles.tabBtn,
-                activeTab === 'email' && [
-                  styles.tabBtnActive,
-                  { backgroundColor: isDark ? colors.surface : '#FFFFFF' },
-                ],
-              ]}
-            >
-              <Text
-                style={[
-                  styles.tabBtnText,
-                  {
-                    color: activeTab === 'email' ? '#2F7F7C' : '#667775',
-                    fontWeight: activeTab === 'email' ? '700' : '500',
-                  },
-                ]}
-              >
-                Alterar E-mail
+              <Text style={[styles.successDesc, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                Sua credencial de acesso foi atualizada com segurança.
               </Text>
-            </TouchableOpacity>
-          </View>
 
-          <ScrollView style={{ maxHeight: 360 }}>
-            {activeTab === 'password' ? (
-              <View style={{ gap: 4 }}>
-                <AppInput
-                  label="Senha Atual"
-                  value={currentPassword}
-                  onChangeText={setCurrentPassword}
-                  secureTextEntry={!showPasswords}
-                  placeholder="Digite sua senha atual"
-                />
+              {onRevokeOthers && (
+                <TouchableOpacity
+                  onPress={async () => {
+                    await onRevokeOthers();
+                    handleClose();
+                  }}
+                  style={[styles.revokeOthersBtn, { borderColor: '#247B74' }]}
+                >
+                  <Text style={styles.revokeOthersBtnText}>Desconectar outras sessões ativas</Text>
+                </TouchableOpacity>
+              )}
 
-                <AppInput
-                  label="Nova Senha (mínimo 10 caracteres)"
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  secureTextEntry={!showPasswords}
-                  placeholder="Digite a nova senha segura"
-                />
+              <TouchableOpacity
+                onPress={handleClose}
+                style={styles.doneBtn}
+              >
+                <Text style={styles.doneBtnText}>Concluir</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <ScrollView style={{ maxHeight: 480 }} showsVerticalScrollIndicator={false}>
+              <Text style={[styles.subtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                Para sua segurança, informe sua senha atual antes de definir uma nova senha.
+              </Text>
 
-                {/* Medidor de força da senha em tempo real */}
-                {newPassword.length > 0 && (
-                  <View style={styles.strengthWrap}>
-                    <View style={styles.strengthBarRow}>
-                      {[1, 2, 3, 4].map((step) => (
-                        <View
-                          key={step}
-                          style={[
-                            styles.strengthSegment,
-                            {
-                              backgroundColor:
-                                step <= passwordStrength.score
-                                  ? passwordStrength.score >= 3
-                                    ? '#2F7F7C'
-                                    : '#D98968'
-                                  : '#E2E8F0',
-                            },
-                          ]}
-                        />
-                      ))}
-                    </View>
-                    <Text
-                      style={[
-                        styles.strengthLabel,
-                        {
-                          color:
-                            passwordStrength.score >= 3 ? '#2F7F7C' : '#D98968',
-                        },
-                      ]}
-                    >
-                      {passwordStrength.score >= 3
-                        ? 'Senha forte e segura'
-                        : 'Senha fraca ou incompleta'}
-                    </Text>
+              {generalError && (
+                <View style={styles.generalErrorBanner}>
+                  <AlertCircle size={16} color="#C84E45" style={{ marginRight: 6 }} />
+                  <Text style={styles.generalErrorText}>{generalError}</Text>
+                </View>
+              )}
+
+              {/* 1. Senha atual */}
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: isDark ? colors.text : '#1F2927' }]}>
+                  Senha atual <Text style={{ color: '#C84E45' }}>*</Text>
+                </Text>
+                <View
+                  style={[
+                    styles.inputContainer,
+                    {
+                      borderColor: currentPasswordError ? '#C84E45' : isDark ? colors.border : '#DFE4E1',
+                      backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
+                    },
+                  ]}
+                >
+                  <TextInput
+                    value={currentPassword}
+                    onChangeText={(val) => {
+                      setCurrentPassword(val);
+                      if (currentPasswordError) setCurrentPasswordError(null);
+                      if (generalError) setGeneralError(null);
+                    }}
+                    placeholder="Digite sua senha atual"
+                    placeholderTextColor="#8F9B97"
+                    secureTextEntry={!showCurrentPassword}
+                    style={[styles.textInput, { color: isDark ? colors.text : '#1F2927' }]}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                    accessibilityRole="button"
+                    accessibilityLabel={showCurrentPassword ? 'Ocultar senha atual' : 'Mostrar senha atual'}
+                    style={styles.eyeBtn}
+                  >
+                    {showCurrentPassword ? (
+                      <EyeOff size={18} color="#68736F" strokeWidth={1.75} />
+                    ) : (
+                      <Eye size={18} color="#68736F" strokeWidth={1.75} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+                {currentPasswordError && (
+                  <View style={styles.errorRow}>
+                    <AlertCircle size={14} color="#C84E45" style={{ marginRight: 4 }} />
+                    <Text style={styles.fieldErrorText}>{currentPasswordError}</Text>
                   </View>
                 )}
+              </View>
 
-                <AppInput
-                  label="Confirmar Nova Senha"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={!showPasswords}
-                  placeholder="Repita a nova senha"
-                />
-
-                <TouchableOpacity
-                  onPress={() => setShowPasswords(!showPasswords)}
-                  style={styles.showPassRow}
+              {/* 2. Nova senha */}
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: isDark ? colors.text : '#1F2927' }]}>
+                  Nova senha <Text style={{ color: '#C84E45' }}>*</Text>
+                </Text>
+                <View
+                  style={[
+                    styles.inputContainer,
+                    {
+                      borderColor: newPasswordError ? '#C84E45' : isDark ? colors.border : '#DFE4E1',
+                      backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
+                    },
+                  ]}
                 >
-                  {showPasswords ? <EyeOff size={14} color="#8C9E9B" /> : <Eye size={14} color="#8C9E9B" />}
-                  <Text style={[styles.showPassText, { color: '#667775' }]}>
-                    {showPasswords ? 'Ocultar senhas' : 'Exibir senhas'}
+                  <TextInput
+                    value={newPassword}
+                    onChangeText={(val) => {
+                      setNewPassword(val);
+                      if (newPasswordError) setNewPasswordError(null);
+                      if (generalError) setGeneralError(null);
+                    }}
+                    placeholder="Mínimo 8 caracteres (letras e números)"
+                    placeholderTextColor="#8F9B97"
+                    secureTextEntry={!showNewPassword}
+                    style={[styles.textInput, { color: isDark ? colors.text : '#1F2927' }]}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowNewPassword(!showNewPassword)}
+                    accessibilityRole="button"
+                    accessibilityLabel={showNewPassword ? 'Ocultar nova senha' : 'Mostrar nova senha'}
+                    style={styles.eyeBtn}
+                  >
+                    {showNewPassword ? (
+                      <EyeOff size={18} color="#68736F" strokeWidth={1.75} />
+                    ) : (
+                      <Eye size={18} color="#68736F" strokeWidth={1.75} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+                {newPasswordError && (
+                  <View style={styles.errorRow}>
+                    <AlertCircle size={14} color="#C84E45" style={{ marginRight: 4 }} />
+                    <Text style={styles.fieldErrorText}>{newPasswordError}</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* 3. Confirmar nova senha */}
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.fieldLabel, { color: isDark ? colors.text : '#1F2927' }]}>
+                  Confirmar nova senha <Text style={{ color: '#C84E45' }}>*</Text>
+                </Text>
+                <View
+                  style={[
+                    styles.inputContainer,
+                    {
+                      borderColor: confirmPasswordError ? '#C84E45' : isDark ? colors.border : '#DFE4E1',
+                      backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
+                    },
+                  ]}
+                >
+                  <TextInput
+                    value={confirmPassword}
+                    onChangeText={(val) => {
+                      setConfirmPassword(val);
+                      if (confirmPasswordError) setConfirmPasswordError(null);
+                      if (generalError) setGeneralError(null);
+                    }}
+                    placeholder="Repita a nova senha"
+                    placeholderTextColor="#8F9B97"
+                    secureTextEntry={!showConfirmPassword}
+                    style={[styles.textInput, { color: isDark ? colors.text : '#1F2927' }]}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    accessibilityRole="button"
+                    accessibilityLabel={showConfirmPassword ? 'Ocultar confirmação de senha' : 'Mostrar confirmação de senha'}
+                    style={styles.eyeBtn}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff size={18} color="#68736F" strokeWidth={1.75} />
+                    ) : (
+                      <Eye size={18} color="#68736F" strokeWidth={1.75} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+                {confirmPasswordError && (
+                  <View style={styles.errorRow}>
+                    <AlertCircle size={14} color="#C84E45" style={{ marginRight: 4 }} />
+                    <Text style={styles.fieldErrorText}>{confirmPasswordError}</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Botões */}
+              <View style={styles.footerRow}>
+                <TouchableOpacity
+                  onPress={handleClose}
+                  disabled={isSaving}
+                  style={[styles.cancelBtn, { borderColor: isDark ? colors.border : '#E0E5E2' }]}
+                >
+                  <Text style={[styles.cancelBtnText, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                    Cancelar
                   </Text>
                 </TouchableOpacity>
 
-                <AppButton
-                  title="Atualizar Senha"
-                  size="md"
-                  isLoading={isSavingPassword}
-                  disabled={!newPassword || !confirmPassword || !passwordStrength.isValid}
+                <TouchableOpacity
                   onPress={handleChangePassword}
-                  style={{ marginTop: 10 }}
-                />
+                  disabled={isSaving}
+                  style={[styles.saveBtn, isSaving && { opacity: 0.7 }]}
+                >
+                  {isSaving ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.saveBtnText}>Alterar senha</Text>
+                  )}
+                </TouchableOpacity>
               </View>
-            ) : (
-              <View style={{ gap: 4 }}>
-                <Text style={[styles.emailNoticeText, { color: '#667775' }]}>
-                  Enviaremos um link de confirmação para o novo endereço de e-mail antes de efetivar a troca.
-                </Text>
-
-                <AppInput
-                  label="Novo Endereço de E-mail"
-                  value={newEmail}
-                  onChangeText={setNewEmail}
-                  placeholder="novo.email@exemplo.com"
-                  keyboardType="email-address"
-                />
-
-                <AppInput
-                  label="Sua Senha Atual"
-                  value={emailPassword}
-                  onChangeText={setEmailPassword}
-                  secureTextEntry
-                  placeholder="Confirme com sua senha atual"
-                />
-
-                <AppButton
-                  title="Solicitar Troca de E-mail"
-                  size="md"
-                  isLoading={isRequestingEmail}
-                  disabled={!newEmail.trim()}
-                  onPress={handleRequestEmail}
-                  style={{ marginTop: 10 }}
-                />
-              </View>
-            )}
-          </ScrollView>
+            </ScrollView>
+          )}
         </View>
       </View>
     </Modal>
@@ -315,88 +392,157 @@ export const SecurityAccessModal: React.FC<SecurityAccessModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(23, 61, 59, 0.55)',
-    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     alignItems: 'center',
-    padding: 18,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 440,
-    borderRadius: 20,
+    justifyContent: 'center',
     padding: 20,
-    borderWidth: 1,
-    shadowColor: '#173D3B',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    elevation: 8,
   },
-  headerRow: {
+  card: {
+    width: '100%',
+    maxWidth: 480,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+  },
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 12,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   title: {
     fontSize: 18,
-    fontWeight: '800',
-  },
-  subtitle: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  tabSelectorRow: {
-    flexDirection: 'row',
-    borderRadius: 10,
-    padding: 3,
-    marginBottom: 14,
-  },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-  },
-  tabBtnActive: {
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  tabBtnText: {
-    fontSize: 12,
-  },
-  strengthWrap: {
-    marginVertical: 4,
-    gap: 4,
-  },
-  strengthBarRow: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  strengthSegment: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-  },
-  strengthLabel: {
-    fontSize: 11,
     fontWeight: '600',
   },
-  showPassRow: {
+  closeBtn: {
+    padding: 4,
+  },
+  subtitle: {
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 16,
+  },
+  generalErrorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 4,
+    backgroundColor: '#FDEDEC',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 14,
   },
-  showPassText: {
-    fontSize: 12,
+  generalErrorText: {
+    fontSize: 13,
+    color: '#C84E45',
+    flex: 1,
   },
-  emailNoticeText: {
+  fieldGroup: {
+    marginBottom: 14,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 6,
+  },
+  inputContainer: {
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 14,
+    height: '100%',
+  },
+  eyeBtn: {
+    padding: 4,
+  },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  fieldErrorText: {
     fontSize: 12,
-    lineHeight: 17,
-    marginBottom: 8,
+    color: '#C84E45',
+  },
+  footerRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtnText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  saveBtn: {
+    flex: 1.4,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#247B74',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  successContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  successTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  successDesc: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 20,
+  },
+  revokeOthersBtn: {
+    height: 42,
+    borderWidth: 1,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    width: '100%',
+  },
+  revokeOthersBtnText: {
+    color: '#247B74',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  doneBtn: {
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#247B74',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  doneBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

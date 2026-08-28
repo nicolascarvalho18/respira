@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  TextInput,
+  Image,
   Platform,
+  ActivityIndicator,
+  ScrollView,
 } from 'react-native';
-import { X, User as UserIcon, Mail } from 'lucide-react-native';
+import { X, Camera, Trash2, Upload, AlertCircle } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
-import { AppButton } from '../ui/AppButton';
-import { AppInput } from '../ui/AppInput';
 import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/user/userService';
 import { useToast } from '../ui/Toast';
@@ -27,21 +29,102 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const { user, updateUser } = useAuth();
   const { colors, isDark } = useTheme();
   const { showToast } = useToast();
+  const fileInputRef = useRef<any>(null);
 
   const [name, setName] = useState(user?.name || '');
+  const [bio, setBio] = useState(user?.bio || '');
+  const [avatarUri, setAvatarUri] = useState<string | null>(user?.avatarUrl || null);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [bioError, setBioError] = useState<string | null>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      setName(user.name);
+    if (visible && user) {
+      setName(user.name || '');
+      setBio(user.bio || '');
+      setAvatarUri(user.avatarUrl || null);
+      setNameError(null);
+      setBioError(null);
+      setAvatarError(null);
     }
-  }, [user]);
+  }, [visible, user]);
 
-  if (!visible) return null;
+  const initials = name
+    ? name
+        .trim()
+        .split(' ')
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : user?.name
+    ? user.name
+        .trim()
+        .split(' ')
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : 'N';
+
+  const handleFileChange = (event: any) => {
+    setAvatarError(null);
+    const file = event.target?.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setAvatarError('Formato inválido. Use JPG, PNG ou WebP.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError('O arquivo deve ter no máximo 5MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setAvatarUri(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleTriggerUpload = () => {
+    if (Platform.OS === 'web') {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarUri(null);
+    setAvatarError(null);
+  };
 
   const handleSave = async () => {
-    if (!name.trim() || name.trim().length < 2) {
-      showToast({ message: 'O nome deve ter pelo menos 2 caracteres.', type: 'error' });
+    if (isSaving) return;
+
+    setNameError(null);
+    setBioError(null);
+    setAvatarError(null);
+
+    const sanitizedName = name.replace(/\s+/g, ' ').trim();
+    if (!sanitizedName || sanitizedName.length < 2) {
+      setNameError('O nome deve ter pelo menos 2 caracteres.');
+      return;
+    }
+
+    if (sanitizedName.length > 80) {
+      setNameError('O nome não pode exceder 80 caracteres.');
+      return;
+    }
+
+    const sanitizedBio = bio.replace(/<[^>]*>?/gm, '').trim();
+    if (sanitizedBio.length > 180) {
+      setBioError('A biografia não pode exceder 180 caracteres.');
       return;
     }
 
@@ -49,18 +132,28 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
     try {
       setIsSaving(true);
-      const updated = await userService.updateProfile(user.id, { name: name.trim() });
-      await updateUser({ name: updated.name });
-      showToast({ message: 'Perfil atualizado com sucesso.', type: 'success' });
+      const updated = await userService.updateProfile(user.id, {
+        name: sanitizedName,
+        bio: sanitizedBio || undefined,
+        avatarUrl: avatarUri || undefined,
+      });
+
+      await updateUser({
+        name: updated.name,
+        bio: updated.bio,
+        avatarUrl: updated.avatarUrl,
+      });
+
+      showToast({ message: 'Alterações salvas', type: 'success' });
       onClose();
     } catch (err: any) {
-      showToast({ message: err.message || 'Erro ao atualizar perfil.', type: 'error' });
+      showToast({ message: err.message || 'Erro ao salvar alterações.', type: 'error' });
     } finally {
       setIsSaving(false);
     }
   };
 
-  const userEmail = user?.email || '';
+  if (!visible) return null;
 
   return (
     <Modal
@@ -68,76 +161,208 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       transparent
       animationType="fade"
       onRequestClose={onClose}
-      accessibilityViewIsModal
     >
       <View style={styles.overlay}>
         <View
           style={[
-            styles.modalCard,
+            styles.card,
             {
               backgroundColor: isDark ? colors.surface : '#FFFFFF',
-              borderColor: colors.border,
+              borderColor: isDark ? colors.border : '#E0E5E2',
             },
           ]}
         >
-          {/* Header */}
-          <View style={styles.headerRow}>
+          {/* Cabeçalho */}
+          <View style={styles.header}>
             <Text
               accessibilityRole="header"
               aria-level={2}
-              style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}
+              style={[styles.title, { color: isDark ? colors.text : '#1F2927' }]}
             >
-              Editar Perfil
+              Editar perfil
             </Text>
             <TouchableOpacity
               onPress={onClose}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
-              accessibilityLabel="Fechar modal de edição de perfil"
-              {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
+              accessibilityLabel="Fechar janela"
+              style={styles.closeBtn}
             >
-              <X size={20} color="#8C9E9B" />
+              <X size={20} color={isDark ? colors.text : '#1F2927'} strokeWidth={1.75} />
             </TouchableOpacity>
           </View>
 
-          {/* Nome */}
-          <AppInput
-            label="Nome Completo"
-            value={name}
-            onChangeText={setName}
-            placeholder="Digite seu nome"
-            autoFocus
-          />
+          <ScrollView style={{ maxHeight: 520 }} showsVerticalScrollIndicator={false}>
+            {/* 1. Foto de perfil */}
+            <View style={styles.avatarSection}>
+              <View style={styles.avatarPreviewWrap}>
+                {avatarUri ? (
+                  <Image
+                    source={{ uri: avatarUri }}
+                    accessibilityLabel={`Foto de perfil de ${name}`}
+                    style={styles.avatarImage}
+                  />
+                ) : (
+                  <View style={[styles.avatarInitials, { backgroundColor: isDark ? '#1C3833' : '#EDF7F5' }]}>
+                    <Text style={styles.avatarInitialsText}>{initials}</Text>
+                  </View>
+                )}
+              </View>
 
-          {/* E-mail Real da Sessão (Informativo / não editável aqui) */}
-          <AppInput
-            label="E-mail"
-            value={userEmail}
-            editable={false}
-            readOnly={true}
-            placeholder="E-mail não informado"
-            helperText="Para alterar seu e-mail, acesse Segurança e acesso."
-          />
+              {Platform.OS === 'web' && (
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  style={{ display: 'none' }}
+                  onChange={handleFileChange}
+                />
+              )}
 
-          {/* Ações */}
-          <View style={styles.actionsRow}>
-            <View style={{ flex: 1, marginRight: 8 }}>
-              <AppButton
-                title="Cancelar"
-                variant="outline"
-                size="md"
-                onPress={onClose}
-                disabled={isSaving}
-              />
+              <View style={styles.avatarButtonsRow}>
+                <TouchableOpacity
+                  onPress={handleTriggerUpload}
+                  accessibilityRole="button"
+                  accessibilityLabel="Escolher nova foto"
+                  style={[styles.avatarActionBtn, { borderColor: '#247B74' }]}
+                >
+                  <Upload size={14} color="#247B74" strokeWidth={1.75} style={{ marginRight: 4 }} />
+                  <Text style={styles.avatarActionText}>Escolher foto</Text>
+                </TouchableOpacity>
+
+                {avatarUri && (
+                  <TouchableOpacity
+                    onPress={handleRemoveAvatar}
+                    accessibilityRole="button"
+                    accessibilityLabel="Remover foto"
+                    style={[styles.avatarActionBtn, { borderColor: '#E0E5E2' }]}
+                  >
+                    <Trash2 size={14} color="#C84E45" strokeWidth={1.75} style={{ marginRight: 4 }} />
+                    <Text style={[styles.avatarActionText, { color: '#C84E45' }]}>Remover</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {avatarError && (
+                <Text style={styles.fieldError}>{avatarError}</Text>
+              )}
             </View>
-            <View style={{ flex: 1, marginLeft: 8 }}>
-              <AppButton
-                title="Salvar"
-                size="md"
-                isLoading={isSaving}
-                onPress={handleSave}
+
+            {/* 2. Nome Completo */}
+            <View style={styles.fieldGroup}>
+              <Text style={[styles.fieldLabel, { color: isDark ? colors.text : '#1F2927' }]}>
+                Nome completo <Text style={{ color: '#C84E45' }}>*</Text>
+              </Text>
+              <TextInput
+                value={name}
+                onChangeText={(val) => {
+                  setName(val);
+                  if (nameError) setNameError(null);
+                }}
+                maxLength={80}
+                placeholder="Seu nome completo"
+                placeholderTextColor="#8F9B97"
+                style={[
+                  styles.textInput,
+                  {
+                    color: isDark ? colors.text : '#1F2927',
+                    borderColor: nameError ? '#C84E45' : isDark ? colors.border : '#DFE4E1',
+                    backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
+                  },
+                ]}
               />
+              {nameError && (
+                <View style={styles.errorRow}>
+                  <AlertCircle size={14} color="#C84E45" style={{ marginRight: 4 }} />
+                  <Text style={styles.fieldError}>{nameError}</Text>
+                </View>
+              )}
             </View>
+
+            {/* 3. Biografia com contador */}
+            <View style={styles.fieldGroup}>
+              <View style={styles.labelRow}>
+                <Text style={[styles.fieldLabel, { color: isDark ? colors.text : '#1F2927' }]}>
+                  Biografia
+                </Text>
+                <Text style={[styles.charCounter, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                  {bio.length}/180
+                </Text>
+              </View>
+              <TextInput
+                value={bio}
+                onChangeText={(val) => {
+                  setBio(val);
+                  if (bioError) setBioError(null);
+                }}
+                maxLength={180}
+                multiline
+                numberOfLines={3}
+                placeholder="Conte um pouco sobre você."
+                placeholderTextColor="#8F9B97"
+                style={[
+                  styles.textAreaInput,
+                  {
+                    color: isDark ? colors.text : '#1F2927',
+                    borderColor: bioError ? '#C84E45' : isDark ? colors.border : '#DFE4E1',
+                    backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
+                  },
+                ]}
+              />
+              {bioError && (
+                <View style={styles.errorRow}>
+                  <AlertCircle size={14} color="#C84E45" style={{ marginRight: 4 }} />
+                  <Text style={styles.fieldError}>{bioError}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* 4. E-mail (Apenas para visualização) */}
+            <View style={styles.fieldGroup}>
+              <Text style={[styles.fieldLabel, { color: isDark ? colors.text : '#1F2927' }]}>
+                E-mail (apenas visualização)
+              </Text>
+              <TextInput
+                value={user?.email || ''}
+                editable={false}
+                style={[
+                  styles.textInput,
+                  styles.readOnlyInput,
+                  {
+                    color: isDark ? colors.textMuted : '#68736F',
+                    borderColor: isDark ? colors.border : '#E0E5E2',
+                    backgroundColor: isDark ? '#1C2624' : '#F7F8F5',
+                  },
+                ]}
+              />
+              <Text style={[styles.helperText, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                O e-mail é vinculado à sua autenticação e não pode ser alterado por aqui.
+              </Text>
+            </View>
+          </ScrollView>
+
+          {/* Botões de Ação */}
+          <View style={styles.footerRow}>
+            <TouchableOpacity
+              onPress={onClose}
+              disabled={isSaving}
+              style={[styles.cancelBtn, { borderColor: isDark ? colors.border : '#E0E5E2' }]}
+            >
+              <Text style={[styles.cancelBtnText, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                Cancelar
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleSave}
+              disabled={isSaving}
+              style={[styles.saveBtn, isSaving && { opacity: 0.7 }]}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.saveBtnText}>Salvar alterações</Text>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -148,24 +373,19 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(23, 61, 59, 0.55)',
-    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     alignItems: 'center',
-    padding: 18,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 420,
-    borderRadius: 20,
+    justifyContent: 'center',
     padding: 20,
-    borderWidth: 1,
-    shadowColor: '#173D3B',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    elevation: 8,
   },
-  headerRow: {
+  card: {
+    width: '100%',
+    maxWidth: 480,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+  },
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -173,11 +393,135 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '600',
   },
-  actionsRow: {
+  closeBtn: {
+    padding: 4,
+  },
+  avatarSection: {
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  avatarPreviewWrap: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  avatarImage: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+  },
+  avatarInitials: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#247B74',
+  },
+  avatarInitialsText: {
+    fontSize: 26,
+    fontWeight: '600',
+    color: '#247B74',
+  },
+  avatarButtonsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  avatarActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  avatarActionText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#247B74',
+  },
+  fieldGroup: {
+    marginBottom: 16,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 6,
+  },
+  charCounter: {
+    fontSize: 12,
+  },
+  textInput: {
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    fontSize: 14,
+  },
+  textAreaInput: {
+    minHeight: 74,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    textAlignVertical: 'top',
+  },
+  readOnlyInput: {
+    opacity: 0.85,
+  },
+  helperText: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  fieldError: {
+    fontSize: 12,
+    color: '#C84E45',
+  },
+  footerRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtnText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  saveBtn: {
+    flex: 1.4,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#247B74',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

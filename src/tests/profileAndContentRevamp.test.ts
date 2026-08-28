@@ -168,4 +168,108 @@ describe('Perfil e Conteúdos — Validação e Testes Obrigatórios', () => {
       expect(state.selectedFilter).toBe('all');
     });
   });
+
+  describe('3. Funcionalidades do Perfil — Validação e Regras de Negócio', () => {
+    const testUserId = 'user-test-profile-1';
+
+    beforeEach(async () => {
+      // Mock inicial
+      const { userAccountService } = require('../server/services/userAccountService');
+      const { storage } = require('../services/storage/asyncStorage');
+      await storage.setItem('respira_users_db', [
+        {
+          id: testUserId,
+          name: 'Nicolas Carvalho',
+          email: 'nicolas@exemplo.com',
+          role: 'user',
+          isEmailVerified: true,
+          bio: 'Praticante de meditação',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ]);
+    });
+
+    it('deve atualizar nome completo removendo espaços duplicados', async () => {
+      const { userAccountService } = require('../server/services/userAccountService');
+      const updated = await userAccountService.updateProfileDetails(testUserId, {
+        name: '  Nicolas    Silva   Carvalho  ',
+      });
+
+      expect(updated.name).toBe('Nicolas Silva Carvalho');
+    });
+
+    it('deve rejeitar nome com menos de 2 caracteres ou mais de 80 caracteres', async () => {
+      const { userAccountService } = require('../server/services/userAccountService');
+      await expect(
+        userAccountService.updateProfileDetails(testUserId, { name: 'A' })
+      ).rejects.toThrow('pelo menos 2 caracteres');
+
+      await expect(
+        userAccountService.updateProfileDetails(testUserId, { name: 'A'.repeat(81) })
+      ).rejects.toThrow('não pode exceder 80 caracteres');
+    });
+
+    it('deve salvar e sanitizar biografia com limite de 180 caracteres', async () => {
+      const { userAccountService } = require('../server/services/userAccountService');
+      const updated = await userAccountService.updateProfileDetails(testUserId, {
+        bio: '<script>alert("xss")</script>Amante de caminhadas ao ar livre e respiração consciente.',
+      });
+
+      expect(updated.bio).not.toContain('<script>');
+      expect(updated.bio).toBe('alert("xss")Amante de caminhadas ao ar livre e respiração consciente.');
+
+      // Rejeita biografia maior que 180 chars
+      await expect(
+        userAccountService.updateProfileDetails(testUserId, { bio: 'A'.repeat(181) })
+      ).rejects.toThrow('não pode exceder 180 caracteres');
+    });
+
+    it('deve permitir atualizar e remover a foto de perfil', async () => {
+      const { userAccountService } = require('../server/services/userAccountService');
+      const withPhoto = await userAccountService.updateProfileDetails(testUserId, {
+        avatarUrl: 'https://exemplo.com/foto.jpg',
+      });
+      expect(withPhoto.avatarUrl).toBe('https://exemplo.com/foto.jpg');
+
+      const withoutPhoto = await userAccountService.updateProfileDetails(testUserId, {
+        avatarUrl: null,
+      });
+      expect(withoutPhoto.avatarUrl).toBeUndefined();
+    });
+
+    it('deve validar e alterar senha com sucesso', async () => {
+      const { userAccountService } = require('../server/services/userAccountService');
+      const res = await userAccountService.changePassword(
+        testUserId,
+        'SenhaAtual@123',
+        'NovaSenhaForte@2026'
+      );
+      expect(res.message).toContain('sucesso');
+
+      // Rejeita senha fraca
+      await expect(
+        userAccountService.changePassword(testUserId, 'SenhaAtual@123', '123')
+      ).rejects.toThrow();
+    });
+
+    it('deve listar sessões reais e permitir revogar sessões', async () => {
+      const { userAccountService } = require('../server/services/userAccountService');
+      const sessions = await userAccountService.getActiveSessions(testUserId);
+      expect(sessions.length).toBeGreaterThanOrEqual(1);
+
+      const afterRevoke = await userAccountService.revokeSession(testUserId, 'non-existent-session');
+      expect(afterRevoke).toBeDefined();
+    });
+
+    it('deve exigir confirmação exata "EXCLUIR MINHA CONTA" para exclusão', async () => {
+      const { userAccountService } = require('../server/services/userAccountService');
+      await expect(
+        userAccountService.requestAccountDeletion(testUserId, 'excluir')
+      ).rejects.toThrow('EXCLUIR MINHA CONTA');
+
+      const res = await userAccountService.requestAccountDeletion(testUserId, 'EXCLUIR MINHA CONTA');
+      expect(res.success).toBe(true);
+    });
+  });
 });
