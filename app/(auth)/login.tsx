@@ -39,14 +39,41 @@ export default function LoginScreen() {
     },
   });
 
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
+  const { resendCode } = useAuth();
+
   const onSubmit = async (data: LoginFormData) => {
     try {
       setFormError(null);
+      setUnconfirmedEmail(null);
       clearError();
-      await login(data);
+      const normalizedEmail = data.email.trim().toLowerCase();
+      await login({
+        email: normalizedEmail,
+        password: data.password,
+        rememberMe: data.rememberMe,
+      });
       router.replace('/(tabs)');
     } catch (err: any) {
-      setFormError(err.message || 'E-mail ou senha incorretos.');
+      if (err.isEmailNotConfirmed || (err.message && err.message.includes('não foi confirmado'))) {
+        setUnconfirmedEmail(data.email.trim().toLowerCase());
+        setFormError('Seu e-mail ainda não foi confirmado.');
+      } else {
+        setFormError(err.message || 'E-mail ou senha inválidos.');
+      }
+    }
+  };
+
+  const handleResendFromLogin = async () => {
+    if (!unconfirmedEmail) return;
+    try {
+      await resendCode(unconfirmedEmail);
+      router.push({
+        pathname: '/(auth)/confirmar-email',
+        params: { email: unconfirmedEmail },
+      } as any);
+    } catch (err: any) {
+      setFormError(err.message || 'Não foi possível reenviar o código.');
     }
   };
 
@@ -63,13 +90,56 @@ export default function LoginScreen() {
         </Text>
       </View>
 
-      {/* Mensagem de Erro Geral */}
+      {/* Mensagem de Erro Geral ou E-mail Não Confirmado */}
       {(formError || error) && (
         <View
-          style={[styles.errorBox, { backgroundColor: isDark ? '#3A1F1E' : '#FDF2F2' }]}
+          style={[
+            styles.errorBox,
+            { backgroundColor: isDark ? '#3A1F1E' : '#FDF2F2' },
+          ]}
           accessibilityRole="alert"
         >
-          <Text style={[styles.errorText, { color: colors.error }]}>{formError || error}</Text>
+          <Text style={[styles.errorText, { color: colors.error }]}>
+            {formError || error}
+          </Text>
+
+          {unconfirmedEmail && (
+            <View style={{ marginTop: 10, flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: '/(auth)/confirmar-email',
+                    params: { email: unconfirmedEmail },
+                  } as any)
+                }
+                style={{
+                  backgroundColor: '#176F69',
+                  paddingVertical: 6,
+                  paddingHorizontal: 12,
+                  borderRadius: 8,
+                }}
+              >
+                <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '600' }}>
+                  Confirmar agora
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleResendFromLogin}
+                style={{
+                  borderWidth: 1,
+                  borderColor: '#176F69',
+                  paddingVertical: 6,
+                  paddingHorizontal: 12,
+                  borderRadius: 8,
+                }}
+              >
+                <Text style={{ color: '#176F69', fontSize: 12, fontWeight: '600' }}>
+                  Reenviar código
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
 

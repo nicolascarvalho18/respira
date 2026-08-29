@@ -1,14 +1,15 @@
 import { create } from 'zustand';
 import { User } from '../types';
-import { authService, LoginCredentials, RegisterData } from '../services/auth/authService';
 import { supabaseAuthService, LogoutScope } from '../services/auth/supabaseAuthService';
 import { supabaseUserService } from '../services/user/supabaseUserService';
-import { isSupabaseConfigured } from '../services/supabase/client';
+import { supabase } from '../services/supabase/client';
 import { useMoodStore } from './moodStore';
 import { moodService } from '../services/mood/moodService';
+import { authService, LoginCredentials, RegisterData } from '../services/auth/authService';
 
 interface AuthState {
   user: User | null;
+  session: any | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   isOnboardingCompleted: boolean;
@@ -17,15 +18,18 @@ interface AuthState {
   // Actions
   initializeAuth: () => Promise<void>;
   login: (credentials: LoginCredentials) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
+  register: (data: RegisterData) => Promise<{ requiresVerification: boolean; email: string }>;
+  verifyOtp: (email: string, token: string) => Promise<void>;
+  resendCode: (email: string) => Promise<string>;
   logout: (scope?: LogoutScope) => Promise<void>;
   setOnboardingCompleted: (completed: boolean) => Promise<void>;
-  updateUser: (partial: Partial<User>) => void;
+  updateUser: (partial: Partial<User>) => Promise<void>;
   clearError: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
+  session: null,
   isAuthenticated: false,
   isLoading: true,
   isOnboardingCompleted: false,
@@ -35,33 +39,63 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      if (isSupabaseConfigured) {
-        const supabaseUser = await supabaseAuthService.getCurrentUser();
-        if (supabaseUser) {
-          await supabaseUserService.syncCurrentDevice(supabaseUser.id);
+      // 1. Escutar alterações de autenticação em tempo real no Supabase Auth
+      supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+          if (session?.user?.email_confirmed_at) {
+            const currentUser = await supabaseAuthService.getCurrentUser();
+            if (currentUser) {
+              set({
+                user: currentUser,
+                session,
+                isAuthenticated: true,
+                isLoading: false,
+              });
+              return;
+            }
+          }
+        }
+
+        if (event === 'SIGNED_OUT') {
           set({
-            user: supabaseUser,
-            isAuthenticated: true,
-            isOnboardingCompleted: true,
+            user: null,
+            session: null,
+            isAuthenticated: false,
             isLoading: false,
           });
-          return;
         }
-      }
-
-      const [user, onboardingCompleted] = await Promise.all([
-        authService.getStoredSession(),
-        authService.isOnboardingCompleted(),
-      ]);
-
-      set({
-        user,
-        isAuthenticated: !!user,
-        isOnboardingCompleted: onboardingCompleted,
-        isLoading: false,
       });
+
+      // 2. Verificar sessão persistida atual
+      const { user, session } = await supabaseAuthService.getCurrentSession();
+      const onboardingCompleted = await authService.isOnboardingCompleted();
+
+      if (user && session) {
+        await supabaseUserService.syncCurrentDevice(user.id);
+        set({
+          user,
+          session,
+          isAuthenticated: true,
+          isOnboardingCompleted: true,
+          isLoading: false,
+        });
+      } else {
+        set({
+          user: null,
+          session: null,
+          isAuthenticated: false,
+          isOnboardingCompleted: onboardingCompleted,
+          isLoading: false,
+        });
+      }
     } catch (err: any) {
-      set({ isLoading: false, error: err.message || 'Falha ao inicializar autenticação' });
+      set({
+        user: null,
+        session: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: err.message || 'Falha ao inicializar autenticação',
+      });
     }
   },
 
@@ -69,20 +103,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      if (isSupabaseConfigured) {
-        const res = await supabaseAuthService.signIn(credentials.email, credentials.password);
-        if (res.error || !res.user) {
-          throw new Error(res.error || 'Falha ao autenticar com Supabase');
-        }
-        await supabaseUserService.syncCurrentDevice(res.user.id);
-        set({ user: res.user, isAuthenticated: true, isLoading: false });
-        useMoodStore.getState().fetchRecords(res.user.id);
-        return;
+      const res = await supabaseAuthService.signIn(credentials.email, credentials.password);
+      if (res.error || !res.user) {
+        const errorMsg = res.error || 'E-mail ou senha inválidos.';
+        set({ isLoading: false, error: errorMsg });
+        const customErr: any = new Error(errorMsg);
+        customErr.isEmailNotConfirmed = res.isEmailNotConfirmed;
+        customErr.email = res.email;
+        throw customErr;
       }
 
-      const { user } = await authService.login(credentials);
-      set({ user, isAuthenticated: true, isLoading: false });
-      useMoodStore.getState().fetchRecords(user.id);
+      await supabaseUserService.syncCurrentDevice(res.user.id);
+      set({
+        user: res.user,
+        session: res.session,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      });
+
+      useMoodStore.getState().fetchRecords(res.user.id);
     } catch (err: any) {
       set({ isLoading: false, error: err.message || 'Erro ao realizar login' });
       throw err;
@@ -93,24 +133,62 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      if (isSupabaseConfigured) {
-        const res = await supabaseAuthService.signUp(data.email, data.password, data.name);
-        if (res.error || !res.user) {
-          throw new Error(res.error || 'Falha ao cadastrar com Supabase');
-        }
-        await supabaseUserService.syncCurrentDevice(res.user.id);
-        set({ user: res.user, isAuthenticated: true, isLoading: false });
-        useMoodStore.getState().fetchRecords(res.user.id);
-        return;
+      const res = await supabaseAuthService.signUp(data.email, data.password, data.name, {
+        termsAccepted: data.termsAccepted,
+        privacyAccepted: true,
+        personalizationAccepted: data.personalizationAccepted,
+      });
+
+      if (res.error) {
+        set({ isLoading: false, error: res.error });
+        throw new Error(res.error);
       }
 
-      const { user } = await authService.register(data);
-      set({ user, isAuthenticated: true, isLoading: false });
-      useMoodStore.getState().fetchRecords(user.id);
+      set({ isLoading: false, error: null });
+      return {
+        requiresVerification: true,
+        email: data.email.toLowerCase().trim(),
+      };
     } catch (err: any) {
       set({ isLoading: false, error: err.message || 'Erro ao criar conta' });
       throw err;
     }
+  },
+
+  verifyOtp: async (email: string, token: string) => {
+    try {
+      set({ isLoading: true, error: null });
+
+      const res = await supabaseAuthService.verifyOtp(email, token);
+      if (res.error || !res.user) {
+        set({ isLoading: false, error: res.error || 'Código incorreto.' });
+        throw new Error(res.error || 'Código incorreto.');
+      }
+
+      set({
+        user: res.user,
+        session: res.session,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      });
+
+      if (res.user.id) {
+        await supabaseUserService.syncCurrentDevice(res.user.id);
+        useMoodStore.getState().fetchRecords(res.user.id);
+      }
+    } catch (err: any) {
+      set({ isLoading: false, error: err.message || 'Código incorreto.' });
+      throw err;
+    }
+  },
+
+  resendCode: async (email: string) => {
+    const res = await supabaseAuthService.resendVerificationCode(email);
+    if (!res.success) {
+      throw new Error(res.error || 'Não foi possível reenviar o código.');
+    }
+    return res.message;
   },
 
   logout: async (scope: LogoutScope = 'local') => {
@@ -118,23 +196,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const currentUser = get().user;
       set({ isLoading: true });
 
-      // Limpar estado em memória de humor e diário imediatamente
+      // Limpar cache de dados em memória
       useMoodStore.getState().clearRecords();
       if (currentUser?.id) {
         await moodService.clearUserCache(currentUser.id);
       }
 
-      if (isSupabaseConfigured) {
-        await supabaseAuthService.signOut(scope);
-      }
+      await supabaseAuthService.signOut(scope);
       await authService.logout();
-      if (scope === 'local' || scope === 'global') {
-        set({ user: null, isAuthenticated: false, isLoading: false });
-      } else {
-        set({ isLoading: false });
-      }
+
+      set({
+        user: null,
+        session: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: null,
+      });
     } catch (_err) {
-      set({ isLoading: false });
+      set({
+        user: null,
+        session: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
     }
   },
 
@@ -143,10 +227,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isOnboardingCompleted: completed });
   },
 
-  updateUser: (partial: Partial<User>) => {
+  updateUser: async (partial: Partial<User>) => {
     const current = get().user;
-    if (current) {
-      set({ user: { ...current, ...partial } });
+    if (!current) return;
+
+    const updated = { ...current, ...partial };
+    set({ user: updated });
+
+    if (current.id) {
+      await supabase
+        .from('profiles')
+        .update({
+          full_name: partial.name ?? current.name,
+          avatar_url: partial.avatarUrl ?? current.avatarUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', current.id);
     }
   },
 

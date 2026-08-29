@@ -120,7 +120,7 @@ export const SecurityAccessModal: React.FC<SecurityAccessModalProps> = ({
         await userService.changePassword(user.id, currentPassword, newPassword);
       } else {
         const res = await supabaseAuthService.updatePassword(newPassword);
-        if (!res.success) throw new Error(res.message);
+        if (!res.success) throw new Error(res.error || 'Erro ao alterar senha.');
       }
 
       showToast({ message: 'Senha alterada', type: 'success' });

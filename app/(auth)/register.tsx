@@ -95,15 +95,19 @@ export default function RegisterScreen() {
     try {
       setFormError(null);
       clearError();
+      const normalizedEmail = data.email.trim().toLowerCase();
       await registerUser({
-        name: data.name,
-        email: data.email,
+        name: data.name.trim(),
+        email: normalizedEmail,
         password: data.password,
         termsAccepted: data.termsAccepted,
         personalizationAccepted: data.personalizationAccepted,
       });
-      showToast({ message: 'Conta criada', type: 'success' });
-      router.replace('/(tabs)');
+      showToast({ message: 'Código de ativação enviado para seu e-mail', type: 'info' });
+      router.replace({
+        pathname: '/(auth)/confirmar-email',
+        params: { email: normalizedEmail },
+      } as any);
     } catch (err: any) {
       setFormError(err.message || 'Erro ao realizar cadastro.');
     }

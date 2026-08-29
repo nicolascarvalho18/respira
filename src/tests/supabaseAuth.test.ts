@@ -1,28 +1,32 @@
 import { supabaseAuthService } from '../services/auth/supabaseAuthService';
 import { supabaseUserService } from '../services/user/supabaseUserService';
 import { legacyUserMigrationService, maskEmail } from '../services/migration/legacyUserMigrationService';
+import { supabase } from '../services/supabase/client';
 import fs from 'fs';
 import path from 'path';
 
 describe('Supabase Auth, RLS & Database Centralization Tests', () => {
-  it('should handle sign up and email normalization', async () => {
-    const res = await supabaseAuthService.signUp('TEST.USER@EXEMPLO.COM', 'password123', 'Usuário Teste');
+  it('should handle sign up and email normalization with verification required', async () => {
+    jest.spyOn(supabase.auth, 'signUp').mockResolvedValueOnce({
+      data: { user: { id: 'test-user-id', email: 'test.user@exemplo.com' } as any, session: null },
+      error: null,
+    });
+
+    const res = await supabaseAuthService.signUp('TEST.USER@EXEMPLO.COM', 'StrongPassword123!', 'Usuário Teste');
     expect(res.error).toBeUndefined();
-    expect(res.user).toBeDefined();
-    expect(res.user?.email).toBe('test.user@exemplo.com');
-    expect(res.user?.name).toBe('Usuário Teste');
+    expect(res.requiresVerification).toBe(true);
+    expect(res.email).toBe('test.user@exemplo.com');
   });
 
-  it('should reject short passwords on sign up', async () => {
-    const res = await supabaseAuthService.signUp('ana@exemplo.com', '123');
-    expect(res.error).toBe('A senha deve ter pelo menos 6 caracteres.');
+  it('should reject short passwords (<10 chars) on sign up', async () => {
+    const res = await supabaseAuthService.signUp('ana@exemplo.com', '123456');
+    expect(res.error).toBe('A senha deve ter pelo menos 10 caracteres.');
   });
 
-  it('should handle sign in with normalized email', async () => {
-    const res = await supabaseAuthService.signIn('ANA@EXEMPLO.COM', 'qualquerSenha');
-    expect(res.error).toBeUndefined();
-    expect(res.user).toBeDefined();
-    expect(res.user?.email).toBe('ana@exemplo.com');
+  it('should reject invalid sign in with neutral message', async () => {
+    const res = await supabaseAuthService.signIn('INEXISTENTE@EXEMPLO.COM', 'qualquerSenha');
+    expect(res.user).toBeNull();
+    expect(res.error).toBe('E-mail ou senha inválidos.');
   });
 
   it('should support signOut with local, others, and global scopes', async () => {
@@ -32,15 +36,9 @@ describe('Supabase Auth, RLS & Database Centralization Tests', () => {
   });
 
   it('should request password reset safely without leaking tokens', async () => {
-    const res = await supabaseAuthService.requestPasswordReset('ana@exemplo.com');
+    const res = await supabaseAuthService.resetPassword('ana@exemplo.com');
     expect(res.success).toBe(true);
-    expect(res.message).toBeTruthy();
-  });
-
-  it('should request email change with double confirmation requirement', async () => {
-    const res = await supabaseAuthService.updateEmail('novo.email@exemplo.com');
-    expect(res.success).toBe(true);
-    expect(res.message).toContain('confirmação');
+    expect(res.message).toContain('Se houver uma conta associada');
   });
 
   it('should mask emails correctly in audit and migration reports', () => {

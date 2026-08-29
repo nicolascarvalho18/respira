@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -10,8 +10,11 @@ import {
   TouchableOpacity,
   Text,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
+import { useAuth } from '../../hooks/useAuth';
+import { LoadingState } from '../ui/LoadingState';
 import { DesktopSidebar } from './DesktopSidebar';
 
 export interface AppShellProps {
@@ -19,6 +22,7 @@ export interface AppShellProps {
   rightPanel?: React.ReactNode;
   scrollable?: boolean;
   withSafeArea?: boolean;
+  requireAuth?: boolean;
   style?: ViewStyle;
   contentContainerStyle?: ViewStyle;
 }
@@ -28,11 +32,38 @@ export const AppShell: React.FC<AppShellProps> = ({
   rightPanel,
   scrollable = true,
   withSafeArea = true,
+  requireAuth = true,
   style,
   contentContainerStyle,
 }) => {
+  const router = useRouter();
   const { colors, isDark } = useTheme();
   const { isDesktop, isTablet } = useBreakpoint();
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  useEffect(() => {
+    if (!requireAuth || isLoading) return;
+
+    if (!isAuthenticated || !user) {
+      router.replace('/(auth)/login');
+      return;
+    }
+
+    if (user && !user.isEmailVerified) {
+      router.replace({
+        pathname: '/(auth)/confirmar-email',
+        params: { email: user.email },
+      } as any);
+    }
+  }, [requireAuth, isLoading, isAuthenticated, user, router]);
+
+  if (requireAuth && (isLoading || !isAuthenticated || !user)) {
+    return (
+      <View style={[styles.root, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <LoadingState message="Acessando seu espaço..." />
+      </View>
+    );
+  }
 
   const ContainerComponent = withSafeArea ? SafeAreaView : View;
 

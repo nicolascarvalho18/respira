@@ -15,6 +15,7 @@ import { AppInput } from '../../src/components/ui/AppInput';
 import { AppButton } from '../../src/components/ui/AppButton';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useToast } from '../../src/components/ui/Toast';
+import { supabaseAuthService } from '../../src/services/auth/supabaseAuthService';
 
 const forgotSchema = z.object({
   email: z.string().min(1, 'Informe seu e-mail').email('Insira um e-mail válido'),
@@ -41,16 +42,17 @@ export default function ForgotPasswordScreen() {
     },
   });
 
-  const onSubmit = async () => {
+  const onSubmit = async (data: ForgotFormData) => {
     try {
       setIsLoading(true);
-      // Simula chamada segura de recuperação
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await supabaseAuthService.resetPassword(data.email.trim().toLowerCase());
       setIsSubmitted(true);
       showToast({
-        message: 'Instruções enviadas se o e-mail estiver cadastrado.',
+        message: 'Se houver uma conta associada a este e-mail, você receberá as instruções para redefinir sua senha.',
         type: 'info',
       });
+    } catch (_err) {
+      setIsSubmitted(true);
     } finally {
       setIsLoading(false);
     }
