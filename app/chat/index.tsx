@@ -10,16 +10,17 @@ import {
   Platform,
   KeyboardAvoidingView,
   SafeAreaView,
+  Linking,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   Send,
-  HeartHandshake,
   Trash2,
   MessageCircle,
   ShieldAlert,
   ArrowLeft,
-  Bookmark,
   Wind,
   Check,
   Copy,
@@ -29,13 +30,19 @@ import {
   Square,
   ShieldCheck,
   EyeOff,
+  ChevronDown,
+  ChevronUp,
+  Play,
+  Headphones,
+  BookOpen,
+  Phone,
+  ArrowRight,
 } from 'lucide-react-native';
 import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
 import { useToast } from '../../src/components/ui/Toast';
 import { useChatStore } from '../../src/store/chatStore';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
-import { QUICK_SUGGESTIONS } from '../../src/mocks/chat.mock';
 import { formatTime } from '../../src/utils/date';
 import { chatService } from '../../src/services/chat/chatService';
 
@@ -43,34 +50,56 @@ export default function ChatScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { isDesktop } = useBreakpoint();
-  const { messages, isTyping, sendMessage, clearHistory } = useChatStore();
+  const {
+    messages,
+    isTyping,
+    isStreaming,
+    fetchMessages,
+    sendMessage,
+    regenerateResponse,
+    stopGeneration,
+    clearHistory,
+  } = useChatStore();
   const { showToast } = useToast();
 
   const [inputText, setInputText] = useState('');
   const [showClearModal, setShowClearModal] = useState(false);
-  const [feedbackGiven, setFeedbackGiven] = useState<Record<string, 'up' | 'down'>>({});
+  const [feedbackGiven, setFeedbackGiven] = useState<Record<string, 'helpful' | 'unhelpful'>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isTemporary, setIsTemporary] = useState(false);
+  const [isBannerCollapsed, setIsBannerCollapsed] = useState(false);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.title = 'Assistente IA — Respira';
+      document.title = 'Assistente Inteligente — Respira';
     }
+    fetchMessages();
     chatService.isTemporaryMode().then(setIsTemporary);
   }, []);
 
-  // Leva o usuário automaticamente para a mensagem mais recente ao abrir ou ao receber mensagens
+  // Rolagem automática inteligente (somente quando o usuário estiver próximo do final)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [messages.length, isTyping]);
+    if (isNearBottom) {
+      const timer = setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 80);
+      return () => clearTimeout(timer);
+    }
+  }, [messages.length, isTyping, isStreaming, isNearBottom]);
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const paddingToBottom = 120;
+    const isClose = layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
+    setIsNearBottom(isClose);
+  };
 
   const handleSend = async (textToSend?: string) => {
     const message = textToSend || inputText;
-    if (!message.trim() || isTyping) return;
+    if (!message.trim() || isTyping || isStreaming) return;
 
     setInputText('');
     await sendMessage(message);
@@ -84,7 +113,7 @@ export default function ChatScreen() {
   };
 
   const handleCopy = (text: string, msgId: string) => {
-    if (Platform.OS === 'web') {
+    if (Platform.OS === 'web' && typeof navigator !== 'undefined') {
       navigator.clipboard.writeText(text);
     }
     setCopiedId(msgId);
@@ -92,14 +121,14 @@ export default function ChatScreen() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleFeedback = async (msgId: string, type: 'up' | 'down') => {
-    setFeedbackGiven((prev) => ({ ...prev, [msgId]: type }));
-    await chatService.recordFeedback(msgId, type === 'up' ? 'helpful' : 'unhelpful');
+  const handleFeedback = async (msgId: string, rating: 'helpful' | 'unhelpful') => {
+    setFeedbackGiven((prev) => ({ ...prev, [msgId]: rating }));
+    await chatService.recordFeedback(msgId, rating);
     showToast({
       message:
-        type === 'up'
-          ? 'Obrigado pela avaliação positiva!'
-          : 'Agradecemos o retorno para aperfeiçoar as respostas.',
+        rating === 'helpful'
+          ? 'Obrigado pelo retorno positivo!'
+          : 'Agradecemos o feedback para aprimorar as respostas.',
       type: 'info',
     });
   };
@@ -110,17 +139,79 @@ export default function ChatScreen() {
     await chatService.setTemporaryMode(next);
     showToast({
       message: next
-        ? 'Modo temporário ativado (esta conversa não será salva).'
+        ? 'Modo temporário ativado (conversa não será persistida).'
         : 'Modo normal ativado.',
       type: 'info',
     });
   };
 
+  const handleAction = (actionType?: string, actionPayload?: string) => {
+    if (!actionType && !actionPayload) return;
+
+    if (actionType === 'call_helpline') {
+      Linking.openURL(`tel:${actionPayload || '188'}`).catch(() => router.push('/support'));
+      return;
+    }
+    if (actionType === 'open_practice') {
+      if (actionPayload?.includes('breathing')) {
+        router.push('/practices/breathing');
+      } else {
+        router.push(`/practices/player/${actionPayload}` as any);
+      }
+      return;
+    }
+    if (actionType === 'open_article') {
+      router.push(`/content/${actionPayload}` as any);
+      return;
+    }
+    if (actionType === 'open_mood') {
+      router.push('/momentos' as any);
+      return;
+    }
+    if (actionType === 'open_soundscape') {
+      router.push('/soundscape' as any);
+      return;
+    }
+    if (actionType === 'open_profile') {
+      router.push('/(tabs)/profile' as any);
+      return;
+    }
+  };
+
+  // Sugestões inteligentes dinâmicas por horário
+  const getDynamicSuggestions = (): string[] => {
+    const hour = new Date().getHours();
+    if (hour >= 20 || hour < 5) {
+      return [
+        'Estou com dificuldade para dormir',
+        'Ouvir um som tranquilo de chuva',
+        'Respiração 4-7-8 para relaxar',
+        'Como desacelerar os pensamentos?',
+      ];
+    }
+    if (hour >= 5 && hour < 12) {
+      return [
+        'Quero uma prática para começar o dia',
+        'Respiração para foco e clareza',
+        'Registrar como estou no diário',
+        'Como funciona o Respira?',
+      ];
+    }
+    return [
+      'Quero uma pausa de 3 minutos',
+      'Estou me sentindo ansioso(a)',
+      'Como diminuir a sobrecarga mental?',
+      'Quero contar como foi meu dia',
+    ];
+  };
+
+  const dynamicSuggestions = getDynamicSuggestions();
+
   return (
     <SafeAreaView
       style={[
         styles.safeArea,
-        { backgroundColor: isDark ? colors.background : '#F7F9F7' },
+        { backgroundColor: isDark ? colors.background : '#F7F8F5' },
       ]}
     >
       <KeyboardAvoidingView
@@ -128,14 +219,13 @@ export default function ChatScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         style={styles.keyboardContainer}
       >
-        {/* Painel Centralizado Responsivo */}
         <View
           style={[
             styles.chatWrapper,
             isDesktop && styles.chatWrapperDesktop,
             {
               backgroundColor: isDark ? colors.surface : '#FFFFFF',
-              borderColor: isDark ? colors.border : '#DCE5E2',
+              borderColor: isDark ? colors.border : '#E0E5E2',
             },
           ]}
         >
@@ -156,13 +246,13 @@ export default function ChatScreen() {
                 accessibilityLabel="Voltar"
                 style={[
                   styles.backBtn,
-                  { backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF' },
+                  { backgroundColor: isDark ? colors.surfaceSecondary : '#EDF7F5' },
                 ]}
               >
-                <ArrowLeft size={18} color={isDark ? colors.text : '#173D3B'} />
+                <ArrowLeft size={18} color={isDark ? colors.text : colors.primary} />
               </TouchableOpacity>
 
-              <View style={[styles.avatarBot, { backgroundColor: '#2F7F7C' }]}>
+              <View style={[styles.avatarBot, { backgroundColor: colors.primary }]}>
                 <MessageCircle size={18} color="#FFFFFF" aria-hidden={true} />
               </View>
 
@@ -178,7 +268,7 @@ export default function ChatScreen() {
                   <View style={styles.onlineDot} />
                 </View>
                 <Text style={[styles.headerStatus, { color: isDark ? colors.textMuted : '#667775' }]}>
-                  {isTemporary ? 'Modo Temporário' : 'Psicoeducação e acolhimento'}
+                  {isTemporary ? 'Modo Temporário Ativo' : 'Acolhimento e Psicoeducação'}
                 </Text>
               </View>
             </View>
@@ -192,7 +282,7 @@ export default function ChatScreen() {
                   styles.actionHeaderBtn,
                   {
                     backgroundColor: isTemporary
-                      ? '#2F7F7C'
+                      ? colors.primary
                       : isDark
                       ? colors.surfaceSecondary
                       : '#F2F6F5',
@@ -208,7 +298,7 @@ export default function ChatScreen() {
               <TouchableOpacity
                 onPress={() => setShowClearModal(true)}
                 accessibilityRole="button"
-                accessibilityLabel="Limpar histórico"
+                accessibilityLabel="Limpar conversa"
                 style={[
                   styles.actionHeaderBtn,
                   { backgroundColor: isDark ? colors.surfaceSecondary : '#F2F6F5' },
@@ -219,33 +309,48 @@ export default function ChatScreen() {
             </View>
           </View>
 
-          {/* 2. Área de Mensagens com Rolagem Própria */}
+          {/* 2. Área de Mensagens */}
           <ScrollView
             ref={scrollViewRef}
+            onScroll={handleScroll}
+            scrollEventThrottle={100}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.messagesContainer}
             style={styles.messagesScrollView}
           >
-            {/* Aviso Educativo e Ético */}
-            <View
+            {/* Banner Educativo Compacto e Recolhível */}
+            <TouchableOpacity
+              onPress={() => setIsBannerCollapsed(!isBannerCollapsed)}
+              activeOpacity={0.85}
               style={[
                 styles.safetyBanner,
                 {
-                  backgroundColor: isDark ? colors.surfaceSecondary : '#F0F7F6',
-                  borderColor: isDark ? colors.border : '#D8EBE4',
+                  backgroundColor: isDark ? colors.surfaceSecondary : '#EDF7F5',
+                  borderColor: isDark ? colors.border : '#CBE8E2',
                 },
               ]}
             >
-              <ShieldCheck size={14} color="#2F7F7C" style={{ marginRight: 6, marginTop: 1 }} />
-              <Text style={[styles.safetyText, { color: isDark ? colors.textMuted : '#567571' }]}>
-                Este assistente oferece acolhimento e psicoeducação. Não constitui laudo clínico nem
-                substitui avaliação psicológica ou médica.
-              </Text>
-            </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <ShieldCheck size={14} color={colors.primary} style={{ marginRight: 6 }} />
+                <Text
+                  numberOfLines={isBannerCollapsed ? 1 : undefined}
+                  style={[styles.safetyText, { color: isDark ? colors.textMuted : '#476965' }]}
+                >
+                  {isBannerCollapsed
+                    ? 'Aviso educativo sobre o assistente (toque para ler)'
+                    : 'Acolhimento e psicoeducação. Não substitui consulta médica ou psicológica.'}
+                </Text>
+              </View>
+              {isBannerCollapsed ? (
+                <ChevronDown size={14} color={colors.primary} />
+              ) : (
+                <ChevronUp size={14} color={colors.primary} />
+              )}
+            </TouchableOpacity>
 
             {messages.map((msg) => {
               const isUser = msg.sender === 'user';
-              const feedback = feedbackGiven[msg.id];
+              const feedback = feedbackGiven[msg.id] || msg.feedback;
               const isCopied = copiedId === msg.id;
 
               return (
@@ -257,41 +362,60 @@ export default function ChatScreen() {
                   ]}
                 >
                   {!isUser && (
-                    <View style={[styles.msgAvatar, { backgroundColor: '#2F7F7C' }]}>
-                      <MessageCircle size={13} color="#FFFFFF" aria-hidden={true} />
+                    <View
+                      style={[
+                        styles.msgAvatar,
+                        {
+                          backgroundColor: msg.isEmergencyAlert
+                            ? colors.error
+                            : isDark
+                            ? '#243A36'
+                            : colors.primary,
+                        },
+                      ]}
+                    >
+                      {msg.isEmergencyAlert ? (
+                        <ShieldAlert size={14} color="#FFFFFF" />
+                      ) : (
+                        <MessageCircle
+                          size={14}
+                          color={isDark ? '#5ECFC3' : '#FFFFFF'}
+                          aria-hidden={true}
+                        />
+                      )}
                     </View>
                   )}
 
                   <View style={styles.bubbleCol}>
-                    {/* Alerta de Emergência se houver risco clínico */}
+                    {/* Alerta de Emergência */}
                     {msg.isEmergencyAlert && (
                       <View
                         style={[
                           styles.alertBadge,
                           {
-                            backgroundColor: isDark ? '#3D251C' : '#FFF2EB',
-                            borderColor: '#F2B5A0',
+                            backgroundColor: isDark ? '#3D1C1B' : '#FDF2F2',
+                            borderColor: isDark ? '#7F1D1D' : '#FCA5A5',
                           },
                         ]}
                       >
-                        <ShieldAlert size={14} color="#D98968" style={{ marginRight: 6 }} />
-                        <Text style={[styles.alertBadgeText, { color: '#D98968' }]}>
-                          Precisa de apoio humano imediato? Disque 188 (CVV gratuito 24h)
+                        <ShieldAlert size={14} color="#DC2626" style={{ marginRight: 6 }} />
+                        <Text style={[styles.alertBadgeText, { color: '#DC2626' }]}>
+                          Apoio gratuito 24h: Ligue 188 (CVV) ou 192 (SAMU)
                         </Text>
                       </View>
                     )}
 
-                    {/* Balão da Mensagem com Quebra de Linha Automática */}
+                    {/* Balão da Mensagem */}
                     <View
                       style={[
                         styles.bubble,
                         isUser
-                          ? styles.userBubble
+                          ? [styles.userBubble, { backgroundColor: colors.primary }]
                           : [
                               styles.botBubble,
                               {
-                                backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFA',
-                                borderColor: isDark ? colors.border : '#EBF1EF',
+                                backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
+                                borderColor: isDark ? colors.border : '#E0E5E2',
                               },
                             ],
                       ]}
@@ -304,6 +428,7 @@ export default function ChatScreen() {
                       >
                         {msg.text}
                       </Text>
+
                       <Text
                         style={[
                           styles.timestampText,
@@ -320,26 +445,79 @@ export default function ChatScreen() {
                       </Text>
                     </View>
 
-                    {/* Recomendações de Práticas / Artigos */}
-                    {!isUser && msg.recommendedPracticeId && (
+                    {/* Botão de Ação RAG Interativa */}
+                    {(msg.actionText || msg.recommendedPracticeId || msg.isEmergencyAlert) && (
                       <TouchableOpacity
-                        onPress={() => router.push('/practices/player/practice-breathing-guided' as any)}
+                        onPress={() =>
+                          handleAction(
+                            msg.actionType || (msg.isEmergencyAlert ? 'call_helpline' : 'open_practice'),
+                            msg.actionPayload || msg.recommendedPracticeId || '188'
+                          )
+                        }
+                        activeOpacity={0.85}
                         style={[
-                          styles.recActionBtn,
+                          styles.actionBtn,
                           {
-                            backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF',
-                            borderColor: '#2F7F7C',
+                            backgroundColor: msg.isEmergencyAlert
+                              ? isDark
+                                ? '#7F1D1D'
+                                : '#DC2626'
+                              : isDark
+                              ? '#243A36'
+                              : '#EDF7F5',
+                            borderColor: msg.isEmergencyAlert ? '#EF4444' : colors.primary,
                           },
                         ]}
                       >
-                        <Wind size={14} color="#2F7F7C" />
-                        <Text style={styles.recActionText}>
-                          Abrir exercício de respiração guiada
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                          {msg.isEmergencyAlert || msg.actionType === 'call_helpline' ? (
+                            <Phone size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+                          ) : msg.actionType === 'open_soundscape' ? (
+                            <Headphones
+                              size={14}
+                              color={isDark ? '#5ECFC3' : colors.primary}
+                              style={{ marginRight: 6 }}
+                            />
+                          ) : msg.actionType === 'open_article' ? (
+                            <BookOpen
+                              size={14}
+                              color={isDark ? '#5ECFC3' : colors.primary}
+                              style={{ marginRight: 6 }}
+                            />
+                          ) : (
+                            <Play
+                              size={14}
+                              color={isDark ? '#5ECFC3' : colors.primary}
+                              style={{ marginRight: 6 }}
+                            />
+                          )}
+
+                          <Text
+                            style={[
+                              styles.actionBtnText,
+                              {
+                                color: msg.isEmergencyAlert
+                                  ? '#FFFFFF'
+                                  : isDark
+                                  ? '#5ECFC3'
+                                  : colors.primary,
+                              },
+                            ]}
+                          >
+                            {msg.actionText ||
+                              (msg.isEmergencyAlert
+                                ? 'Ligar para CVV (188)'
+                                : 'Iniciar Exercício')}
+                          </Text>
+                        </View>
+                        <ArrowRight
+                          size={14}
+                          color={msg.isEmergencyAlert ? '#FFFFFF' : isDark ? '#5ECFC3' : colors.primary}
+                        />
                       </TouchableOpacity>
                     )}
 
-                    {/* Barra de Ações da Mensagem da IA */}
+                    {/* Barra de Ações (Copiar, Avaliar) */}
                     {!isUser && (
                       <View style={styles.msgActionsRow}>
                         <TouchableOpacity
@@ -349,66 +527,72 @@ export default function ChatScreen() {
                           style={styles.msgActionIconBtn}
                         >
                           {isCopied ? (
-                            <Check size={13} color="#2F7F7C" />
+                            <Check size={13} color={colors.primary} />
                           ) : (
                             <Copy size={13} color={isDark ? colors.textMuted : '#8C9E9B'} />
                           )}
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                          onPress={() => handleFeedback(msg.id, 'up')}
+                          onPress={() => handleFeedback(msg.id, 'helpful')}
                           accessibilityRole="button"
                           accessibilityLabel="Mensagem útil"
                           style={styles.msgActionIconBtn}
                         >
                           <ThumbsUp
                             size={13}
-                            color={feedback === 'up' ? '#2F7F7C' : isDark ? colors.textMuted : '#8C9E9B'}
-                            fill={feedback === 'up' ? '#2F7F7C' : 'none'}
+                            color={feedback === 'helpful' ? colors.primary : isDark ? colors.textMuted : '#8C9E9B'}
+                            fill={feedback === 'helpful' ? colors.primary : 'none'}
                           />
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                          onPress={() => handleFeedback(msg.id, 'down')}
+                          onPress={() => handleFeedback(msg.id, 'unhelpful')}
                           accessibilityRole="button"
                           accessibilityLabel="Mensagem não útil"
                           style={styles.msgActionIconBtn}
                         >
                           <ThumbsDown
                             size={13}
-                            color={feedback === 'down' ? '#D9534F' : isDark ? colors.textMuted : '#8C9E9B'}
-                            fill={feedback === 'down' ? '#D9534F' : 'none'}
+                            color={feedback === 'unhelpful' ? colors.error : isDark ? colors.textMuted : '#8C9E9B'}
+                            fill={feedback === 'unhelpful' ? colors.error : 'none'}
                           />
                         </TouchableOpacity>
                       </View>
                     )}
 
-                    {/* Sugestões Rápidas de Resposta */}
+                    {/* Sugestões da Mensagem */}
                     {!isUser && msg.suggestions && msg.suggestions.length > 0 && (
-                      <View
-                        style={styles.suggestionsList}
-                        aria-label="Sugestões de perguntas e ações"
-                        {...(Platform.OS === 'web' ? ({ role: 'group' } as any) : {})}
-                      >
-                        {msg.suggestions.map((sug, sIdx) => (
+                      <View style={styles.suggestionsList}>
+                        {msg.suggestions.slice(0, 3).map((sug, sIdx) => (
                           <TouchableOpacity
                             key={sIdx}
-                            onPress={() => !isTyping && handleSend(sug)}
-                            disabled={isTyping}
+                            onPress={() => !isTyping && !isStreaming && handleSend(sug)}
+                            disabled={isTyping || isStreaming}
                             accessibilityRole="button"
                             accessibilityLabel={`Enviar sugestão: ${sug}`}
-                            {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
                             style={[
                               styles.suggestionChip,
                               {
                                 backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                                borderColor: isDark ? colors.border : '#DCE5E2',
-                                opacity: isTyping ? 0.6 : 1,
+                                borderColor: isDark ? colors.border : '#E0E5E2',
+                                opacity: isTyping || isStreaming ? 0.6 : 1,
                               },
                             ]}
                           >
-                            <MessageCircle size={12} color="#2F7F7C" style={{ marginRight: 5 }} aria-hidden={true} />
-                            <Text style={styles.suggestionText}>{sug}</Text>
+                            <MessageCircle
+                              size={12}
+                              color={isDark ? '#5ECFC3' : colors.primary}
+                              style={{ marginRight: 5 }}
+                            />
+                            <Text
+                              style={[
+                                styles.suggestionText,
+                                { color: isDark ? '#5ECFC3' : colors.primary },
+                              ]}
+                            >
+                              {sug}
+                            </Text>
                           </TouchableOpacity>
                         ))}
                       </View>
@@ -418,10 +602,15 @@ export default function ChatScreen() {
               );
             })}
 
-            {/* Indicador de Digitação */}
-            {isTyping && (
+            {/* Indicador de Digitação / Streaming */}
+            {(isTyping || isStreaming) && (
               <View style={[styles.messageRow, styles.botMessageRow]}>
-                <View style={[styles.msgAvatar, { backgroundColor: '#2F7F7C' }]}>
+                <View
+                  style={[
+                    styles.msgAvatar,
+                    { backgroundColor: isDark ? '#243A36' : colors.primary },
+                  ]}
+                >
                   <MessageCircle size={14} color="#FFFFFF" aria-hidden={true} />
                 </View>
                 <View
@@ -435,17 +624,50 @@ export default function ChatScreen() {
                   ]}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 }}>
-                    <ActivityIndicator size="small" color="#2F7F7C" />
+                    <ActivityIndicator size="small" color={colors.primary} />
                     <Text style={{ fontSize: 13, color: isDark ? colors.textMuted : '#667775' }}>
-                      Escrevendo resposta...
+                      Assistente digitando...
                     </Text>
                   </View>
                 </View>
               </View>
             )}
+
+            {/* Sugestões Dinâmicas no Início de Conversa */}
+            {messages.length <= 2 && !isTyping && !isStreaming && (
+              <View style={styles.startSuggestionsSection}>
+                <Text style={[styles.startSuggestionsTitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                  Sugestões para agora:
+                </Text>
+                <View style={styles.startSuggestionsGrid}>
+                  {dynamicSuggestions.map((sug, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      onPress={() => handleSend(sug)}
+                      style={[
+                        styles.startSuggestionCard,
+                        {
+                          backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
+                          borderColor: isDark ? colors.border : '#E0E5E2',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.startSuggestionCardText,
+                          { color: isDark ? colors.text : '#173D3B' },
+                        ]}
+                      >
+                        {sug}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
           </ScrollView>
 
-          {/* 3. Barra Inferior de Digitação e Envio */}
+          {/* 3. Barra Inferior de Digitação, Parar e Regenerar */}
           <View
             style={[
               styles.inputContainer,
@@ -455,11 +677,27 @@ export default function ChatScreen() {
               },
             ]}
           >
+            {/* Botão de Regenerar Resposta */}
+            {messages.length > 1 && !isTyping && !isStreaming && (
+              <TouchableOpacity
+                onPress={() => regenerateResponse()}
+                accessibilityRole="button"
+                accessibilityLabel="Tentar novamente"
+                style={[
+                  styles.sideInputBtn,
+                  { backgroundColor: isDark ? colors.surfaceSecondary : '#EDF7F5' },
+                ]}
+              >
+                <RotateCcw size={16} color={isDark ? '#5ECFC3' : colors.primary} />
+              </TouchableOpacity>
+            )}
+
+            {/* Campo de Entrada de Mensagem */}
             <TextInput
               value={inputText}
               onChangeText={setInputText}
-              placeholder="Escreva uma dúvida ou conte como você está se sentindo..."
-              placeholderTextColor="#8C9E9B"
+              placeholder="Digite sua mensagem..."
+              placeholderTextColor={isDark ? colors.placeholder : '#8C9E9B'}
               onKeyPress={handleKeyDown}
               multiline
               maxLength={1000}
@@ -474,26 +712,37 @@ export default function ChatScreen() {
               ]}
             />
 
-            <TouchableOpacity
-              onPress={() => handleSend()}
-              disabled={!inputText.trim() || isTyping}
-              accessibilityRole="button"
-              accessibilityLabel="Enviar mensagem"
-              {...(Platform.OS === 'web' ? ({ type: 'button' } as any) : {})}
-              style={[
-                styles.sendBtn,
-                {
-                  backgroundColor:
-                    inputText.trim() && !isTyping ? '#2F7F7C' : isDark ? colors.surfaceSecondary : '#EBF1EF',
-                },
-              ]}
-            >
-              <Send
-                size={17}
-                color={inputText.trim() && !isTyping ? '#FFFFFF' : '#8C9E9B'}
-                aria-hidden={true}
-              />
-            </TouchableOpacity>
+            {/* Botão de Parar Geração ou Enviar */}
+            {isTyping || isStreaming ? (
+              <TouchableOpacity
+                onPress={() => stopGeneration()}
+                accessibilityRole="button"
+                accessibilityLabel="Parar resposta"
+                style={[styles.sendBtn, { backgroundColor: colors.error }]}
+              >
+                <Square size={16} color="#FFFFFF" fill="#FFFFFF" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={() => handleSend()}
+                disabled={!inputText.trim()}
+                accessibilityRole="button"
+                accessibilityLabel="Enviar mensagem"
+                style={[
+                  styles.sendBtn,
+                  {
+                    backgroundColor:
+                      inputText.trim() ? colors.primary : isDark ? colors.surfaceSecondary : '#EBF1EF',
+                  },
+                ]}
+              >
+                <Send
+                  size={17}
+                  color={inputText.trim() ? '#FFFFFF' : isDark ? colors.textMuted : '#8C9E9B'}
+                  aria-hidden={true}
+                />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -501,14 +750,14 @@ export default function ChatScreen() {
       {/* Modal de Confirmação para Limpar Histórico */}
       <ConfirmDialog
         visible={showClearModal}
-        title="Limpar conversa?"
-        message="As mensagens anteriores serão apagadas deste dispositivo."
+        title="Limpar histórico?"
+        message="Deseja apagar as mensagens desta conversa?"
         confirmTitle="Limpar"
         cancelTitle="Cancelar"
         onConfirm={async () => {
           setShowClearModal(false);
           await clearHistory();
-          showToast({ message: 'Histórico de conversa apagado.', type: 'info' });
+          showToast({ message: 'Histórico apagado.', type: 'info' });
         }}
         onCancel={() => setShowClearModal(false)}
       />
@@ -578,18 +827,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.2,
   },
+  onlineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+  },
   headerStatus: {
     fontSize: 11,
     marginTop: 1,
   },
-  onlineDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: '#2F7F7C',
-  },
   headerRight: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   actionHeaderBtn: {
@@ -603,29 +853,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messagesContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 20,
+    padding: 16,
     gap: 12,
   },
   safetyBanner: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   safetyText: {
     fontSize: 11,
+    lineHeight: 15,
     flex: 1,
-    lineHeight: 16,
   },
   messageRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    width: '100%',
   },
   userMessageRow: {
     justifyContent: 'flex-end',
@@ -634,121 +883,152 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   msgAvatar: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
+    marginTop: 2,
   },
   bubbleCol: {
-    maxWidth: '85%',
-    flexShrink: 1,
+    maxWidth: '82%',
+    gap: 4,
   },
   bubble: {
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 16,
-    flexShrink: 1,
+    borderWidth: 1,
   },
   userBubble: {
-    backgroundColor: '#2F7F7C',
-    borderBottomRightRadius: 4,
-    alignSelf: 'flex-end',
+    borderTopRightRadius: 4,
+    borderColor: 'transparent',
   },
   botBubble: {
-    borderBottomLeftRadius: 4,
-    borderWidth: 1,
-    alignSelf: 'flex-start',
+    borderTopLeftRadius: 4,
   },
   bubbleText: {
     fontSize: 14,
     lineHeight: 21,
-    flexShrink: 1,
   },
   timestampText: {
     fontSize: 10,
-    marginTop: 4,
     alignSelf: 'flex-end',
+    marginTop: 4,
   },
   alertBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 10,
     borderWidth: 1,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   alertBadgeText: {
     fontSize: 11,
     fontWeight: '700',
     flex: 1,
   },
-  recActionBtn: {
+  actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
-    borderRadius: 10,
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12,
     borderWidth: 1,
-    marginTop: 6,
-    gap: 6,
+    marginTop: 4,
   },
-  recActionText: {
+  actionBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#2F7F7C',
   },
   msgActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
     marginTop: 4,
-    paddingLeft: 4,
+    paddingHorizontal: 4,
   },
   msgActionIconBtn: {
-    padding: 4,
+    padding: 3,
   },
   suggestionsList: {
-    marginTop: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 6,
+    marginTop: 6,
   },
   suggestionChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
     borderWidth: 1,
-    alignSelf: 'flex-start',
   },
   suggestionText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  startSuggestionsSection: {
+    marginTop: 16,
+    gap: 8,
+  },
+  startSuggestionsTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#2F7F7C',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  startSuggestionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  startSuggestionCard: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  startSuggestionCardText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     borderTopWidth: 1,
     gap: 8,
   },
+  sideInputBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 1,
+  },
   inputField: {
     flex: 1,
-    minHeight: 44,
-    maxHeight: 110,
+    maxHeight: 100,
+    minHeight: 40,
     borderRadius: 14,
     borderWidth: 1,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 8,
     fontSize: 14,
   },
   sendBtn: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 1,
   },
 });

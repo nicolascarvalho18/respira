@@ -298,6 +298,9 @@ export interface ChatMessage {
   isEmergencyAlert?: boolean;
   recommendedPracticeId?: string;
   recommendedArticleId?: string;
+  actionText?: string;
+  actionType?: 'open_practice' | 'open_article' | 'open_soundscape' | 'open_mood' | 'open_support' | 'open_profile' | 'call_helpline';
+  actionPayload?: string;
   feedback?: 'helpful' | 'unhelpful';
 }
 
