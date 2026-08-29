@@ -18,9 +18,7 @@ interface AuthState {
   // Actions
   initializeAuth: () => Promise<void>;
   login: (credentials: LoginCredentials) => Promise<void>;
-  register: (data: RegisterData) => Promise<{ requiresVerification: boolean; email: string }>;
-  verifyOtp: (email: string, token: string) => Promise<void>;
-  resendCode: (email: string) => Promise<string>;
+  register: (data: RegisterData) => Promise<void>;
   logout: (scope?: LogoutScope) => Promise<void>;
   setOnboardingCompleted: (completed: boolean) => Promise<void>;
   updateUser: (partial: Partial<User>) => Promise<void>;
@@ -42,7 +40,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // 1. Escutar alterações de autenticação em tempo real no Supabase Auth
       supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-          if (session?.user?.email_confirmed_at) {
+          if (session?.user) {
             const currentUser = await supabaseAuthService.getCurrentUser();
             if (currentUser) {
               set({
@@ -107,10 +105,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (res.error || !res.user) {
         const errorMsg = res.error || 'E-mail ou senha inválidos.';
         set({ isLoading: false, error: errorMsg });
-        const customErr: any = new Error(errorMsg);
-        customErr.isEmailNotConfirmed = res.isEmailNotConfirmed;
-        customErr.email = res.email;
-        throw customErr;
+        throw new Error(errorMsg);
       }
 
       await supabaseUserService.syncCurrentDevice(res.user.id);
@@ -139,30 +134,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         personalizationAccepted: data.personalizationAccepted,
       });
 
-      if (res.error) {
-        set({ isLoading: false, error: res.error });
-        throw new Error(res.error);
-      }
-
-      set({ isLoading: false, error: null });
-      return {
-        requiresVerification: true,
-        email: data.email.toLowerCase().trim(),
-      };
-    } catch (err: any) {
-      set({ isLoading: false, error: err.message || 'Erro ao criar conta' });
-      throw err;
-    }
-  },
-
-  verifyOtp: async (email: string, token: string) => {
-    try {
-      set({ isLoading: true, error: null });
-
-      const res = await supabaseAuthService.verifyOtp(email, token);
       if (res.error || !res.user) {
-        set({ isLoading: false, error: res.error || 'Código incorreto.' });
-        throw new Error(res.error || 'Código incorreto.');
+        set({ isLoading: false, error: res.error || 'Não foi possível cadastrar.' });
+        throw new Error(res.error || 'Não foi possível cadastrar.');
       }
 
       set({
@@ -173,22 +147,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: null,
       });
 
-      if (res.user.id) {
-        await supabaseUserService.syncCurrentDevice(res.user.id);
-        useMoodStore.getState().fetchRecords(res.user.id);
-      }
+      await supabaseUserService.syncCurrentDevice(res.user.id);
+      useMoodStore.getState().fetchRecords(res.user.id);
     } catch (err: any) {
-      set({ isLoading: false, error: err.message || 'Código incorreto.' });
+      set({ isLoading: false, error: err.message || 'Erro ao criar conta' });
       throw err;
     }
-  },
-
-  resendCode: async (email: string) => {
-    const res = await supabaseAuthService.resendVerificationCode(email);
-    if (!res.success) {
-      throw new Error(res.error || 'Não foi possível reenviar o código.');
-    }
-    return res.message;
   },
 
   logout: async (scope: LogoutScope = 'local') => {

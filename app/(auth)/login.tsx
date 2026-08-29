@@ -45,7 +45,6 @@ export default function LoginScreen() {
   const onSubmit = async (data: LoginFormData) => {
     try {
       setFormError(null);
-      setUnconfirmedEmail(null);
       clearError();
       const normalizedEmail = data.email.trim().toLowerCase();
       await login({
@@ -55,25 +54,7 @@ export default function LoginScreen() {
       });
       router.replace('/(tabs)');
     } catch (err: any) {
-      if (err.isEmailNotConfirmed || (err.message && err.message.includes('não foi confirmado'))) {
-        setUnconfirmedEmail(data.email.trim().toLowerCase());
-        setFormError('Seu e-mail ainda não foi confirmado.');
-      } else {
-        setFormError(err.message || 'E-mail ou senha inválidos.');
-      }
-    }
-  };
-
-  const handleResendFromLogin = async () => {
-    if (!unconfirmedEmail) return;
-    try {
-      await resendCode(unconfirmedEmail);
-      router.push({
-        pathname: '/(auth)/confirmar-email',
-        params: { email: unconfirmedEmail },
-      } as any);
-    } catch (err: any) {
-      setFormError(err.message || 'Não foi possível reenviar o código.');
+      setFormError(err.message || 'E-mail ou senha inválidos.');
     }
   };
 
@@ -90,7 +71,7 @@ export default function LoginScreen() {
         </Text>
       </View>
 
-      {/* Mensagem de Erro Geral ou E-mail Não Confirmado */}
+      {/* Mensagem de Erro Geral */}
       {(formError || error) && (
         <View
           style={[
@@ -102,44 +83,6 @@ export default function LoginScreen() {
           <Text style={[styles.errorText, { color: colors.error }]}>
             {formError || error}
           </Text>
-
-          {unconfirmedEmail && (
-            <View style={{ marginTop: 10, flexDirection: 'row', gap: 10 }}>
-              <TouchableOpacity
-                onPress={() =>
-                  router.push({
-                    pathname: '/(auth)/confirmar-email',
-                    params: { email: unconfirmedEmail },
-                  } as any)
-                }
-                style={{
-                  backgroundColor: '#176F69',
-                  paddingVertical: 6,
-                  paddingHorizontal: 12,
-                  borderRadius: 8,
-                }}
-              >
-                <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '600' }}>
-                  Confirmar agora
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handleResendFromLogin}
-                style={{
-                  borderWidth: 1,
-                  borderColor: '#176F69',
-                  paddingVertical: 6,
-                  paddingHorizontal: 12,
-                  borderRadius: 8,
-                }}
-              >
-                <Text style={{ color: '#176F69', fontSize: 12, fontWeight: '600' }}>
-                  Reenviar código
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
         </View>
       )}
 

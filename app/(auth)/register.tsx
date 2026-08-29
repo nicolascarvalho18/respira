@@ -103,11 +103,8 @@ export default function RegisterScreen() {
         termsAccepted: data.termsAccepted,
         personalizationAccepted: data.personalizationAccepted,
       });
-      showToast({ message: 'Código de ativação enviado para seu e-mail', type: 'info' });
-      router.replace({
-        pathname: '/(auth)/confirmar-email',
-        params: { email: normalizedEmail },
-      } as any);
+      showToast({ message: 'Conta criada com sucesso!', type: 'success' });
+      router.replace('/(tabs)');
     } catch (err: any) {
       setFormError(err.message || 'Erro ao realizar cadastro.');
     }

@@ -48,13 +48,6 @@ export const AppShell: React.FC<AppShellProps> = ({
       router.replace('/(auth)/login');
       return;
     }
-
-    if (user && !user.isEmailVerified) {
-      router.replace({
-        pathname: '/(auth)/confirmar-email',
-        params: { email: user.email },
-      } as any);
-    }
   }, [requireAuth, isLoading, isAuthenticated, user, router]);
 
   if (requireAuth && (isLoading || !isAuthenticated || !user)) {

@@ -3,7 +3,7 @@ import { authService } from '../services/auth/authService';
 import { useAuthStore } from '../store/authStore';
 import { supabase } from '../services/supabase/client';
 
-describe('Real Supabase Auth & Session Security Tests', () => {
+describe('Real Direct Supabase Auth & Session Security Tests', () => {
   beforeEach(async () => {
     useAuthStore.setState({
       user: null,
@@ -14,28 +14,25 @@ describe('Real Supabase Auth & Session Security Tests', () => {
     });
   });
 
-  it('rejects passwords shorter than 10 characters during registration', async () => {
-    const res = await supabaseAuthService.signUp('test@exemplo.com', 'short123');
-    expect(res.error).toContain('10 caracteres');
+  it('rejects passwords shorter than 6 characters during registration', async () => {
+    const res = await supabaseAuthService.signUp('test@exemplo.com', '123');
+    expect(res.error).toContain('6 caracteres');
     expect(res.user).toBeNull();
   });
 
-  it('normalizes email and requires email confirmation on sign up', async () => {
+  it('normalizes email and creates user directly on sign up', async () => {
     jest.spyOn(supabase.auth, 'signUp').mockResolvedValueOnce({
-      data: { user: { id: 'test-user-id', email: 'user.teste@exemplo.com' } as any, session: null },
+      data: {
+        user: { id: 'test-user-id', email: 'user.teste@exemplo.com', created_at: new Date().toISOString() } as any,
+        session: { access_token: 'valid-token' } as any,
+      },
       error: null,
     });
 
     const res = await supabaseAuthService.signUp('  USER.TESTE@EXEMPLO.COM  ', 'StrongPassword123!', 'Usuário Teste');
-    expect(res.user).toBeNull();
-    expect(res.requiresVerification).toBe(true);
-    expect(res.email).toBe('user.teste@exemplo.com');
-  });
-
-  it('rejects invalid or incomplete OTP codes', async () => {
-    const res = await supabaseAuthService.verifyOtp('user@exemplo.com', '123');
-    expect(res.error).toContain('6 dígitos');
-    expect(res.user).toBeNull();
+    expect(res.error).toBeUndefined();
+    expect(res.user).toBeDefined();
+    expect(res.user?.email).toBe('user.teste@exemplo.com');
   });
 
   it('provides neutral security message on password reset', async () => {

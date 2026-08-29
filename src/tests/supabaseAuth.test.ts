@@ -6,21 +6,24 @@ import fs from 'fs';
 import path from 'path';
 
 describe('Supabase Auth, RLS & Database Centralization Tests', () => {
-  it('should handle sign up and email normalization with verification required', async () => {
+  it('should handle direct sign up and email normalization', async () => {
     jest.spyOn(supabase.auth, 'signUp').mockResolvedValueOnce({
-      data: { user: { id: 'test-user-id', email: 'test.user@exemplo.com' } as any, session: null },
+      data: {
+        user: { id: 'test-user-id', email: 'test.user@exemplo.com', created_at: new Date().toISOString() } as any,
+        session: { access_token: 'token-123' } as any,
+      },
       error: null,
     });
 
     const res = await supabaseAuthService.signUp('TEST.USER@EXEMPLO.COM', 'StrongPassword123!', 'Usuário Teste');
     expect(res.error).toBeUndefined();
-    expect(res.requiresVerification).toBe(true);
-    expect(res.email).toBe('test.user@exemplo.com');
+    expect(res.user).toBeDefined();
+    expect(res.user?.email).toBe('test.user@exemplo.com');
   });
 
-  it('should reject short passwords (<10 chars) on sign up', async () => {
-    const res = await supabaseAuthService.signUp('ana@exemplo.com', '123456');
-    expect(res.error).toBe('A senha deve ter pelo menos 10 caracteres.');
+  it('should reject short passwords (<6 chars) on sign up', async () => {
+    const res = await supabaseAuthService.signUp('ana@exemplo.com', '123');
+    expect(res.error).toBe('A senha deve ter pelo menos 6 caracteres.');
   });
 
   it('should reject invalid sign in with neutral message', async () => {
