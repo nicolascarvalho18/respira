@@ -11,8 +11,6 @@ export function useAuth() {
   const logout = useAuthStore((state) => state.logout);
   const setOnboardingCompleted = useAuthStore((state) => state.setOnboardingCompleted);
   const updateUser = useAuthStore((state) => state.updateUser);
-  const verifyOtp = useAuthStore((state) => state.verifyOtp);
-  const resendCode = useAuthStore((state) => state.resendCode);
   const session = useAuthStore((state) => state.session);
   const clearError = useAuthStore((state) => state.clearError);
 
@@ -28,8 +26,6 @@ export function useAuth() {
     error,
     login,
     register,
-    verifyOtp,
-    resendCode,
     logout,
     setOnboardingCompleted,
     updateUser,

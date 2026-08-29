@@ -39,9 +39,6 @@ export default function LoginScreen() {
     },
   });
 
-  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
-  const { resendCode } = useAuth();
-
   const onSubmit = async (data: LoginFormData) => {
     try {
       setFormError(null);

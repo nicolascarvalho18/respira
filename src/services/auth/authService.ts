@@ -36,7 +36,7 @@ class AuthService {
     return { user: res.user };
   }
 
-  async register(data: RegisterData): Promise<{ message: string; requiresVerification: boolean; email: string }> {
+  async register(data: RegisterData): Promise<{ message: string; email: string }> {
     const res = await supabaseAuthService.signUp(data.email, data.password, data.name, {
       termsAccepted: data.termsAccepted,
       privacyAccepted: true,
@@ -49,25 +49,8 @@ class AuthService {
 
     return {
       message: res.message || 'Cadastro realizado com sucesso.',
-      requiresVerification: true,
       email: data.email.toLowerCase().trim(),
     };
-  }
-
-  async verifyOtp(email: string, token: string): Promise<User> {
-    const res = await supabaseAuthService.verifyOtp(email, token);
-    if (res.error || !res.user) {
-      throw new Error(res.error || 'Código inválido.');
-    }
-    return res.user;
-  }
-
-  async resendCode(email: string): Promise<string> {
-    const res = await supabaseAuthService.resendVerificationCode(email);
-    if (!res.success) {
-      throw new Error(res.error || 'Não foi possível reenviar o código.');
-    }
-    return res.message;
   }
 
   async forgotPassword(email: string): Promise<string> {
