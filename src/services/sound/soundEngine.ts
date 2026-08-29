@@ -1,7 +1,24 @@
 import { Platform } from 'react-native';
 
 export type SoundEffectType = 'chime' | 'inhale' | 'exhale' | 'bell' | 'complete' | 'click';
-export type AmbienceType = 'waves' | 'rain' | 'forest' | 'brown_noise' | 'none';
+export type AmbienceType =
+  | 'rain'
+  | 'rain_window'
+  | 'rain_roof'
+  | 'waves'
+  | 'stream'
+  | 'waterfall'
+  | 'forest_dawn'
+  | 'forest_night'
+  | 'birds'
+  | 'fire'
+  | 'wind_trees'
+  | 'white_noise'
+  | 'brown_noise'
+  | 'pink_noise'
+  | 'fan'
+  | 'library'
+  | 'none';
 
 class SoundEngine {
   private audioContext: any = null;
@@ -10,11 +27,15 @@ class SoundEngine {
   private ambienceSource: any = null;
   private currentAmbience: AmbienceType = 'none';
 
+  private musicGain: any = null;
+  private musicInterval: any = null;
+  private isMusicPlaying: boolean = false;
+
   private isMuted: boolean = false;
   private masterVolume: number = 0.8;
-  private ambienceVolume: number = 0.4;
+  private ambienceVolume: number = 0.8;
+  private musicVolume: number = 0.8;
   private voiceEnabled: boolean = true;
-  private isVoiceMuted: boolean = false;
 
   constructor() {
     this.initContext();
@@ -44,21 +65,17 @@ class SoundEngine {
     }
   }
 
-  private ensureRunning() {
+  public ensureRunning() {
     this.initContext();
     if (this.audioContext && this.audioContext.state === 'suspended') {
-      this.audioContext.resume().catch(() => {
-        // AudioContext resume handled safely
-      });
+      this.audioContext.resume().catch(() => {});
     }
   }
 
-  // --- CONTROLE MASTER & MUTE ---
+  // --- CONTROLE DE MUTE & MESTRE ---
 
   public setMuted(muted: boolean) {
     this.isMuted = muted;
-    this.isVoiceMuted = muted;
-
     if (muted) {
       this.stopVoice();
     }
@@ -68,9 +85,7 @@ class SoundEngine {
         const now = this.audioContext.currentTime;
         this.masterGain.gain.cancelScheduledValues(now);
         this.masterGain.gain.setValueAtTime(muted ? 0 : this.masterVolume, now);
-      } catch (_e) {
-        // Master gain update handled safely
-      }
+      } catch (_e) {}
     }
   }
 
@@ -90,14 +105,34 @@ class SoundEngine {
         const now = this.audioContext.currentTime;
         this.masterGain.gain.cancelScheduledValues(now);
         this.masterGain.gain.linearRampToValueAtTime(this.masterVolume, now + 0.05);
-      } catch (_e) {
-        // Master volume ramp handled safely
-      }
+      } catch (_e) {}
     }
   }
 
   public getMasterVolume(): number {
     return this.masterVolume;
+  }
+
+  public setAmbienceVolume(vol: number) {
+    this.ambienceVolume = Math.max(0, Math.min(1, vol));
+    if (this.ambienceGain && this.audioContext) {
+      try {
+        const now = this.audioContext.currentTime;
+        this.ambienceGain.gain.cancelScheduledValues(now);
+        this.ambienceGain.gain.linearRampToValueAtTime(this.ambienceVolume, now + 0.05);
+      } catch (_e) {}
+    }
+  }
+
+  public setMusicVolume(vol: number) {
+    this.musicVolume = Math.max(0, Math.min(1, vol));
+    if (this.musicGain && this.audioContext) {
+      try {
+        const now = this.audioContext.currentTime;
+        this.musicGain.gain.cancelScheduledValues(now);
+        this.musicGain.gain.linearRampToValueAtTime(this.musicVolume, now + 0.05);
+      } catch (_e) {}
+    }
   }
 
   public setVoiceEnabled(enabled: boolean) {
@@ -111,7 +146,21 @@ class SoundEngine {
     return this.voiceEnabled;
   }
 
-  // --- SÍNTESE DE EFEITOS SONOROS SUAVES (SEM CHIADOS OU ESTALOS) ---
+  public stopVoice() {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (_e) {}
+    }
+  }
+
+  public stopAll() {
+    this.stopAmbience();
+    this.stopCalmMusic();
+    this.stopVoice();
+  }
+
+  // --- SÍNTESE DE EFEITOS SONOROS (CUES) ---
 
   public playCue(type: SoundEffectType) {
     if (this.isMuted || this.masterVolume === 0) return;
@@ -122,7 +171,6 @@ class SoundEngine {
       const now = this.audioContext.currentTime;
 
       if (type === 'chime' || type === 'bell' || type === 'complete') {
-        // Sino Zen Tibetano em 528Hz / 432Hz com harmônicos puros e decaimento exponencial
         const baseFreq = type === 'complete' ? 587.33 : type === 'bell' ? 432 : 528;
         const duration = type === 'complete' ? 2.5 : 1.8;
 
@@ -134,9 +182,8 @@ class SoundEngine {
         osc.frequency.setValueAtTime(baseFreq, now);
 
         oscHarmonic.type = 'sine';
-        oscHarmonic.frequency.setValueAtTime(baseFreq * 2.02, now); // Harmônico suave
+        oscHarmonic.frequency.setValueAtTime(baseFreq * 2.02, now);
 
-        // Fade in de 20ms e fade out exponencial suave sem estalos
         cueGain.gain.setValueAtTime(0.0001, now);
         cueGain.gain.linearRampToValueAtTime(0.35, now + 0.02);
         cueGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
@@ -150,7 +197,6 @@ class SoundEngine {
         osc.stop(now + duration + 0.1);
         oscHarmonic.stop(now + duration + 0.1);
       } else if (type === 'inhale') {
-        // Tom suave ascendente de inspiração (220Hz -> 330Hz)
         const osc = this.audioContext.createOscillator();
         const cueGain = this.audioContext.createGain();
 
@@ -168,7 +214,6 @@ class SoundEngine {
         osc.start(now);
         osc.stop(now + 1.25);
       } else if (type === 'exhale') {
-        // Tom suave descendente de expiração (330Hz -> 200Hz)
         const osc = this.audioContext.createOscillator();
         const cueGain = this.audioContext.createGain();
 
@@ -206,14 +251,13 @@ class SoundEngine {
     }
   }
 
-  // --- AMBIÊNCIA SONORA CONTÍNUA SUAVE (WAVES / RAIN / FOREST) ---
+  // --- SÍNTESE DE PAISAGENS SONORAS AMBIENTES (16 TIPOS REAIS) ---
 
-  public playAmbience(type: AmbienceType, volume: number = 0.4) {
-    if (this.currentAmbience === type && this.ambienceSource) return;
+  public playAmbience(type: AmbienceType | string, volume: number = 0.8) {
     this.stopAmbience();
 
     if (type === 'none' || this.isMuted) {
-      this.currentAmbience = type;
+      this.currentAmbience = 'none';
       return;
     }
 
@@ -221,43 +265,75 @@ class SoundEngine {
     if (!this.audioContext || !this.masterGain) return;
 
     try {
-      this.currentAmbience = type;
+      this.currentAmbience = type as AmbienceType;
       this.ambienceVolume = volume;
 
       const sampleRate = this.audioContext.sampleRate || 44100;
-      const bufferSize = sampleRate * 3; // 3 segundos de loop suave
+      const bufferSize = sampleRate * 4; // 4 segundos de loop
       const buffer = this.audioContext.createBuffer(1, bufferSize, sampleRate);
       const data = buffer.getChannelData(0);
 
-      // Gerador calibrado sem DC offset para evitar estalos
       let b0 = 0, b1 = 0, b2 = 0;
       for (let i = 0; i < bufferSize; i++) {
-        const white = (Math.random() * 2 - 1) * 0.15;
-        // Filtro passa-baixa Brown/Pink suave
-        b0 = 0.99 * b0 + white * 0.05;
-        b1 = 0.96 * b1 + white * 0.11;
-        b2 = 0.86 * b2 + white * 0.25;
-        data[i] = (b0 + b1 + b2) * 0.5;
+        const white = Math.random() * 2 - 1;
+
+        if (type.includes('brown')) {
+          b0 = (b0 + 0.02 * white) / 1.02;
+          data[i] = b0 * 3.5;
+        } else if (type.includes('pink')) {
+          b0 = 0.99886 * b0 + white * 0.0555179;
+          b1 = 0.99332 * b1 + white * 0.0750759;
+          b2 = 0.96900 * b2 + white * 0.1538520;
+          data[i] = (b0 + b1 + b2 + white * 0.5362) * 0.11;
+        } else if (type.includes('white')) {
+          data[i] = white * 0.15;
+        } else if (type.includes('rain') || type.includes('water') || type.includes('stream')) {
+          b0 = 0.96 * b0 + white * 0.08;
+          b1 = 0.90 * b1 + white * 0.14;
+          data[i] = (b0 + b1) * 0.4;
+        } else if (type.includes('waves')) {
+          b0 = 0.98 * b0 + white * 0.05;
+          data[i] = b0 * 1.5;
+        } else if (type.includes('fire')) {
+          const crackle = Math.random() < 0.002 ? (Math.random() - 0.5) * 2.5 : 0;
+          b0 = 0.97 * b0 + white * 0.06;
+          data[i] = b0 * 0.8 + crackle;
+        } else {
+          b0 = 0.95 * b0 + white * 0.08;
+          data[i] = b0 * 0.5;
+        }
       }
 
       const noiseNode = this.audioContext.createBufferSource();
       noiseNode.buffer = buffer;
       noiseNode.loop = true;
 
-      // Filtro ressonante suave
       const filter = this.audioContext.createBiquadFilter();
-      filter.type = type === 'rain' ? 'bandpass' : 'lowpass';
-      filter.frequency.value = type === 'rain' ? 900 : type === 'waves' ? 380 : 500;
-      filter.Q.value = 1.0;
+      if (type.includes('rain')) {
+        filter.type = 'bandpass';
+        filter.frequency.value = 850;
+        filter.Q.value = 1.2;
+      } else if (type.includes('waves')) {
+        filter.type = 'lowpass';
+        filter.frequency.value = 420;
+      } else if (type.includes('stream')) {
+        filter.type = 'bandpass';
+        filter.frequency.value = 1100;
+      } else if (type.includes('fire')) {
+        filter.type = 'lowpass';
+        filter.frequency.value = 550;
+      } else if (type.includes('fan')) {
+        filter.type = 'lowpass';
+        filter.frequency.value = 350;
+      } else {
+        filter.type = 'lowpass';
+        filter.frequency.value = 800;
+      }
 
-      // Ganho com fade-in suave de 300ms
-      const now = this.audioContext.currentTime;
       this.ambienceGain = this.audioContext.createGain();
-      this.ambienceGain.gain.setValueAtTime(0.0001, now);
-      this.ambienceGain.gain.linearRampToValueAtTime(
-        this.isMuted ? 0 : volume * 0.35,
-        now + 0.3
-      );
+      const now = this.audioContext.currentTime;
+      this.ambienceGain.gain.setValueAtTime(0.001, now);
+      this.ambienceGain.gain.linearRampToValueAtTime(this.ambienceVolume, now + 0.5);
 
       noiseNode.connect(filter);
       filter.connect(this.ambienceGain);
@@ -275,95 +351,101 @@ class SoundEngine {
       try {
         const now = this.audioContext.currentTime;
         this.ambienceGain.gain.cancelScheduledValues(now);
-        this.ambienceGain.gain.linearRampToValueAtTime(0.0001, now + 0.15);
-
-        const currentSource = this.ambienceSource;
-        setTimeout(() => {
-          if (currentSource) {
-            try {
-              currentSource.stop();
-              currentSource.disconnect();
-            } catch (_e) {
-              // Ambience stop handled safely
-            }
-          }
-        }, 180);
-      } catch (_e) {
-        // Gain ramp handled safely
-      }
-    } else if (this.ambienceSource) {
-      try {
-        this.ambienceSource.stop();
-        this.ambienceSource.disconnect();
-      } catch (_e) {
-        // Source stop handled safely
-      }
+        this.ambienceGain.gain.linearRampToValueAtTime(0.0001, now + 0.3);
+      } catch (_e) {}
     }
 
-    this.ambienceSource = null;
-    this.ambienceGain = null;
+    if (this.ambienceSource) {
+      try {
+        setTimeout(() => {
+          if (this.ambienceSource) {
+            this.ambienceSource.stop();
+            this.ambienceSource.disconnect();
+            this.ambienceSource = null;
+          }
+        }, 350);
+      } catch (_e) {}
+    }
     this.currentAmbience = 'none';
   }
 
-  // --- SÍNTESE DE VOZ GUIADA INTEGRADA ---
+  // --- SÍNTESE DE MÚSICA TRANQUILA AMBIENTE (PIANO / ACÚSTICO RELAXANTE) ---
 
-  public speak(text: string) {
-    if (this.isMuted || this.isVoiceMuted || !this.voiceEnabled || this.masterVolume === 0) {
-      return;
-    }
+  public playCalmMusic(volume: number = 0.8) {
+    this.stopCalmMusic();
+    this.ensureRunning();
+    if (!this.audioContext || !this.masterGain) return;
 
-    if (Platform.OS === 'web' && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      try {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'pt-BR';
-        utterance.rate = 0.88; // Ritmo calmo e acolhedor
-        utterance.pitch = 0.95;
-        utterance.volume = this.isMuted ? 0 : this.masterVolume;
+    try {
+      this.isMusicPlaying = true;
+      this.musicVolume = volume;
 
-        const voices = window.speechSynthesis.getVoices();
-        const ptVoice =
-          voices.find(
-            (v) =>
-              v.lang.startsWith('pt') &&
-              (v.name.includes('Natural') || v.name.includes('Luciana') || v.name.includes('Google'))
-          ) || voices.find((v) => v.lang.startsWith('pt'));
+      this.musicGain = this.audioContext.createGain();
+      const now = this.audioContext.currentTime;
+      this.musicGain.gain.setValueAtTime(0.001, now);
+      this.musicGain.gain.linearRampToValueAtTime(this.musicVolume, now + 0.5);
+      this.musicGain.connect(this.masterGain);
 
-        if (ptVoice) {
-          utterance.voice = ptVoice;
-        }
+      const notes = [174.61, 196.00, 220.00, 261.63, 293.66, 349.23, 392.00, 440.00, 523.25];
+      let noteIndex = 0;
 
-        window.speechSynthesis.speak(utterance);
-      } catch (err) {
-        console.warn('[SoundEngine] Speech synthesis warning:', err);
-      }
+      const playPianoTone = (freq: number) => {
+        if (!this.isMusicPlaying || !this.audioContext || !this.musicGain) return;
+        try {
+          const t = this.audioContext.currentTime;
+          const osc = this.audioContext.createOscillator();
+          const oscHarm = this.audioContext.createOscillator();
+          const noteGain = this.audioContext.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, t);
+
+          oscHarm.type = 'triangle';
+          oscHarm.frequency.setValueAtTime(freq * 2, t);
+
+          noteGain.gain.setValueAtTime(0.001, t);
+          noteGain.gain.linearRampToValueAtTime(0.22, t + 0.05);
+          noteGain.gain.exponentialRampToValueAtTime(0.0001, t + 2.8);
+
+          osc.connect(noteGain);
+          oscHarm.connect(noteGain);
+          noteGain.connect(this.musicGain);
+
+          osc.start(t);
+          oscHarm.start(t);
+          osc.stop(t + 3.0);
+          oscHarm.stop(t + 3.0);
+        } catch (_e) {}
+      };
+
+      playPianoTone(notes[0]);
+      playPianoTone(notes[3]);
+
+      this.musicInterval = setInterval(() => {
+        if (!this.isMusicPlaying) return;
+        const n1 = notes[noteIndex % notes.length];
+        const n2 = notes[(noteIndex + 3) % notes.length];
+        playPianoTone(n1);
+        playPianoTone(n2);
+        noteIndex = (noteIndex + 1) % notes.length;
+      }, 2000);
+    } catch (e) {
+      console.warn('[SoundEngine] Play calm music warning:', e);
     }
   }
 
-  public stopVoice() {
-    if (Platform.OS === 'web' && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      try {
-        window.speechSynthesis.cancel();
-      } catch (_err) {
-        // Speech cancel handled safely
-      }
+  public stopCalmMusic() {
+    this.isMusicPlaying = false;
+    if (this.musicInterval) {
+      clearInterval(this.musicInterval);
+      this.musicInterval = null;
     }
-  }
-
-  // --- LIMPEZA GERAL E PARADA ATÔMICA ---
-
-  public stopAll() {
-    this.stopVoice();
-    this.stopAmbience();
-
-    if (this.masterGain && this.audioContext) {
+    if (this.musicGain && this.audioContext) {
       try {
         const now = this.audioContext.currentTime;
-        this.masterGain.gain.cancelScheduledValues(now);
-        this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : this.masterVolume, now);
-      } catch (_e) {
-        // Stop all master gain reset handled safely
-      }
+        this.musicGain.gain.cancelScheduledValues(now);
+        this.musicGain.gain.linearRampToValueAtTime(0.0001, now + 0.3);
+      } catch (_e) {}
     }
   }
 }

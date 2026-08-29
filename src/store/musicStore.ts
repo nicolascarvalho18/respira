@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { Platform } from 'react-native';
 import { MusicTrack } from '../types';
 import { MUSIC_TRACKS } from '../constants/musicTracks';
+import { soundEngine } from '../services/sound/soundEngine';
 import { storage } from '../services/storage/asyncStorage';
 import { supabase, isSupabaseConfigured } from '../services/supabase/client';
 
@@ -59,11 +60,17 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   playTrack: (track: MusicTrack) => {
     const { volume } = get();
 
+    soundEngine.ensureRunning();
+    soundEngine.setMasterVolume(volume);
+    soundEngine.setMusicVolume(volume);
+    soundEngine.playCalmMusic(volume);
+
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       try {
         if (!audioInstance) {
           audioInstance = new (window as any).Audio();
         }
+        audioInstance.crossOrigin = 'anonymous';
         audioInstance.src = track.audioUrl;
         audioInstance.volume = volume;
         audioInstance.loop = true;
@@ -79,7 +86,7 @@ export const useMusicStore = create<MusicState>((set, get) => ({
           }
         }, 500);
       } catch (err) {
-        console.warn('[Music Player Web Error]:', err);
+        console.warn('[Music Player Web Audio Notice]:', err);
       }
     }
 
@@ -94,7 +101,7 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   },
 
   togglePlayPause: () => {
-    const { isPlaying, currentTrack, tracks, playTrack } = get();
+    const { isPlaying, currentTrack, tracks, playTrack, volume } = get();
     if (!currentTrack) {
       if (tracks.length > 0) {
         playTrack(tracks[0]);
@@ -103,11 +110,14 @@ export const useMusicStore = create<MusicState>((set, get) => ({
     }
 
     if (isPlaying) {
+      soundEngine.stopCalmMusic();
       if (Platform.OS === 'web' && audioInstance) {
         audioInstance.pause();
       }
       set({ isPlaying: false });
     } else {
+      soundEngine.ensureRunning();
+      soundEngine.playCalmMusic(volume);
       if (Platform.OS === 'web' && audioInstance) {
         audioInstance.play().catch(() => {});
       }
@@ -116,6 +126,7 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   },
 
   pauseTrack: () => {
+    soundEngine.stopCalmMusic();
     if (Platform.OS === 'web' && audioInstance) {
       audioInstance.pause();
     }
@@ -140,21 +151,30 @@ export const useMusicStore = create<MusicState>((set, get) => ({
 
   seekTo: (seconds: number) => {
     if (Platform.OS === 'web' && audioInstance) {
-      audioInstance.currentTime = seconds;
+      try {
+        audioInstance.currentTime = seconds;
+      } catch (_e) {}
     }
     set({ positionSeconds: seconds });
   },
 
   setVolume: (volume: number) => {
     const clamped = Math.max(0, Math.min(1, volume));
+    soundEngine.setMasterVolume(clamped);
+    soundEngine.setMusicVolume(clamped);
     if (Platform.OS === 'web' && audioInstance) {
-      audioInstance.volume = clamped;
+      try {
+        audioInstance.volume = clamped;
+      } catch (_e) {}
     }
     set({ volume: clamped });
   },
 
   setTimer: (minutes: number | null) => {
-    if (timerInterval) clearInterval(timerInterval);
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
 
     if (!minutes) {
       set({ timerMinutes: null, remainingTimerSeconds: null });
@@ -165,10 +185,10 @@ export const useMusicStore = create<MusicState>((set, get) => ({
     set({ timerMinutes: minutes, remainingTimerSeconds: totalSeconds });
 
     timerInterval = setInterval(() => {
-      const { remainingTimerSeconds, pauseTrack } = get();
-      if (!remainingTimerSeconds || remainingTimerSeconds <= 1) {
-        clearInterval(timerInterval);
-        pauseTrack();
+      const { remainingTimerSeconds } = get();
+      if (remainingTimerSeconds === null || remainingTimerSeconds <= 1) {
+        get().pauseTrack();
+        if (timerInterval) clearInterval(timerInterval);
         set({ timerMinutes: null, remainingTimerSeconds: null });
       } else {
         set({ remainingTimerSeconds: remainingTimerSeconds - 1 });
@@ -179,9 +199,7 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   toggleFavorite: async (trackId: string, userId?: string) => {
     const { favoriteTrackIds } = get();
     const isFav = favoriteTrackIds.includes(trackId);
-    const updated = isFav
-      ? favoriteTrackIds.filter((id) => id !== trackId)
-      : [...favoriteTrackIds, trackId];
+    const updated = isFav ? favoriteTrackIds.filter((id) => id !== trackId) : [...favoriteTrackIds, trackId];
 
     set({ favoriteTrackIds: updated });
     await storage.setItem(FAVORITE_MUSIC_KEY, updated);
@@ -198,17 +216,15 @@ export const useMusicStore = create<MusicState>((set, get) => ({
           },
           { onConflict: 'user_id,item_id,item_type' }
         );
-      } catch (_e) {
-        // Ignorado se tabela ainda não criada
-      }
+      } catch (_e) {}
     }
   },
 
   loadSavedPreferences: async (userId?: string) => {
     try {
-      const cachedFavs = await storage.getItem<string[]>(FAVORITE_MUSIC_KEY);
-      if (cachedFavs) {
-        set({ favoriteTrackIds: cachedFavs });
+      const cached = await storage.getItem<string[]>(FAVORITE_MUSIC_KEY);
+      if (cached) {
+        set({ favoriteTrackIds: cached });
       }
 
       if (userId && isSupabaseConfigured) {
@@ -222,15 +238,11 @@ export const useMusicStore = create<MusicState>((set, get) => ({
 
           if (data && data.length > 0) {
             const dbFavs = data.map((d: any) => d.item_id);
-            const combined = Array.from(new Set([...(cachedFavs || []), ...dbFavs]));
+            const combined = Array.from(new Set([...(cached || []), ...dbFavs]));
             set({ favoriteTrackIds: combined });
           }
-        } catch (_e) {
-          // Ignorado
-        }
+        } catch (_e) {}
       }
-    } catch {
-      // Ignorado
-    }
+    } catch {}
   },
 }));

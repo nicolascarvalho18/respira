@@ -30,6 +30,7 @@ import {
   Headphones,
   Compass,
   CheckCircle2,
+  VolumeX,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
 import { PracticeCard } from '../../src/components/practices/PracticeCard';
@@ -44,6 +45,7 @@ import { useMusicStore } from '../../src/store/musicStore';
 import { useAuth } from '../../src/hooks/useAuth';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
+import { useToast } from '../../src/components/ui/Toast';
 import { Practice, MusicTrack } from '../../src/types';
 import { Soundscape, SOUNDSCAPES } from '../../src/constants/soundscapes';
 import { MUSIC_TRACKS } from '../../src/constants/musicTracks';
@@ -56,6 +58,7 @@ export default function PracticesScreen() {
   const { colors, isDark } = useTheme();
   const { isDesktop } = useBreakpoint();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const userId = user?.id || 'demo-user-1';
 
   // 1. Aba ativa principal: Práticas | Sons | Músicas
@@ -239,6 +242,25 @@ export default function PracticesScreen() {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  // Funções de clique com abertura imediata do player pedido
+  const handleSelectSound = (sound: Soundscape) => {
+    playSoundscape(sound);
+    setShowSoundPlayerModal(true);
+    showToast({
+      message: `Reproduzindo: ${sound.name}`,
+      type: 'info',
+    });
+  };
+
+  const handleSelectMusic = (track: MusicTrack) => {
+    playTrack(track);
+    setShowMusicPlayerModal(true);
+    showToast({
+      message: `Reproduzindo: ${track.title}`,
+      type: 'info',
+    });
   };
 
   return (
@@ -597,13 +619,7 @@ export default function PracticesScreen() {
                     <TouchableOpacity
                       key={sound.id}
                       activeOpacity={0.88}
-                      onPress={() => {
-                        if (isCurrent) {
-                          toggleSoundPlayPause();
-                        } else {
-                          playSoundscape(sound);
-                        }
-                      }}
+                      onPress={() => handleSelectSound(sound)}
                       style={[
                         styles.audioCard,
                         {
@@ -780,13 +796,7 @@ export default function PracticesScreen() {
                     <TouchableOpacity
                       key={track.id}
                       activeOpacity={0.88}
-                      onPress={() => {
-                        if (isCurrent) {
-                          toggleMusicPlayPause();
-                        } else {
-                          playTrack(track);
-                        }
-                      }}
+                      onPress={() => handleSelectMusic(track)}
                       style={[
                         styles.audioCard,
                         {
@@ -892,7 +902,7 @@ export default function PracticesScreen() {
                       {currentSoundscape.name}
                     </Text>
                     <Text style={[styles.miniPlayerStatus, { color: '#247B74' }]}>
-                      {isSoundPlaying ? 'Tocando som ambiente' : 'Pausado'}
+                      {isSoundPlaying ? 'Tocando som ambiente' : 'Pausado'} · Vol {Math.round(soundVolume * 100)}%
                       {soundRemainingSeconds ? ` · ${formatTimer(soundRemainingSeconds)}` : ''}
                     </Text>
                   </View>
@@ -933,7 +943,7 @@ export default function PracticesScreen() {
                       {currentTrack.title}
                     </Text>
                     <Text style={[styles.miniPlayerStatus, { color: '#247B74' }]}>
-                      {isMusicPlaying ? 'Reproduzindo música' : 'Pausada'}
+                      {isMusicPlaying ? 'Reproduzindo música' : 'Pausada'} · Vol {Math.round(musicVolume * 100)}%
                       {musicRemainingSeconds ? ` · Timer ${formatTimer(musicRemainingSeconds)}` : ''}
                     </Text>
                   </View>
@@ -1146,20 +1156,20 @@ export default function PracticesScreen() {
                   {
                     backgroundColor: isDark ? colors.surface : '#FFFFFF',
                     borderColor: isDark ? colors.border : '#DFE4E1',
-                    maxHeight: '85%',
+                    maxHeight: '88%',
                   },
                 ]}
               >
                 <View style={styles.modalHeader}>
                   <Text style={[styles.modalTitle, { color: isDark ? colors.text : '#1F2927' }]}>
-                    Paisagem Sonora
+                    {currentSoundscape.name}
                   </Text>
                   <TouchableOpacity onPress={() => setShowSoundPlayerModal(false)} style={{ padding: 4 }}>
                     <X size={20} color={isDark ? colors.text : '#1F2927'} />
                   </TouchableOpacity>
                 </View>
 
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center' }}>
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', width: '100%' }}>
                   <Image
                     source={{ uri: currentSoundscape.thumbnailUrl }}
                     style={styles.playerModalCover}
@@ -1173,11 +1183,71 @@ export default function PracticesScreen() {
                     {currentSoundscape.description}
                   </Text>
 
-                  {/* Controle de Volume */}
-                  <View style={styles.volumeControlRow}>
-                    <Volume2 size={18} color="#247B74" style={{ marginRight: 10 }} />
-                    <View style={styles.volumeTrack}>
-                      <View style={[styles.volumeFill, { width: `${soundVolume * 100}%` }]} />
+                  {/* Controle de Volume Totalmente Interativo */}
+                  <View style={[styles.volumeControlCard, { backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFA', borderColor: isDark ? colors.border : '#DFE4E1' }]}>
+                    <View style={styles.volumeHeaderRow}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        {soundVolume === 0 ? (
+                          <VolumeX size={18} color="#247B74" style={{ marginRight: 6 }} />
+                        ) : (
+                          <Volume2 size={18} color="#247B74" style={{ marginRight: 6 }} />
+                        )}
+                        <Text style={[styles.volumeLabel, { color: isDark ? colors.text : '#1F2927' }]}>
+                          Volume: {Math.round(soundVolume * 100)}%
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 6 }}>
+                        <TouchableOpacity
+                          onPress={() => setSoundVolume(Math.max(0, soundVolume - 0.1))}
+                          style={[styles.volumeStepBtn, { backgroundColor: isDark ? '#243431' : '#EDF7F5' }]}
+                        >
+                          <Text style={styles.volumeStepBtnText}>-10%</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => setSoundVolume(Math.min(1, soundVolume + 0.1))}
+                          style={[styles.volumeStepBtn, { backgroundColor: isDark ? '#243431' : '#EDF7F5' }]}
+                        >
+                          <Text style={styles.volumeStepBtnText}>+10%</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    {/* Botões de volume predefinidos */}
+                    <View style={styles.volumePresetsRow}>
+                      {[
+                        { label: '0%', val: 0 },
+                        { label: '25%', val: 0.25 },
+                        { label: '50%', val: 0.5 },
+                        { label: '75%', val: 0.75 },
+                        { label: '100%', val: 1.0 },
+                      ].map((p) => {
+                        const isSel = Math.abs(soundVolume - p.val) < 0.05;
+                        return (
+                          <TouchableOpacity
+                            key={p.label}
+                            onPress={() => setSoundVolume(p.val)}
+                            style={[
+                              styles.volumePresetChip,
+                              isSel
+                                ? { backgroundColor: '#247B74', borderColor: '#247B74' }
+                                : {
+                                    backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                                    borderColor: isDark ? colors.border : '#DFE4E1',
+                                  },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.volumePresetText,
+                                { color: isSel ? '#FFFFFF' : isDark ? colors.text : '#1F2927' },
+                                isSel && { fontWeight: '700' },
+                              ]}
+                            >
+                              {p.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
                   </View>
 
@@ -1186,7 +1256,7 @@ export default function PracticesScreen() {
                     <View style={styles.timerHeaderRow}>
                       <Clock size={16} color="#247B74" style={{ marginRight: 6 }} />
                       <Text style={[styles.timerSectionTitle, { color: isDark ? colors.text : '#1F2927' }]}>
-                        Temporizador de desligamento: {soundRemainingSeconds ? formatTimer(soundRemainingSeconds) : 'Desativado'}
+                        Temporizador: {soundRemainingSeconds ? formatTimer(soundRemainingSeconds) : 'Desativado'}
                       </Text>
                     </View>
 
@@ -1252,20 +1322,20 @@ export default function PracticesScreen() {
                   {
                     backgroundColor: isDark ? colors.surface : '#FFFFFF',
                     borderColor: isDark ? colors.border : '#DFE4E1',
-                    maxHeight: '85%',
+                    maxHeight: '88%',
                   },
                 ]}
               >
                 <View style={styles.modalHeader}>
                   <Text style={[styles.modalTitle, { color: isDark ? colors.text : '#1F2927' }]}>
-                    Música Tranquila
+                    {currentTrack.title}
                   </Text>
                   <TouchableOpacity onPress={() => setShowMusicPlayerModal(false)} style={{ padding: 4 }}>
                     <X size={20} color={isDark ? colors.text : '#1F2927'} />
                   </TouchableOpacity>
                 </View>
 
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center' }}>
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', width: '100%' }}>
                   <Image
                     source={{ uri: currentTrack.thumbnailUrl }}
                     style={styles.playerModalCover}
@@ -1318,6 +1388,74 @@ export default function PracticesScreen() {
                     <TouchableOpacity onPress={nextTrack} style={styles.musicSideCtrlBtn}>
                       <SkipForward size={22} color={isDark ? colors.text : '#1F2927'} />
                     </TouchableOpacity>
+                  </View>
+
+                  {/* Controle de Volume Interativo da Música */}
+                  <View style={[styles.volumeControlCard, { backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFA', borderColor: isDark ? colors.border : '#DFE4E1' }]}>
+                    <View style={styles.volumeHeaderRow}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        {musicVolume === 0 ? (
+                          <VolumeX size={18} color="#247B74" style={{ marginRight: 6 }} />
+                        ) : (
+                          <Volume2 size={18} color="#247B74" style={{ marginRight: 6 }} />
+                        )}
+                        <Text style={[styles.volumeLabel, { color: isDark ? colors.text : '#1F2927' }]}>
+                          Volume: {Math.round(musicVolume * 100)}%
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 6 }}>
+                        <TouchableOpacity
+                          onPress={() => setMusicVolume(Math.max(0, musicVolume - 0.1))}
+                          style={[styles.volumeStepBtn, { backgroundColor: isDark ? '#243431' : '#EDF7F5' }]}
+                        >
+                          <Text style={styles.volumeStepBtnText}>-10%</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => setMusicVolume(Math.min(1, musicVolume + 0.1))}
+                          style={[styles.volumeStepBtn, { backgroundColor: isDark ? '#243431' : '#EDF7F5' }]}
+                        >
+                          <Text style={styles.volumeStepBtnText}>+10%</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    {/* Botões de volume predefinidos */}
+                    <View style={styles.volumePresetsRow}>
+                      {[
+                        { label: '0%', val: 0 },
+                        { label: '25%', val: 0.25 },
+                        { label: '50%', val: 0.5 },
+                        { label: '75%', val: 0.75 },
+                        { label: '100%', val: 1.0 },
+                      ].map((p) => {
+                        const isSel = Math.abs(musicVolume - p.val) < 0.05;
+                        return (
+                          <TouchableOpacity
+                            key={p.label}
+                            onPress={() => setMusicVolume(p.val)}
+                            style={[
+                              styles.volumePresetChip,
+                              isSel
+                                ? { backgroundColor: '#247B74', borderColor: '#247B74' }
+                                : {
+                                    backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                                    borderColor: isDark ? colors.border : '#DFE4E1',
+                                  },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.volumePresetText,
+                                { color: isSel ? '#FFFFFF' : isDark ? colors.text : '#1F2927' },
+                                isSel && { fontWeight: '700' },
+                              ]}
+                            >
+                              {p.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
                   </View>
 
                   {/* Temporizador */}
@@ -1619,7 +1757,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: Platform.OS === 'ios' ? 36 : 20,
-    maxHeight: '85%',
+    maxHeight: '88%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1696,36 +1834,62 @@ const styles = StyleSheet.create({
   playerModalSubtitle: {
     fontSize: 14,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
     paddingHorizontal: 20,
   },
-  volumeControlRow: {
+  volumeControlCard: {
+    width: '100%',
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 16,
+  },
+  volumeHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '80%',
-    marginBottom: 20,
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
-  volumeTrack: {
+  volumeLabel: {
+    fontSize: 13.5,
+    fontWeight: '600',
+  },
+  volumeStepBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  volumeStepBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#247B74',
+  },
+  volumePresetsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  volumePresetChip: {
     flex: 1,
-    height: 6,
-    backgroundColor: '#DFE4E1',
-    borderRadius: 3,
-    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
   },
-  volumeFill: {
-    height: '100%',
-    backgroundColor: '#247B74',
+  volumePresetText: {
+    fontSize: 12,
   },
   timerSection: {
     width: '100%',
-    paddingVertical: 12,
-    marginBottom: 20,
+    paddingVertical: 8,
+    marginBottom: 16,
   },
   timerHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   timerSectionTitle: {
     fontSize: 13.5,
@@ -1762,7 +1926,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   progressSection: {
-    width: '90%',
+    width: '95%',
     marginBottom: 16,
   },
   progressTrack: {
