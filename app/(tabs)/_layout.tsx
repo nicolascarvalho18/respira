@@ -1,14 +1,32 @@
-import React from 'react';
-import { Tabs } from 'expo-router';
+import React, { useEffect } from 'react';
+import { Tabs, useRouter } from 'expo-router';
 import { View, Platform, StyleSheet } from 'react-native';
 import { Home, BookOpen, Wind, Library, User } from 'lucide-react-native';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
+import { useAuth } from '../../src/hooks/useAuth';
+import { LoadingState } from '../../src/components/ui/LoadingState';
 import { MiniFloatingPlayer } from '../../src/components/soundscape/MiniFloatingPlayer';
 
 export default function TabLayout() {
+  const router = useRouter();
   const { colors, isDark } = useTheme();
   const { isDesktop } = useBreakpoint();
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading && (!isAuthenticated || !user)) {
+      router.replace('/(auth)/login');
+    }
+  }, [isLoading, isAuthenticated, user, router]);
+
+  if (isLoading || !isAuthenticated || !user) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }]}>
+        <LoadingState message="Acessando seu espaço..." />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
