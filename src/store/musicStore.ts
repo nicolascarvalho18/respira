@@ -37,7 +37,6 @@ interface MusicState {
   loadSavedPreferences: (userId?: string) => Promise<void>;
 }
 
-let audioInstance: any = null;
 let timerInterval: any = null;
 let progressInterval: any = null;
 
@@ -60,35 +59,11 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   playTrack: (track: MusicTrack) => {
     const { volume } = get();
 
+    // Iniciar áudio procedural garantido imediatamente
     soundEngine.ensureRunning();
     soundEngine.setMasterVolume(volume);
     soundEngine.setMusicVolume(volume);
-    soundEngine.playCalmMusic(volume);
-
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      try {
-        if (!audioInstance) {
-          audioInstance = new (window as any).Audio();
-        }
-        audioInstance.crossOrigin = 'anonymous';
-        audioInstance.src = track.audioUrl;
-        audioInstance.volume = volume;
-        audioInstance.loop = true;
-        audioInstance.play().catch(() => {});
-
-        if (progressInterval) clearInterval(progressInterval);
-        progressInterval = setInterval(() => {
-          if (audioInstance && !audioInstance.paused) {
-            set({
-              positionSeconds: Math.floor(audioInstance.currentTime),
-              durationSeconds: Math.floor(audioInstance.duration || track.durationSeconds),
-            });
-          }
-        }, 500);
-      } catch (err) {
-        console.warn('[Music Player Web Audio Notice]:', err);
-      }
-    }
+    soundEngine.playMusic(track.id, volume);
 
     storage.setItem(LAST_PLAYED_MUSIC_KEY, track.id).catch(() => {});
 
@@ -96,8 +71,20 @@ export const useMusicStore = create<MusicState>((set, get) => ({
       currentTrack: track,
       isPlaying: true,
       positionSeconds: 0,
-      durationSeconds: track.durationSeconds,
+      durationSeconds: track.durationSeconds || 300,
     });
+
+    if (progressInterval) clearInterval(progressInterval);
+    progressInterval = setInterval(() => {
+      const { positionSeconds, durationSeconds, isPlaying } = get();
+      if (!isPlaying) return;
+
+      if (positionSeconds >= durationSeconds) {
+        set({ positionSeconds: 0 });
+      } else {
+        set({ positionSeconds: positionSeconds + 1 });
+      }
+    }, 1000);
   },
 
   togglePlayPause: () => {
@@ -110,26 +97,19 @@ export const useMusicStore = create<MusicState>((set, get) => ({
     }
 
     if (isPlaying) {
-      soundEngine.stopCalmMusic();
-      if (Platform.OS === 'web' && audioInstance) {
-        audioInstance.pause();
-      }
+      soundEngine.stopMusic();
       set({ isPlaying: false });
     } else {
       soundEngine.ensureRunning();
-      soundEngine.playCalmMusic(volume);
-      if (Platform.OS === 'web' && audioInstance) {
-        audioInstance.play().catch(() => {});
-      }
+      soundEngine.setMasterVolume(volume);
+      soundEngine.setMusicVolume(volume);
+      soundEngine.playMusic(currentTrack.id, volume);
       set({ isPlaying: true });
     }
   },
 
   pauseTrack: () => {
-    soundEngine.stopCalmMusic();
-    if (Platform.OS === 'web' && audioInstance) {
-      audioInstance.pause();
-    }
+    soundEngine.stopMusic();
     set({ isPlaying: false });
   },
 
@@ -150,11 +130,6 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   },
 
   seekTo: (seconds: number) => {
-    if (Platform.OS === 'web' && audioInstance) {
-      try {
-        audioInstance.currentTime = seconds;
-      } catch (_e) {}
-    }
     set({ positionSeconds: seconds });
   },
 
@@ -162,11 +137,6 @@ export const useMusicStore = create<MusicState>((set, get) => ({
     const clamped = Math.max(0, Math.min(1, volume));
     soundEngine.setMasterVolume(clamped);
     soundEngine.setMusicVolume(clamped);
-    if (Platform.OS === 'web' && audioInstance) {
-      try {
-        audioInstance.volume = clamped;
-      } catch (_e) {}
-    }
     set({ volume: clamped });
   },
 

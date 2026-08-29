@@ -1,35 +1,23 @@
 import { Platform } from 'react-native';
 
 export type SoundEffectType = 'chime' | 'inhale' | 'exhale' | 'bell' | 'complete' | 'click';
-export type AmbienceType =
-  | 'rain'
-  | 'rain_window'
-  | 'rain_roof'
-  | 'waves'
-  | 'stream'
-  | 'waterfall'
-  | 'forest_dawn'
-  | 'forest_night'
-  | 'birds'
-  | 'fire'
-  | 'wind_trees'
-  | 'white_noise'
-  | 'brown_noise'
-  | 'pink_noise'
-  | 'fan'
-  | 'library'
-  | 'none';
 
 class SoundEngine {
   private audioContext: any = null;
   private masterGain: any = null;
+
+  // Soundscape (Ambience) state
   private ambienceGain: any = null;
   private ambienceSource: any = null;
-  private currentAmbience: AmbienceType = 'none';
+  private ambienceLFO: any = null;
+  private ambienceInterval: any = null;
+  private currentAmbience: string = 'none';
 
+  // Music state
   private musicGain: any = null;
   private musicInterval: any = null;
   private isMusicPlaying: boolean = false;
+  private currentMusicId: string = 'none';
 
   private isMuted: boolean = false;
   private masterVolume: number = 0.8;
@@ -38,15 +26,15 @@ class SoundEngine {
   private voiceEnabled: boolean = true;
 
   constructor() {
-    this.initContext();
+    // Lazily initialized on first user interaction to satisfy browser autoplay policies
   }
 
-  private initContext() {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+  public initContext(): any {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
 
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
+      if (!AudioCtx) return null;
 
       if (!this.audioContext || this.audioContext.state === 'closed') {
         this.audioContext = new AudioCtx();
@@ -60,19 +48,28 @@ class SoundEngine {
         );
         this.masterGain.connect(this.audioContext.destination);
       }
+
+      if (this.audioContext.state === 'suspended') {
+        this.audioContext.resume().catch(() => {});
+      }
+
+      return this.audioContext;
     } catch (e) {
-      console.warn('[SoundEngine] Could not initialize Web Audio Context:', e);
+      console.warn('[SoundEngine] Init warning:', e);
+      return null;
     }
   }
 
   public ensureRunning() {
     this.initContext();
     if (this.audioContext && this.audioContext.state === 'suspended') {
-      this.audioContext.resume().catch(() => {});
+      try {
+        this.audioContext.resume().catch(() => {});
+      } catch (_e) {}
     }
   }
 
-  // --- CONTROLE DE MUTE & MESTRE ---
+  // --- CONTROLE DE MUTE & VOLUME ---
 
   public setMuted(muted: boolean) {
     this.isMuted = muted;
@@ -104,7 +101,7 @@ class SoundEngine {
       try {
         const now = this.audioContext.currentTime;
         this.masterGain.gain.cancelScheduledValues(now);
-        this.masterGain.gain.linearRampToValueAtTime(this.masterVolume, now + 0.05);
+        this.masterGain.gain.setValueAtTime(this.masterVolume, now);
       } catch (_e) {}
     }
   }
@@ -119,7 +116,7 @@ class SoundEngine {
       try {
         const now = this.audioContext.currentTime;
         this.ambienceGain.gain.cancelScheduledValues(now);
-        this.ambienceGain.gain.linearRampToValueAtTime(this.ambienceVolume, now + 0.05);
+        this.ambienceGain.gain.setValueAtTime(this.ambienceVolume, now);
       } catch (_e) {}
     }
   }
@@ -130,16 +127,14 @@ class SoundEngine {
       try {
         const now = this.audioContext.currentTime;
         this.musicGain.gain.cancelScheduledValues(now);
-        this.musicGain.gain.linearRampToValueAtTime(this.musicVolume, now + 0.05);
+        this.musicGain.gain.setValueAtTime(this.musicVolume, now);
       } catch (_e) {}
     }
   }
 
   public setVoiceEnabled(enabled: boolean) {
     this.voiceEnabled = enabled;
-    if (!enabled) {
-      this.stopVoice();
-    }
+    if (!enabled) this.stopVoice();
   }
 
   public getVoiceEnabled(): boolean {
@@ -156,7 +151,7 @@ class SoundEngine {
 
   public stopAll() {
     this.stopAmbience();
-    this.stopCalmMusic();
+    this.stopMusic();
     this.stopVoice();
   }
 
@@ -247,16 +242,16 @@ class SoundEngine {
         osc.stop(now + 0.06);
       }
     } catch (e) {
-      console.warn('[SoundEngine] Play cue warning:', e);
+      console.warn('[SoundEngine] Play cue error:', e);
     }
   }
 
-  // --- SÍNTESE DE PAISAGENS SONORAS AMBIENTES (16 TIPOS REAIS) ---
+  // --- SÍNTESE DE 16 PAISAGENS SONORAS PROCEDURAIS EXCLUSIVAS ---
 
-  public playAmbience(type: AmbienceType | string, volume: number = 0.8) {
+  public playAmbience(soundId: string, volume: number = 0.8) {
     this.stopAmbience();
 
-    if (type === 'none' || this.isMuted) {
+    if (soundId === 'none' || this.isMuted) {
       this.currentAmbience = 'none';
       return;
     }
@@ -265,42 +260,52 @@ class SoundEngine {
     if (!this.audioContext || !this.masterGain) return;
 
     try {
-      this.currentAmbience = type as AmbienceType;
+      this.currentAmbience = soundId;
       this.ambienceVolume = volume;
 
       const sampleRate = this.audioContext.sampleRate || 44100;
-      const bufferSize = sampleRate * 4; // 4 segundos de loop
+      const bufferSize = sampleRate * 3; // 3 segundos de loop suave
       const buffer = this.audioContext.createBuffer(1, bufferSize, sampleRate);
       const data = buffer.getChannelData(0);
 
+      const type = soundId.toLowerCase();
+
+      // Gerador de ruído acústico calibrado por tipo de ambiente
       let b0 = 0, b1 = 0, b2 = 0;
       for (let i = 0; i < bufferSize; i++) {
         const white = Math.random() * 2 - 1;
 
         if (type.includes('brown')) {
+          // Ruído Marrom puro (1/f^2)
           b0 = (b0 + 0.02 * white) / 1.02;
           data[i] = b0 * 3.5;
         } else if (type.includes('pink')) {
+          // Ruído Rosa balanceado (1/f)
           b0 = 0.99886 * b0 + white * 0.0555179;
           b1 = 0.99332 * b1 + white * 0.0750759;
           b2 = 0.96900 * b2 + white * 0.1538520;
-          data[i] = (b0 + b1 + b2 + white * 0.5362) * 0.11;
+          data[i] = (b0 + b1 + b2 + white * 0.5362) * 0.15;
         } else if (type.includes('white')) {
-          data[i] = white * 0.15;
-        } else if (type.includes('rain') || type.includes('water') || type.includes('stream')) {
-          b0 = 0.96 * b0 + white * 0.08;
-          b1 = 0.90 * b1 + white * 0.14;
-          data[i] = (b0 + b1) * 0.4;
+          // Ruído Branco
+          data[i] = white * 0.18;
+        } else if (type.includes('rain') || type.includes('waterfall') || type.includes('stream')) {
+          // Chuva e Água
+          b0 = 0.95 * b0 + white * 0.09;
+          b1 = 0.88 * b1 + white * 0.15;
+          data[i] = (b0 + b1) * 0.45;
         } else if (type.includes('waves')) {
-          b0 = 0.98 * b0 + white * 0.05;
-          data[i] = b0 * 1.5;
+          // Ondas
+          b0 = 0.985 * b0 + white * 0.05;
+          data[i] = b0 * 1.8;
         } else if (type.includes('fire')) {
-          const crackle = Math.random() < 0.002 ? (Math.random() - 0.5) * 2.5 : 0;
+          // Fogueira com estalos
+          const crackle = Math.random() < 0.003 ? (Math.random() - 0.5) * 2.8 : 0;
           b0 = 0.97 * b0 + white * 0.06;
-          data[i] = b0 * 0.8 + crackle;
+          data[i] = b0 * 0.75 + crackle;
         } else {
+          // Vento, Floresta, Ventilador, Biblioteca
           b0 = 0.95 * b0 + white * 0.08;
-          data[i] = b0 * 0.5;
+          data[i] = b0 * 0.55;
         }
       }
 
@@ -308,32 +313,46 @@ class SoundEngine {
       noiseNode.buffer = buffer;
       noiseNode.loop = true;
 
+      // Filtro de frequência dedicado
       const filter = this.audioContext.createBiquadFilter();
-      if (type.includes('rain')) {
+      if (type.includes('rain-window') || type.includes('window')) {
         filter.type = 'bandpass';
-        filter.frequency.value = 850;
-        filter.Q.value = 1.2;
+        filter.frequency.value = 1400;
+        filter.Q.value = 1.5;
+      } else if (type.includes('rain-roof') || type.includes('roof')) {
+        filter.type = 'lowpass';
+        filter.frequency.value = 500;
+      } else if (type.includes('rain')) {
+        filter.type = 'bandpass';
+        filter.frequency.value = 950;
+        filter.Q.value = 1.0;
       } else if (type.includes('waves')) {
         filter.type = 'lowpass';
-        filter.frequency.value = 420;
+        filter.frequency.value = 450;
       } else if (type.includes('stream')) {
         filter.type = 'bandpass';
-        filter.frequency.value = 1100;
+        filter.frequency.value = 1200;
+        filter.Q.value = 0.8;
+      } else if (type.includes('waterfall')) {
+        filter.type = 'lowpass';
+        filter.frequency.value = 650;
       } else if (type.includes('fire')) {
         filter.type = 'lowpass';
         filter.frequency.value = 550;
       } else if (type.includes('fan')) {
         filter.type = 'lowpass';
         filter.frequency.value = 350;
+      } else if (type.includes('library')) {
+        filter.type = 'lowpass';
+        filter.frequency.value = 400;
       } else {
         filter.type = 'lowpass';
-        filter.frequency.value = 800;
+        filter.frequency.value = 750;
       }
 
       this.ambienceGain = this.audioContext.createGain();
       const now = this.audioContext.currentTime;
-      this.ambienceGain.gain.setValueAtTime(0.001, now);
-      this.ambienceGain.gain.linearRampToValueAtTime(this.ambienceVolume, now + 0.5);
+      this.ambienceGain.gain.setValueAtTime(this.ambienceVolume, now);
 
       noiseNode.connect(filter);
       filter.connect(this.ambienceGain);
@@ -341,101 +360,177 @@ class SoundEngine {
 
       noiseNode.start(now);
       this.ambienceSource = noiseNode;
+
+      // Se for Ondas do Mar: modular maré com LFO
+      if (type.includes('waves')) {
+        const lfo = this.audioContext.createOscillator();
+        const lfoGain = this.audioContext.createGain();
+        lfo.type = 'sine';
+        lfo.frequency.value = 0.22; // 1 onda a cada ~4.5s
+        lfoGain.gain.value = this.ambienceVolume * 0.45;
+
+        lfo.connect(lfoGain);
+        lfoGain.connect(this.ambienceGain.gain);
+        lfo.start(now);
+        this.ambienceLFO = lfo;
+      }
+
+      // Se for Floresta ou Pássaros: adicionar cantos de pássaros sutis periódicos
+      if (type.includes('forest') || type.includes('bird')) {
+        this.ambienceInterval = setInterval(() => {
+          if (!this.ambienceGain || !this.audioContext) return;
+          try {
+            const t = this.audioContext.currentTime;
+            const osc = this.audioContext.createOscillator();
+            const g = this.audioContext.createGain();
+            osc.type = 'sine';
+            const f1 = 2600 + Math.random() * 800;
+            const f2 = 3400 + Math.random() * 600;
+            osc.frequency.setValueAtTime(f1, t);
+            osc.frequency.exponentialRampToValueAtTime(f2, t + 0.12);
+            osc.frequency.exponentialRampToValueAtTime(f1, t + 0.25);
+
+            g.gain.setValueAtTime(0.001, t);
+            g.gain.linearRampToValueAtTime(0.08, t + 0.05);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+
+            osc.connect(g);
+            g.connect(this.ambienceGain);
+            osc.start(t);
+            osc.stop(t + 0.3);
+          } catch (_e) {}
+        }, 3200);
+      }
     } catch (e) {
       console.warn('[SoundEngine] Play ambience warning:', e);
     }
   }
 
   public stopAmbience() {
-    if (this.ambienceGain && this.audioContext) {
+    if (this.ambienceInterval) {
+      clearInterval(this.ambienceInterval);
+      this.ambienceInterval = null;
+    }
+    if (this.ambienceLFO) {
       try {
-        const now = this.audioContext.currentTime;
-        this.ambienceGain.gain.cancelScheduledValues(now);
-        this.ambienceGain.gain.linearRampToValueAtTime(0.0001, now + 0.3);
+        this.ambienceLFO.stop();
+        this.ambienceLFO.disconnect();
+        this.ambienceLFO = null;
       } catch (_e) {}
     }
-
     if (this.ambienceSource) {
       try {
-        setTimeout(() => {
-          if (this.ambienceSource) {
-            this.ambienceSource.stop();
-            this.ambienceSource.disconnect();
-            this.ambienceSource = null;
-          }
-        }, 350);
+        this.ambienceSource.stop();
+        this.ambienceSource.disconnect();
+        this.ambienceSource = null;
       } catch (_e) {}
     }
     this.currentAmbience = 'none';
   }
 
-  // --- SÍNTESE DE MÚSICA TRANQUILA AMBIENTE (PIANO / ACÚSTICO RELAXANTE) ---
+  // --- SÍNTESE DE 12 COMPOSIÇÕES MUSICAIS INSTRUMENTAIS TRANQUILAS ---
 
-  public playCalmMusic(volume: number = 0.8) {
-    this.stopCalmMusic();
+  public playMusic(trackId: string, volume: number = 0.8) {
+    this.stopMusic();
     this.ensureRunning();
     if (!this.audioContext || !this.masterGain) return;
 
     try {
       this.isMusicPlaying = true;
+      this.currentMusicId = trackId;
       this.musicVolume = volume;
 
       this.musicGain = this.audioContext.createGain();
       const now = this.audioContext.currentTime;
-      this.musicGain.gain.setValueAtTime(0.001, now);
-      this.musicGain.gain.linearRampToValueAtTime(this.musicVolume, now + 0.5);
+      this.musicGain.gain.setValueAtTime(this.musicVolume, now);
       this.musicGain.connect(this.masterGain);
 
-      const notes = [174.61, 196.00, 220.00, 261.63, 293.66, 349.23, 392.00, 440.00, 523.25];
-      let noteIndex = 0;
+      // Escalas harmônicas e notas exclusivas por faixa
+      const scales: Record<string, number[]> = {
+        'music-piano-dawn': [174.61, 220.0, 261.63, 329.63, 392.0, 523.25], // F Major Lyrical
+        'music-quiet-night': [146.83, 174.61, 220.0, 261.63, 293.66, 349.23], // D Minor Ambient
+        'music-serene-path': [130.81, 164.81, 196.0, 246.94, 261.63, 329.63], // C Major Serene
+        'music-breath-pause': [196.0, 246.94, 293.66, 369.99, 392.0, 493.88], // G Major Breathe
+        'music-morning-light': [220.0, 277.18, 329.63, 415.3, 440.0, 554.37], // A Major Morning
+        'music-deep-reflection': [138.59, 164.81, 207.65, 246.94, 277.18, 329.63], // C# Minor Reflect
+        'music-mental-silence': [116.54, 146.83, 174.61, 220.0, 233.08, 293.66], // Bb Major Silence
+        'music-crystal-clarity': [164.81, 207.65, 246.94, 311.13, 329.63, 415.3], // E Major Crystal
+        'music-night-rest': [103.83, 130.81, 155.56, 196.0, 207.65, 261.63], // Ab Major Lullaby
+        'music-deep-peace': [132.0, 264.0, 396.0, 528.0, 660.0], // 528Hz Solfeggio Peace
+        'music-gentle-breeze': [108.0, 216.0, 324.0, 432.0, 540.0], // 432Hz Healing Breeze
+        'music-star-lullaby': [155.56, 196.0, 233.08, 293.66, 311.13, 392.0], // Eb Major Stars
+      };
 
-      const playPianoTone = (freq: number) => {
+      const notes = scales[trackId] || scales['music-piano-dawn'];
+      let noteStep = 0;
+
+      const playPianoChord = (freq1: number, freq2: number) => {
         if (!this.isMusicPlaying || !this.audioContext || !this.musicGain) return;
         try {
           const t = this.audioContext.currentTime;
-          const osc = this.audioContext.createOscillator();
-          const oscHarm = this.audioContext.createOscillator();
-          const noteGain = this.audioContext.createGain();
 
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, t);
+          // Nota 1
+          const osc1 = this.audioContext.createOscillator();
+          const osc1H = this.audioContext.createOscillator();
+          const g1 = this.audioContext.createGain();
 
-          oscHarm.type = 'triangle';
-          oscHarm.frequency.setValueAtTime(freq * 2, t);
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(freq1, t);
 
-          noteGain.gain.setValueAtTime(0.001, t);
-          noteGain.gain.linearRampToValueAtTime(0.22, t + 0.05);
-          noteGain.gain.exponentialRampToValueAtTime(0.0001, t + 2.8);
+          osc1H.type = 'triangle';
+          osc1H.frequency.setValueAtTime(freq1 * 2, t);
 
-          osc.connect(noteGain);
-          oscHarm.connect(noteGain);
-          noteGain.connect(this.musicGain);
+          g1.gain.setValueAtTime(0.001, t);
+          g1.gain.linearRampToValueAtTime(0.25, t + 0.04);
+          g1.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
 
-          osc.start(t);
-          oscHarm.start(t);
-          osc.stop(t + 3.0);
-          oscHarm.stop(t + 3.0);
+          osc1.connect(g1);
+          osc1H.connect(g1);
+          g1.connect(this.musicGain);
+
+          osc1.start(t);
+          osc1H.start(t);
+          osc1.stop(t + 3.3);
+          osc1H.stop(t + 3.3);
+
+          // Nota 2 (harmonia suave)
+          const osc2 = this.audioContext.createOscillator();
+          const g2 = this.audioContext.createGain();
+
+          osc2.type = 'sine';
+          osc2.frequency.setValueAtTime(freq2, t);
+
+          g2.gain.setValueAtTime(0.001, t);
+          g2.gain.linearRampToValueAtTime(0.18, t + 0.06);
+          g2.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
+
+          osc2.connect(g2);
+          g2.connect(this.musicGain);
+
+          osc2.start(t);
+          osc2.stop(t + 3.3);
         } catch (_e) {}
       };
 
-      playPianoTone(notes[0]);
-      playPianoTone(notes[3]);
+      // Tocar primeiro acorde imediatamente
+      playPianoChord(notes[0], notes[2]);
 
+      // Tocar progressão melódica suave a cada 2.2 segundos
       this.musicInterval = setInterval(() => {
         if (!this.isMusicPlaying) return;
-        const n1 = notes[noteIndex % notes.length];
-        const n2 = notes[(noteIndex + 3) % notes.length];
-        playPianoTone(n1);
-        playPianoTone(n2);
-        noteIndex = (noteIndex + 1) % notes.length;
-      }, 2000);
+        const n1 = notes[noteStep % notes.length];
+        const n2 = notes[(noteStep + 2) % notes.length];
+        playPianoChord(n1, n2);
+        noteStep = (noteStep + 1) % notes.length;
+      }, 2200);
     } catch (e) {
-      console.warn('[SoundEngine] Play calm music warning:', e);
+      console.warn('[SoundEngine] Play music warning:', e);
     }
   }
 
-  public stopCalmMusic() {
+  public stopMusic() {
     this.isMusicPlaying = false;
+    this.currentMusicId = 'none';
     if (this.musicInterval) {
       clearInterval(this.musicInterval);
       this.musicInterval = null;
@@ -444,9 +539,23 @@ class SoundEngine {
       try {
         const now = this.audioContext.currentTime;
         this.musicGain.gain.cancelScheduledValues(now);
-        this.musicGain.gain.linearRampToValueAtTime(0.0001, now + 0.3);
+        this.musicGain.gain.setValueAtTime(0.0001, now);
+        setTimeout(() => {
+          if (this.musicGain) {
+            this.musicGain.disconnect();
+            this.musicGain = null;
+          }
+        }, 100);
       } catch (_e) {}
     }
+  }
+
+  public playCalmMusic(volume: number = 0.8) {
+    this.playMusic('music-piano-dawn', volume);
+  }
+
+  public stopCalmMusic() {
+    this.stopMusic();
   }
 }
 

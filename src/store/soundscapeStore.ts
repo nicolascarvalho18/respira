@@ -39,8 +39,6 @@ interface SoundscapeState {
 const FAVORITES_STORAGE_KEY = 'respira_soundscape_favorites';
 const LAST_PLAYED_KEY = 'respira_last_played_soundscape';
 
-let primaryAudio: any = null;
-let secondaryAudio: any = null;
 let audioInterval: any = null;
 
 export const useSoundscapeStore = create<SoundscapeState>((set, get) => ({
@@ -64,25 +62,11 @@ export const useSoundscapeStore = create<SoundscapeState>((set, get) => ({
     const { volume, timerMinutes } = get();
     const remaining = timerMinutes ? timerMinutes * 60 : null;
 
+    // Iniciar áudio procedural garantido imediatamente
     soundEngine.ensureRunning();
     soundEngine.setMasterVolume(volume);
     soundEngine.setAmbienceVolume(volume);
-    soundEngine.playAmbience(soundscape.generatorType || soundscape.id, volume);
-
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      try {
-        if (!primaryAudio) {
-          primaryAudio = new (window as any).Audio();
-        }
-        primaryAudio.crossOrigin = 'anonymous';
-        primaryAudio.src = soundscape.audioUrl;
-        primaryAudio.volume = volume;
-        primaryAudio.loop = true;
-        primaryAudio.play().catch(() => {});
-      } catch (err) {
-        console.warn('[Soundscape HTML5 Audio Notice, WebAudio active]:', err);
-      }
-    }
+    soundEngine.playAmbience(soundscape.id || soundscape.generatorType, volume);
 
     storage.setItem(LAST_PLAYED_KEY, soundscape.id).catch(() => {});
 
@@ -110,45 +94,23 @@ export const useSoundscapeStore = create<SoundscapeState>((set, get) => ({
 
     if (isPlaying) {
       soundEngine.stopAmbience();
-      if (Platform.OS === 'web' && primaryAudio) {
-        primaryAudio.pause();
-      }
-      if (Platform.OS === 'web' && secondaryAudio) {
-        secondaryAudio.pause();
-      }
       set({ isPlaying: false });
     } else {
       soundEngine.ensureRunning();
-      soundEngine.playAmbience(currentSoundscape.generatorType || currentSoundscape.id, volume);
-      if (Platform.OS === 'web' && primaryAudio) {
-        primaryAudio.play().catch(() => {});
-      }
-      if (Platform.OS === 'web' && secondaryAudio) {
-        secondaryAudio.play().catch(() => {});
-      }
+      soundEngine.setMasterVolume(volume);
+      soundEngine.setAmbienceVolume(volume);
+      soundEngine.playAmbience(currentSoundscape.id || currentSoundscape.generatorType, volume);
       set({ isPlaying: true });
     }
   },
 
   pauseSoundscape: async () => {
     soundEngine.stopAmbience();
-    if (Platform.OS === 'web' && primaryAudio) {
-      primaryAudio.pause();
-    }
-    if (Platform.OS === 'web' && secondaryAudio) {
-      secondaryAudio.pause();
-    }
     set({ isPlaying: false });
   },
 
   stopSoundscape: async () => {
     soundEngine.stopAmbience();
-    if (Platform.OS === 'web' && primaryAudio) {
-      primaryAudio.pause();
-    }
-    if (Platform.OS === 'web' && secondaryAudio) {
-      secondaryAudio.pause();
-    }
     if (audioInterval) clearInterval(audioInterval);
     set({
       isPlaying: false,
@@ -163,51 +125,15 @@ export const useSoundscapeStore = create<SoundscapeState>((set, get) => ({
     const clamped = Math.max(0, Math.min(1, newVolume));
     soundEngine.setMasterVolume(clamped);
     soundEngine.setAmbienceVolume(clamped);
-    if (Platform.OS === 'web' && primaryAudio) {
-      try {
-        primaryAudio.volume = clamped;
-      } catch (_e) {}
-    }
     set({ volume: clamped });
   },
 
   setSecondarySoundscape: (soundscape: Soundscape | null) => {
-    const { isPlaying, secondaryVolume } = get();
-    if (!soundscape) {
-      if (Platform.OS === 'web' && secondaryAudio) {
-        secondaryAudio.pause();
-      }
-      set({ secondarySoundscape: null });
-      return;
-    }
-
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      try {
-        if (!secondaryAudio) {
-          secondaryAudio = new (window as any).Audio();
-        }
-        secondaryAudio.crossOrigin = 'anonymous';
-        secondaryAudio.src = soundscape.audioUrl;
-        secondaryAudio.volume = secondaryVolume;
-        secondaryAudio.loop = true;
-        if (isPlaying) {
-          secondaryAudio.play().catch(() => {});
-        }
-      } catch (err) {
-        console.warn('[Secondary Soundscape Audio Notice]:', err);
-      }
-    }
-
     set({ secondarySoundscape: soundscape });
   },
 
   setSecondaryVolume: (vol: number) => {
     const clamped = Math.max(0, Math.min(1, vol));
-    if (Platform.OS === 'web' && secondaryAudio) {
-      try {
-        secondaryAudio.volume = clamped;
-      } catch (_e) {}
-    }
     set({ secondaryVolume: clamped });
   },
 
@@ -243,12 +169,6 @@ export const useSoundscapeStore = create<SoundscapeState>((set, get) => ({
 
   closeMiniPlayer: async () => {
     soundEngine.stopAmbience();
-    if (Platform.OS === 'web' && primaryAudio) {
-      primaryAudio.pause();
-    }
-    if (Platform.OS === 'web' && secondaryAudio) {
-      secondaryAudio.pause();
-    }
     if (audioInterval) clearInterval(audioInterval);
     set({
       isPlaying: false,
