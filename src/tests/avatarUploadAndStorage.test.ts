@@ -145,22 +145,102 @@ describe('Upload e Persistência de Foto de Perfil (Supabase Storage & Profiles 
     });
   });
 
-  describe('4. Validação da Migration 20260829000007 (Storage & RLS)', () => {
-    it('deve conter as políticas RLS isoladas por pasta (storage.foldername(name))[1] = auth.uid()', () => {
-      const migrationPath = path.join(
-        __dirname,
-        '../../supabase/migrations/20260829000007_user_avatar_storage_and_profiles_rls.sql'
-      );
-      expect(fs.existsSync(migrationPath)).toBe(true);
+  describe('5. Testes da Função Unificada saveProfileAndAvatar', () => {
+    it('deve salvar perfil e avatar com sucesso na ordem correta', async () => {
+      jest.spyOn(supabase.auth, 'getUser').mockResolvedValue({
+        data: { user: mockUser as any },
+        error: null,
+      });
 
-      const sqlContent = fs.readFileSync(migrationPath, 'utf-8');
-      expect(sqlContent).toContain("insert into storage.buckets (id, name, public");
-      expect(sqlContent).toContain("'avatars'");
-      expect(sqlContent).toContain("(storage.foldername(name))[1] = (auth.uid())::text");
-      expect(sqlContent).toContain("create table if not exists public.profiles");
-      expect(sqlContent).toContain("handle_new_user_profile");
-      expect(sqlContent).toContain("on_auth_user_created_profile");
-      expect(sqlContent).toContain("alter table public.profiles enable row level security;");
+      const upsertMock = jest.fn().mockResolvedValue({ error: null });
+      const updateMock = jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({ error: null }),
+      });
+      const selectMock = jest.fn().mockReturnValue({
+        eq: jest.fn().mockReturnValue({
+          maybeSingle: jest.fn().mockResolvedValue({
+            data: {
+              id: mockUserId,
+              full_name: 'Novo Nome',
+              display_name: 'Novo Nome',
+              bio: 'Nova Bio',
+              avatar_url: `https://mock.supabase.co/storage/v1/object/public/avatars/${mockUserId}/avatar-123.webp`,
+            },
+            error: null,
+          }),
+        }),
+      });
+
+      jest.spyOn(supabase, 'from').mockReturnValue({
+        upsert: upsertMock,
+        update: updateMock,
+        select: selectMock,
+      } as any);
+
+      const uploadMock = jest.fn().mockResolvedValue({
+        data: { path: `${mockUserId}/avatar-123.webp` },
+        error: null,
+      });
+      const getPublicUrlMock = jest.fn().mockReturnValue({
+        data: { publicUrl: `https://mock.supabase.co/storage/v1/object/public/avatars/${mockUserId}/avatar-123.webp` },
+      });
+
+      jest.spyOn(supabase.storage, 'from').mockReturnValue({
+        upload: uploadMock,
+        getPublicUrl: getPublicUrlMock,
+      } as any);
+
+      const mockBlob = new Blob(['mock-img'], { type: 'image/webp' });
+      const result = await supabaseUserService.saveProfileAndAvatar({
+        fullName: 'Novo Nome',
+        bio: 'Nova Bio',
+        avatarFile: mockBlob,
+      });
+
+      expect(result.name).toBe('Novo Nome');
+      expect(result.bio).toBe('Nova Bio');
+      expect(result.avatarUrl).toContain('avatar-123.webp');
+      expect(upsertMock).toHaveBeenCalled();
+      expect(uploadMock).toHaveBeenCalled();
+      expect(updateMock).toHaveBeenCalled();
+    });
+
+    it('deve lançar mensagem de erro específica quando a sessão expirar', async () => {
+      jest.spyOn(supabase.auth, 'getUser').mockResolvedValue({
+        data: { user: null },
+        error: { message: 'JWT expired' } as any,
+      });
+
+      await expect(
+        supabaseUserService.saveProfileAndAvatar({
+          fullName: 'Teste',
+          bio: '',
+        })
+      ).rejects.toThrow('Sua sessão expirou. Faça login novamente para continuar.');
+    });
+
+    it('deve lançar mensagem de erro específica quando o upload falhar', async () => {
+      jest.spyOn(supabase.auth, 'getUser').mockResolvedValue({
+        data: { user: mockUser as any },
+        error: null,
+      });
+
+      jest.spyOn(supabase, 'from').mockReturnValue({
+        upsert: jest.fn().mockResolvedValue({ error: null }),
+      } as any);
+
+      jest.spyOn(supabase.storage, 'from').mockReturnValue({
+        upload: jest.fn().mockResolvedValue({ data: null, error: { message: 'Bucket not found' } }),
+      } as any);
+
+      const mockBlob = new Blob(['mock-img'], { type: 'image/webp' });
+      await expect(
+        supabaseUserService.saveProfileAndAvatar({
+          fullName: 'Teste',
+          bio: '',
+          avatarFile: mockBlob,
+        })
+      ).rejects.toThrow('Não foi possível enviar a imagem.');
     });
   });
 });

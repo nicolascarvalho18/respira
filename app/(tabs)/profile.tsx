@@ -128,17 +128,23 @@ export default function ProfileScreen() {
   const handleAvatarChange = async (newAvatarUrl: string | null, file?: Blob | File) => {
     if (!user) return;
     try {
-      let finalUrl = newAvatarUrl;
-      if (file) {
-        finalUrl = await userService.uploadAvatar(user.id, file, 'webp');
-      } else if (newAvatarUrl === null) {
-        finalUrl = null;
-        await userService.updateAvatar(user.id, null);
-      }
-      await updateUser({ avatarUrl: finalUrl });
-      showToast({ message: finalUrl ? 'Foto salva' : 'Foto removida', type: 'success' });
+      const isRemoving = newAvatarUrl === null && !file;
+      const updatedUser = await userService.saveProfileAndAvatar({
+        fullName: user.name || 'Usuário',
+        bio: user.bio || '',
+        avatarFile: file || null,
+        removeAvatar: isRemoving,
+      });
+      await updateUser({ avatarUrl: updatedUser.avatarUrl });
+      showToast({ message: updatedUser.avatarUrl ? 'Foto salva com sucesso' : 'Foto removida', type: 'success' });
     } catch (err: any) {
-      showToast({ message: err.message || 'Não foi possível salvar a foto.', type: 'error' });
+      console.error('Erro ao salvar perfil:', {
+        message: err?.message,
+        code: err?.code,
+        details: err?.details,
+        hint: err?.hint,
+      });
+      showToast({ message: err.message || 'Não foi possível enviar a imagem.', type: 'error' });
       throw err;
     }
   };

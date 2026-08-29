@@ -130,48 +130,38 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     try {
       setIsSaving(true);
 
-      // 1. Determinar a URL da foto de perfil
-      let finalAvatarUrl: string | null = savedAvatarUrl;
+      const isRemovingAvatar = avatarPreviewUrl === null && !selectedAvatarFile;
 
-      // 2. Se houver um novo arquivo selecionado, fazer upload real no Supabase Storage
-      if (selectedAvatarFile) {
-        try {
-          finalAvatarUrl = await userService.uploadAvatar(user.id, selectedAvatarFile, 'webp');
-        } catch (uploadErr: any) {
-          console.error('[EditProfileModal Storage upload error]:', uploadErr);
-          setAvatarError(uploadErr.message || 'Não foi possível salvar a foto.');
-          setIsSaving(false);
-          return;
-        }
-      } else if (avatarPreviewUrl === null) {
-        // Usuário removeu a foto
-        finalAvatarUrl = null;
-        await userService.updateAvatar(user.id, null);
-      }
-
-      // 3. Salvar nome, biografia e avatar_url no banco via upsert
-      const updated = await userService.updateProfile(user.id, {
-        name: sanitizedName,
+      const updatedUser = await userService.saveProfileAndAvatar({
+        fullName: sanitizedName,
         bio: sanitizedBio,
-        avatarUrl: finalAvatarUrl,
+        avatarFile: selectedAvatarFile,
+        removeAvatar: isRemovingAvatar,
       });
 
-      // 4. Atualizar o estado global
+      // Atualizar o contexto de autenticação imediatamente com os dados do banco
       await updateUser({
-        name: updated.name,
-        bio: updated.bio,
-        avatarUrl: finalAvatarUrl,
+        name: updatedUser.name,
+        bio: updatedUser.bio,
+        avatarUrl: updatedUser.avatarUrl,
       });
 
-      // 5. Atualizar savedAvatarUrl e limpar arquivo temporário
-      setSavedAvatarUrl(finalAvatarUrl);
+      setSavedAvatarUrl(updatedUser.avatarUrl || null);
+      setAvatarPreviewUrl(updatedUser.avatarUrl || null);
       setSelectedAvatarFile(null);
 
-      showToast({ message: 'Alterações salvas', type: 'success' });
+      showToast({ message: 'Perfil salvo com sucesso', type: 'success' });
       onClose();
     } catch (err: any) {
-      console.error('Profile update error:', err);
-      showToast({ message: err.message || 'Não foi possível salvar seu perfil.', type: 'error' });
+      console.error('Erro ao salvar perfil:', {
+        message: err?.message,
+        code: err?.code,
+        details: err?.details,
+        hint: err?.hint,
+      });
+      const specificMessage = err?.message || 'Não foi possível atualizar os seus dados.';
+      setAvatarError(specificMessage);
+      showToast({ message: specificMessage, type: 'error' });
     } finally {
       setIsSaving(false);
     }

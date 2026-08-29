@@ -10,6 +10,43 @@ import { logger } from '../../utils/logger';
 const CURRENT_USER_KEY = 'respira_current_user';
 
 class UserService {
+  async saveProfileAndAvatar(params: {
+    fullName: string;
+    bio: string;
+    avatarFile?: File | Blob | null;
+    removeAvatar?: boolean;
+  }): Promise<User> {
+    let result = {
+      name: params.fullName.trim(),
+      bio: params.bio.trim(),
+      avatarUrl: null as string | null,
+    };
+
+    if (isSupabaseConfigured) {
+      result = await supabaseUserService.saveProfileAndAvatar(params);
+    } else {
+      if (params.avatarFile && typeof FileReader !== 'undefined' && params.avatarFile instanceof Blob) {
+        result.avatarUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(params.avatarFile as Blob);
+        });
+      }
+    }
+
+    const currentUser = await storage.getItem<User>(CURRENT_USER_KEY);
+    const userId = currentUser?.id || 'current-user';
+
+    const updatedUser = await userAccountService.updateProfileDetails(userId, {
+      name: result.name,
+      bio: result.bio,
+      avatarUrl: result.avatarUrl !== undefined ? result.avatarUrl : currentUser?.avatarUrl,
+    });
+
+    await storage.setItem(CURRENT_USER_KEY, updatedUser);
+    return updatedUser;
+  }
+
   async updateProfile(userId: string, partial: Partial<User>): Promise<User> {
     // 1. Atualizar no Supabase via upsert caso configurado
     if (isSupabaseConfigured) {
@@ -61,7 +98,7 @@ class UserService {
   async updateAvatar(userId: string, avatarUrl: string | null): Promise<User> {
     if (isSupabaseConfigured) {
       try {
-        await supabaseUserService.updateProfile(userId, { avatarUrl });
+        await supabaseUserService.updateAvatar(userId, avatarUrl);
       } catch (err) {
         logger.error('Error updating avatar in Supabase:', err);
       }
