@@ -24,7 +24,7 @@ export interface MoodRecord {
   mood: MoodValue; // 1: Muito mal, 2: Mal, 3: Neutro, 4: Bem, 5: Muito bem
   anxietyLevel: number; // 0 a 10
   emotions: string[]; // e.g. ["Preocupado", "Inquieto", "Cansado", "Esperançoso", "Grato"]
-  activities: string[]; // e.g. ["Trabalho", "Estudos", "Exercício", "Descanso", "Família"]
+  activities?: string[]; // e.g. ["Trabalho", "Estudos", "Exercício", "Descanso", "Família"]
   plannedExercises?: PlannedExercise[];
   notes?: string;
   createdAt: string; // ISO date string

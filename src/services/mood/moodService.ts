@@ -33,7 +33,9 @@ class MoodService {
             .eq('user_id', targetUserId)
             .order('created_at', { ascending: false });
 
-          if (!error && dbMoods) {
+          if (error) {
+            console.error('[Supabase mood_entries SELECT Error]:', error);
+          } else if (dbMoods) {
             const mappedRecords: MoodRecord[] = dbMoods.map((m) => ({
               id: m.id,
               userId: m.user_id,
@@ -52,7 +54,7 @@ class MoodService {
           }
         }
       } catch (err) {
-        logger.warn('Error fetching moods from Supabase, fallback to user cache:', err);
+        console.error('[Supabase fetchMoods Error]:', err);
       }
     }
 
@@ -91,6 +93,9 @@ class MoodService {
     return records.find((r) => r.id === id) || null;
   }
 
+  /**
+   * Cria e persiste um novo registro de humor diretamente no Supabase e no cache local.
+   */
   async createRecord(
     record: Omit<MoodRecord, 'id' | 'createdAt' | 'userId'> & { userId?: string }
   ): Promise<MoodRecord> {
@@ -119,28 +124,38 @@ class MoodService {
       createdAt: new Date().toISOString(),
     };
 
+    // 1. Persistência Real no Supabase
     if (isSupabaseConfigured && targetUserId) {
       try {
+        const insertPayload: Record<string, any> = {
+          user_id: targetUserId,
+          mood_score: record.mood,
+          anxiety_score: record.anxietyLevel,
+          emotions: record.emotions || [],
+          activities: record.activities || [],
+          planned_exercises: record.plannedExercises || [],
+          notes: record.notes || null,
+        };
+
         const { data, error } = await supabase
           .from('mood_entries')
-          .insert({
-            user_id: targetUserId,
-            mood_score: record.mood,
-            anxiety_score: record.anxietyLevel,
-            emotions: record.emotions,
-            activities: record.activities || [],
-            planned_exercises: record.plannedExercises || [],
-            notes: record.notes || null,
-          })
+          .insert(insertPayload)
           .select()
           .single();
 
-        if (!error && data) {
+        if (error) {
+          console.error('[Supabase mood_entries INSERT Error]:', error);
+          throw new Error(`Erro ao salvar no banco de dados: ${error.message}`);
+        }
+
+        if (data) {
           newRecord.id = data.id;
           newRecord.createdAt = data.created_at;
+          newRecord.userId = data.user_id;
         }
-      } catch (err) {
-        logger.warn('Error saving mood to Supabase:', err);
+      } catch (err: any) {
+        console.error('[Supabase createRecord Error]:', err);
+        throw err;
       }
     }
 
@@ -148,16 +163,20 @@ class MoodService {
       return apiClient.post<MoodRecord>('/moods', newRecord);
     }
 
+    // 2. Atualização Imediata do Cache do Usuário
     if (targetUserId) {
       const storageKey = this.getStorageKey(targetUserId);
       const existing = (await storage.getItem<MoodRecord[]>(storageKey)) || [];
-      const updated = [newRecord, ...existing];
+      const updated = [newRecord, ...existing.filter((r) => r.id !== newRecord.id)];
       await storage.setItem(storageKey, updated);
     }
 
-    // Salvar também no registro global para fallback
+    // Atualizar no storage global para compatibilidade de testes
     const globalExisting = (await storage.getItem<MoodRecord[]>(BASE_MOODS_STORAGE_KEY)) || [];
-    await storage.setItem(BASE_MOODS_STORAGE_KEY, [newRecord, ...globalExisting]);
+    await storage.setItem(
+      BASE_MOODS_STORAGE_KEY,
+      [newRecord, ...globalExisting.filter((r) => r.id !== newRecord.id)]
+    );
 
     logger.info(`Mood record created: score ${newRecord.mood}, anxiety ${newRecord.anxietyLevel}`);
     return newRecord;
@@ -180,9 +199,12 @@ class MoodService {
         if (partial.plannedExercises !== undefined) payload.planned_exercises = partial.plannedExercises;
         if (partial.notes !== undefined) payload.notes = partial.notes;
 
-        await supabase.from('mood_entries').update(payload).eq('id', id);
+        const { error } = await supabase.from('mood_entries').update(payload).eq('id', id);
+        if (error) {
+          console.error('[Supabase mood_entries UPDATE Error]:', error);
+        }
       } catch (err) {
-        logger.warn('Error updating mood in Supabase:', err);
+        console.error('[Supabase updateRecord Error]:', err);
       }
     }
 
@@ -192,7 +214,6 @@ class MoodService {
 
     let updatedRecord: MoodRecord | null = null;
 
-    // 1. Tentar atualizar no storage do usuário se targetUserId estiver presente
     if (targetUserId) {
       const storageKey = this.getStorageKey(targetUserId);
       const records = (await storage.getItem<MoodRecord[]>(storageKey)) || [];
@@ -208,7 +229,6 @@ class MoodService {
       }
     }
 
-    // 2. Atualizar no storage global
     const globalRecords = (await storage.getItem<MoodRecord[]>(BASE_MOODS_STORAGE_KEY)) || [];
     const updatedGlobal = globalRecords.map((r) => {
       if (r.id === id) {
@@ -220,16 +240,6 @@ class MoodService {
 
     if (updatedRecord) {
       await storage.setItem(BASE_MOODS_STORAGE_KEY, updatedGlobal);
-
-      // Se o registro tinha um userId diferente, atualizar também o storage daquele usuário
-      const recordUserId = (updatedRecord as MoodRecord).userId;
-      if (recordUserId && recordUserId !== targetUserId) {
-        const userKey = this.getStorageKey(recordUserId);
-        const userRecords = (await storage.getItem<MoodRecord[]>(userKey)) || [];
-        const userUpdated = userRecords.map((r) => (r.id === id ? updatedRecord! : r));
-        await storage.setItem(userKey, userUpdated);
-      }
-
       return updatedRecord;
     }
 
@@ -243,9 +253,12 @@ class MoodService {
 
     if (isSupabaseConfigured) {
       try {
-        await supabase.from('mood_entries').delete().eq('id', id);
+        const { error } = await supabase.from('mood_entries').delete().eq('id', id);
+        if (error) {
+          console.error('[Supabase mood_entries DELETE Error]:', error);
+        }
       } catch (err) {
-        logger.warn('Error deleting mood from Supabase:', err);
+        console.error('[Supabase deleteRecord Error]:', err);
       }
     }
 
@@ -261,15 +274,8 @@ class MoodService {
     }
 
     const globalRecords = (await storage.getItem<MoodRecord[]>(BASE_MOODS_STORAGE_KEY)) || [];
-    const targetRecord = globalRecords.find((r) => r.id === id);
     const filteredGlobal = globalRecords.filter((r) => r.id !== id);
     await storage.setItem(BASE_MOODS_STORAGE_KEY, filteredGlobal);
-
-    if (targetRecord?.userId && targetRecord.userId !== targetUserId) {
-      const userKey = this.getStorageKey(targetRecord.userId);
-      const userRecords = (await storage.getItem<MoodRecord[]>(userKey)) || [];
-      await storage.setItem(userKey, userRecords.filter((r) => r.id !== id));
-    }
 
     logger.info(`Mood record deleted: ${id}`);
     return true;

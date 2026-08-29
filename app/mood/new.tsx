@@ -44,6 +44,9 @@ import { AnxietySlider } from '../../src/components/mood/AnxietySlider';
 import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
 import { useToast } from '../../src/components/ui/Toast';
 import { useMoodStore } from '../../src/store/moodStore';
+import { useAuth } from '../../src/hooks/useAuth';
+import { authService } from '../../src/services/auth/authService';
+import { supabase, isSupabaseConfigured } from '../../src/services/supabase/client';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
 import { AVAILABLE_EMOTIONS, AVAILABLE_ACTIVITIES } from '../../src/mocks/moods.mock';
@@ -147,6 +150,7 @@ const EMOTION_ITEMS = [
 
 export default function NewMoodScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const { colors, isDark } = useTheme();
   const { isDesktop } = useBreakpoint();
   const { addRecord } = useMoodStore();
@@ -274,6 +278,27 @@ export default function NewMoodScreen() {
     try {
       setIsSaving(true);
 
+      // Obter ID do usuário autenticado real
+      let activeUserId = user?.id;
+      if (!activeUserId) {
+        const stored = await authService.getStoredSession();
+        activeUserId = stored?.id;
+      }
+      if (!activeUserId && isSupabaseConfigured) {
+        try {
+          const { data: sbData } = await supabase.auth.getUser();
+          activeUserId = sbData?.user?.id;
+        } catch (_e) {
+          // Ignorado
+        }
+      }
+
+      if (!activeUserId) {
+        showToast({ message: 'Faça login para registrar seu momento.', type: 'error' });
+        setIsSaving(false);
+        return;
+      }
+
       const chosenMood: MoodValue = mood ?? 4;
       const chosenAnxiety: number = anxietyLevel ?? 3;
 
@@ -285,15 +310,15 @@ export default function NewMoodScreen() {
             option.id === 'ex-breathing'
               ? 'practice-breathing-478'
               : option.id === 'ex-stretch'
-              ? 'practice-body-relaxation'
+              ? 'practice-morning-gentle-stretch'
               : option.id === 'ex-walk'
-              ? 'practice-mindful-walking'
+              ? 'practice-physical-mindful-walk'
               : option.id === 'ex-pause'
               ? 'practice-quick-conscious-pause'
               : option.id === 'ex-grounding'
-              ? 'practice-mindfulness-grounding'
+              ? 'practice-grounding-54321'
               : option.id === 'ex-sounds'
-              ? 'practice-sleep-deceleration'
+              ? 'practice-soundscape-rain'
               : option.id === 'ex-focus'
               ? 'practice-focus-recovery'
               : 'practice-breathing-478';
@@ -313,8 +338,9 @@ export default function NewMoodScreen() {
         }
       }
 
+      // Persistência real no Supabase e store
       await addRecord({
-        userId: 'user-demo-1',
+        userId: activeUserId,
         mood: chosenMood,
         anxietyLevel: chosenAnxiety,
         emotions: selectedEmotions,
@@ -323,11 +349,16 @@ export default function NewMoodScreen() {
         notes: notes.trim() || undefined,
       });
 
+      // Recarrega imediatamente os registros da store para refletir médias e gráfico
+      await useMoodStore.getState().fetchRecords(activeUserId);
+
+      // Limpar rascunho após confirmação de sucesso
       await storage.removeItem(DRAFT_STORAGE_KEY);
       showToast({ message: 'Momento registrado', type: 'success' });
       router.replace('/(tabs)/diary');
-    } catch {
-      showToast({ message: 'Erro ao salvar registro. Tente novamente.', type: 'error' });
+    } catch (err: any) {
+      console.error('[NewMoodScreen Save Error]:', err);
+      showToast({ message: 'Não foi possível registrar seu momento. Tente novamente.', type: 'error' });
     } finally {
       setIsSaving(false);
     }
