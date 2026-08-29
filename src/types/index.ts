@@ -133,6 +133,7 @@ export interface UserPracticeProgress {
   completedCount: number;
   lastPlayedAt: string;
   lastCompletedAt?: string;
+  postFeeling?: 'calmer' | 'same' | 'uncomfortable';
   postFeelingsHistory?: {
     date: string;
     feeling: 'calmer' | 'same' | 'uncomfortable';

@@ -233,6 +233,7 @@ class PracticeService {
       notes,
     });
 
+    current.postFeeling = feeling;
     current.postFeelingsHistory = newHistory;
     allProgress[key] = current;
     await storage.setItem(USER_PROGRESS_STORAGE_KEY, allProgress);

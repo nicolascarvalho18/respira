@@ -22,15 +22,17 @@ import {
   FileText,
   Clock,
   User,
-  Eye,
   SlidersHorizontal,
   Headphones,
+  Sparkles,
+  ShieldAlert,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { soundEngine } from '../../services/sound/soundEngine';
+import { guidedVoiceService } from '../../services/sound/guidedVoiceService';
 import { hapticService } from '../../services/haptics/hapticService';
-import { BreathingCircle, BreathingPhase } from './BreathingCircle';
-import { SquareBreathingVideoGuide } from './SquareBreathingVideoGuide';
+import { CharacterBreathingGuide } from './CharacterBreathingGuide';
+import { CharacterGuidedCanvas, CharacterPosture } from './CharacterGuidedCanvas';
 import { Practice, PracticeCaption } from '../../types';
 
 export interface GuidedVideoAudioPlayerProps {
@@ -50,74 +52,77 @@ export const GuidedVideoAudioPlayer: React.FC<GuidedVideoAudioPlayerProps> = ({
 
   const totalDurationSeconds = practice.durationMinutes * 60;
 
-  const isSquareBreathing =
-    practice.id === 'practice-breathing-box' ||
-    practice.title.toLowerCase().includes('quadrada');
+  // Identificação do tipo de prática
+  const isBreathingTechnique =
+    practice.category === 'breathing' ||
+    !!practice.breathingConfig ||
+    practice.id.includes('breathing') ||
+    practice.title.toLowerCase().includes('respiração');
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(initialPositionSeconds);
   const [playbackSpeed, setPlaybackSpeed] = useState<0.75 | 1 | 1.25 | 1.5>(1);
   const [showCaptions, setShowCaptions] = useState(true);
   const [showTranscript, setShowTranscript] = useState(false);
+
+  // Mixer de áudio separado: Narração / Voz vs. Música Ambiente
+  const [isVoiceActive, setIsVoiceActive] = useState(true);
   const [isAmbientMusicOn, setIsAmbientMusicOn] = useState(false);
   const [isAnimationOnly, setIsAnimationOnly] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-
-  // Breathing state for interactive breathing practices
-  const isInteractiveBreathing =
-    !isSquareBreathing &&
-    practice.format === 'interactive' &&
-    !!practice.breathingConfig;
-
-  const breathingConfig = practice.breathingConfig || {
-    inhaleSeconds: 4,
-    holdSeconds: 2,
-    exhaleSeconds: 4,
-    cycles: 4,
-  };
-  const [breathingPhase, setBreathingPhase] = useState<BreathingPhase>('idle');
-  const [breathingSecondsLeft, setBreathingSecondsLeft] = useState(
-    breathingConfig.inhaleSeconds
-  );
-  const [completedCycles, setCompletedCycles] = useState(0);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Synchronized Caption calculation
-  const currentCaption = practice.captions?.find(
-    (c) => currentTime >= c.start && currentTime <= c.end
-  );
+  // Script de narração da prática
+  const narrationScripts = useRef(guidedVoiceService.getNarrationScript(practice.id)).current;
+  const lastSpokenIndex = useRef<number>(-1);
 
-  // Ambient sound management
+  // Legenda sincronizada
+  const currentCaption =
+    practice.captions?.find((c) => currentTime >= c.start && currentTime <= c.end)?.text ||
+    practice.stages?.find((s, idx) => {
+      const stageStart = idx * (totalDurationSeconds / (practice.stages?.length || 1));
+      const stageEnd = (idx + 1) * (totalDurationSeconds / (practice.stages?.length || 1));
+      return currentTime >= stageStart && currentTime < stageEnd;
+    })?.instruction ||
+    practice.description;
+
+  // Gerenciar Trilha Sonora Ambiente
   const handleToggleAmbientMusic = () => {
     const next = !isAmbientMusicOn;
     setIsAmbientMusicOn(next);
-    if (next && !isAnimationOnly && !isMuted) {
-      soundEngine.playAmbience('rain', 0.35);
+    guidedVoiceService.setAmbientMuted(!next);
+    if (next && !isAnimationOnly) {
+      soundEngine.playAmbience(
+        practice.category === 'sleep' || practice.category === 'bedtime_prep' ? 'rain' : 'waves',
+        0.3
+      );
     } else {
       soundEngine.stopAmbience();
     }
     hapticService.triggerHold();
   };
 
-  // Toggle Animation Only
+  // Gerenciar Voz da Narração
+  const handleToggleVoice = () => {
+    const next = !isVoiceActive;
+    setIsVoiceActive(next);
+    guidedVoiceService.setVoiceMuted(!next);
+    hapticService.triggerHold();
+  };
+
+  // Toggle Apenas Animação (silencia voz e música)
   const handleToggleAnimationOnly = () => {
     const next = !isAnimationOnly;
     setIsAnimationOnly(next);
     if (next) {
       soundEngine.stopAll();
+      guidedVoiceService.cancel();
       setIsAmbientMusicOn(false);
-    }
-    hapticService.triggerHold();
-  };
-
-  // Toggle Mute
-  const handleToggleMute = () => {
-    const next = !isMuted;
-    setIsMuted(next);
-    if (next) {
-      soundEngine.stopAll();
+      setIsVoiceActive(false);
+    } else {
+      setIsVoiceActive(true);
+      guidedVoiceService.setVoiceMuted(false);
     }
     hapticService.triggerHold();
   };
@@ -128,35 +133,35 @@ export const GuidedVideoAudioPlayer: React.FC<GuidedVideoAudioPlayerProps> = ({
     setIsPlaying(next);
     hapticService.triggerInhale();
 
-    if (next && isInteractiveBreathing && breathingPhase === 'idle') {
-      setBreathingPhase('inhale');
-      setBreathingSecondsLeft(breathingConfig.inhaleSeconds);
+    if (next) {
+      if (isAmbientMusicOn && !isAnimationOnly) {
+        soundEngine.playAmbience('waves', 0.3);
+      }
+    } else {
+      soundEngine.stopAll();
+      guidedVoiceService.cancel();
     }
   };
 
   // Seek
   const handleSeek = (deltaSeconds: number) => {
     setCurrentTime((prev) => {
-      const nextTime = Math.max(
-        0,
-        Math.min(totalDurationSeconds, prev + deltaSeconds)
-      );
+      const nextTime = Math.max(0, Math.min(totalDurationSeconds, prev + deltaSeconds));
       onProgressUpdate?.(nextTime, totalDurationSeconds);
       return nextTime;
     });
     hapticService.triggerHold();
   };
 
-  // Speed Change
+  // Velocidade de Reprodução
   const handleCycleSpeed = () => {
     const speeds: (0.75 | 1 | 1.25 | 1.5)[] = [1, 1.25, 1.5, 0.75];
-    const nextSpeed =
-      speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.length];
+    const nextSpeed = speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.length];
     setPlaybackSpeed(nextSpeed);
     hapticService.triggerHold();
   };
 
-  // Main playback timer
+  // Timer principal de reprodução
   useEffect(() => {
     if (isPlaying) {
       timerRef.current = setInterval(() => {
@@ -167,36 +172,30 @@ export const GuidedVideoAudioPlayer: React.FC<GuidedVideoAudioPlayerProps> = ({
           if (next >= totalDurationSeconds) {
             setIsPlaying(false);
             if (timerRef.current) clearInterval(timerRef.current);
+            soundEngine.stopAll();
+            guidedVoiceService.cancel();
             onComplete?.();
             return totalDurationSeconds;
           }
           return next;
         });
 
-        // Breathing cycle logic if interactive
-        if (isInteractiveBreathing) {
-          setBreathingSecondsLeft((prev) => {
-            if (prev <= 1) {
-              if (breathingPhase === 'inhale') {
-                if (breathingConfig.holdSeconds > 0) {
-                  setBreathingPhase('hold');
-                  return breathingConfig.holdSeconds;
-                } else {
-                  setBreathingPhase('exhale');
-                  return breathingConfig.exhaleSeconds;
-                }
-              } else if (breathingPhase === 'hold') {
-                setBreathingPhase('exhale');
-                return breathingConfig.exhaleSeconds;
-              } else if (breathingPhase === 'exhale') {
-                setCompletedCycles((c) => c + 1);
-                setBreathingPhase('inhale');
-                return breathingConfig.inhaleSeconds;
-              }
-              return breathingConfig.inhaleSeconds;
+        // Narração por marcos de tempo para práticas não-respiratórias puras
+        if (!isBreathingTechnique && isVoiceActive && !isAnimationOnly) {
+          const stageDuration = totalDurationSeconds / Math.max(1, narrationScripts.length);
+          const currentScriptIndex = Math.floor(currentTime / stageDuration);
+
+          if (
+            currentScriptIndex >= 0 &&
+            currentScriptIndex < narrationScripts.length &&
+            currentScriptIndex !== lastSpokenIndex.current
+          ) {
+            lastSpokenIndex.current = currentScriptIndex;
+            const item = narrationScripts[currentScriptIndex];
+            if (item && item.text) {
+              guidedVoiceService.speak(item.text, undefined, 0.88 * playbackSpeed);
             }
-            return prev - 1;
-          });
+          }
         }
       }, 1000 / playbackSpeed);
     } else {
@@ -210,39 +209,42 @@ export const GuidedVideoAudioPlayer: React.FC<GuidedVideoAudioPlayerProps> = ({
     isPlaying,
     playbackSpeed,
     totalDurationSeconds,
-    isInteractiveBreathing,
-    breathingPhase,
-    breathingConfig,
+    isBreathingTechnique,
+    isVoiceActive,
+    isAnimationOnly,
+    currentTime,
     onProgressUpdate,
     onComplete,
   ]);
 
-  // Clean up sounds on unmount
+  // Limpeza ao desmontar
   useEffect(() => {
     return () => {
       soundEngine.stopAll();
+      guidedVoiceService.cancel();
     };
   }, []);
 
   const formatSeconds = (sec: number) => {
     const mins = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);
-    return `${mins.toString().padStart(2, '0')}:${s
-      .toString()
-      .padStart(2, '0')}`;
+    return `${mins.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
   const progressPercent =
-    totalDurationSeconds > 0
-      ? Math.min(100, (currentTime / totalDurationSeconds) * 100)
-      : 0;
+    totalDurationSeconds > 0 ? Math.min(100, (currentTime / totalDurationSeconds) * 100) : 0;
 
-  const currentPhaseDuration =
-    breathingPhase === 'inhale'
-      ? breathingConfig.inhaleSeconds
-      : breathingPhase === 'hold'
-      ? breathingConfig.holdSeconds
-      : breathingConfig.exhaleSeconds;
+  // Postura da personagem para práticas meditativas / alongamentos
+  let characterPosture: CharacterPosture = 'breathing_diaphragmatic';
+  if (practice.id === 'practice-grounding-54321') {
+    characterPosture = 'grounding_mug';
+  } else if (practice.category === 'guided_meditation' || practice.category === 'mindfulness') {
+    characterPosture = 'meditation_lotus';
+  } else if (practice.id.includes('body-scan') || practice.id.includes('pmr')) {
+    characterPosture = 'body_scan';
+  } else if (practice.category === 'body_movement' || practice.category === 'morning_routine') {
+    characterPosture = 'stretch_arms';
+  }
 
   return (
     <View
@@ -255,349 +257,163 @@ export const GuidedVideoAudioPlayer: React.FC<GuidedVideoAudioPlayerProps> = ({
         },
       ]}
     >
-      {/* 1. Tela Visual 16:9 */}
+      {/* 1. Palco Visual Principal (9:16 ou Adaptado) */}
       <View style={styles.mediaStage}>
-        {isSquareBreathing ? (
-          /* A. Modo Respiração Quadrada com Vídeo Demonstrativo e Personagem 2D */
-          <SquareBreathingVideoGuide
+        {isBreathingTechnique ? (
+          /* A. Modo Respiração com Animação da Personagem Oficial + Anel Sincronizado */
+          <CharacterBreathingGuide
+            practice={practice}
             isPlaying={isPlaying}
-            currentSecond={currentTime}
-            totalDurationSeconds={totalDurationSeconds}
-            speedMultiplier={playbackSpeed}
-            showCaptions={showCaptions}
+            onComplete={onComplete}
           />
-        ) : isInteractiveBreathing ? (
-          /* B. Modo Interativo Respiratório Clássico */
-          <View style={styles.interactiveStage}>
-            <BreathingCircle
-              phase={breathingPhase}
-              phaseDurationSeconds={currentPhaseDuration}
-              secondsRemaining={breathingSecondsLeft}
-              isActive={isPlaying}
-            />
-          </View>
-        ) : practice.format === 'video' ? (
-          /* C. Modo Vídeo com Instrutor */
-          <View style={styles.videoStage}>
-            {practice.thumbnailUrl ? (
-              <Image
-                source={{ uri: practice.thumbnailUrl }}
-                style={styles.videoBackground}
-                resizeMode="cover"
-              />
-            ) : null}
-
-            <View style={styles.videoOverlayShade} />
-
-            {/* Selo do Instrutor */}
-            {practice.instructor ? (
-              <View style={styles.instructorBadge}>
-                <View style={styles.instructorAvatarCircle}>
-                  <User size={13} color="#2F7F7C" aria-hidden={true} />
-                </View>
-                <View>
-                  <Text style={styles.instructorName}>
-                    {practice.instructor.name}
-                  </Text>
-                  <Text style={styles.instructorRole}>
-                    {practice.instructor.role}
-                  </Text>
-                </View>
-              </View>
-            ) : null}
-
-            {/* Play Button centralizado quando pausado */}
-            {!isPlaying && (
-              <TouchableOpacity
-                onPress={handleTogglePlay}
-                style={styles.centerPlayButton}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel="Iniciar reprodução do vídeo"
-              >
-                <Play
-                  size={32}
-                  color="#FFFFFF"
-                  fill="#FFFFFF"
-                  style={{ marginLeft: 4 }}
-                  aria-hidden={true}
-                />
-              </TouchableOpacity>
-            )}
-          </View>
         ) : (
-          /* D. Modo Áudio com Paisagem Sonora */
-          <View style={styles.audioStage}>
-            {practice.thumbnailUrl ? (
-              <Image
-                source={{ uri: practice.thumbnailUrl }}
-                style={styles.audioBgImage}
-                resizeMode="cover"
-              />
-            ) : null}
-            <View style={styles.videoOverlayShade} />
+          /* B. Modo Meditação / Atenção Plena / Alongamento Guiado com Personagem */
+          <View style={styles.guidedCanvasWrapper}>
+            <CharacterGuidedCanvas
+              phase={isPlaying ? 'inhale' : 'idle'}
+              phaseDurationSeconds={5}
+              posture={characterPosture}
+            />
 
-            <View style={styles.audioCenterContent}>
-              <View style={styles.audioIconCircle}>
-                <Volume2 size={28} color="#79B8A4" aria-hidden={true} />
+            {/* Legenda Flutuante em Tempo Real */}
+            {showCaptions && (
+              <View style={styles.captionOverlay}>
+                <Text style={styles.captionOverlayText}>{currentCaption}</Text>
               </View>
-              <Text style={styles.audioTitle}>{practice.title}</Text>
-              <Text style={styles.audioSubtitle}>
-                {isAnimationOnly
-                  ? 'Modo Somente Animação Ativo'
-                  : 'Narração e Áudio Guiado em Português (Brasil)'}
-              </Text>
-            </View>
-
-            {!isPlaying && (
-              <TouchableOpacity
-                onPress={handleTogglePlay}
-                style={styles.centerPlayButton}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel="Iniciar reprodução de áudio"
-              >
-                <Play
-                  size={32}
-                  color="#FFFFFF"
-                  fill="#FFFFFF"
-                  style={{ marginLeft: 4 }}
-                  aria-hidden={true}
-                />
-              </TouchableOpacity>
             )}
           </View>
         )}
-
-        {/* Legendas Sincronizadas (Subtitles) para vídeos gerais */}
-        {!isSquareBreathing &&
-          showCaptions &&
-          currentCaption &&
-          isPlaying && (
-            <View style={styles.captionsContainer}>
-              <Text style={styles.captionText}>{currentCaption.text}</Text>
-            </View>
-          )}
       </View>
 
-      {/* 2. Barra de Progresso Interativa */}
-      <View style={styles.progressTrackWrapper}>
-        <View style={styles.progressTrack}>
+      {/* 2. Barra de Progresso Temporal */}
+      <View style={styles.progressBarWrapper}>
+        <View style={styles.progressBarBackground}>
           <View
-            style={[styles.progressFill, { width: `${progressPercent}%` }]}
+            style={[
+              styles.progressBarFill,
+              {
+                width: `${progressPercent}%`,
+                backgroundColor: isDark ? '#5ECFC3' : '#3DB3A7',
+              },
+            ]}
           />
+        </View>
+        <View style={styles.timeRow}>
+          <Text style={styles.timeText}>{formatSeconds(currentTime)}</Text>
+          <Text style={styles.timeText}>{formatSeconds(totalDurationSeconds)}</Text>
         </View>
       </View>
 
-      {/* 3. Barra de Controles Multimídia (Touch Targets >= 44px) */}
+      {/* 3. Painel de Controles com Mixer Separado (Voz vs. Música) */}
       <View style={styles.controlsBar}>
-        {/* Lado Esquerdo: Play/Pause, -10s, +10s, Contador de Tempo */}
-        <View style={styles.leftControls}>
+        {/* Lado Esquerdo: Reiniciar e Retroceder 10s */}
+        <View style={styles.controlGroup}>
           <TouchableOpacity
-            onPress={handleTogglePlay}
-            accessibilityRole="button"
-            accessibilityLabel={isPlaying ? 'Pausar' : 'Reproduzir'}
-            style={styles.controlIconBtnPrimary}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => {
+              setCurrentTime(0);
+              lastSpokenIndex.current = -1;
+              onProgressUpdate?.(0, totalDurationSeconds);
+              hapticService.triggerHold();
+            }}
+            style={styles.iconButton}
+            accessibilityLabel="Reiniciar exercício"
           >
-            {isPlaying ? (
-              <Pause
-                size={18}
-                color="#FFFFFF"
-                fill="#FFFFFF"
-                aria-hidden={true}
-              />
-            ) : (
-              <Play
-                size={18}
-                color="#FFFFFF"
-                fill="#FFFFFF"
-                style={{ marginLeft: 2 }}
-                aria-hidden={true}
-              />
-            )}
+            <RotateCcw size={18} color="#FFFFFF" />
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => handleSeek(-10)}
-            accessibilityRole="button"
+            style={styles.iconButton}
             accessibilityLabel="Voltar 10 segundos"
-            style={styles.controlIconBtn}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
-            <RotateCcw size={16} color="#E7F3EF" aria-hidden={true} />
-            <Text style={styles.seekSecondsText}>10</Text>
+            <Clock size={16} color="#B8D7D3" />
+            <Text style={styles.seekMiniText}>-10s</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => handleSeek(10)}
-            accessibilityRole="button"
-            accessibilityLabel="Avançar 10 segundos"
-            style={styles.controlIconBtn}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          >
-            <RotateCw size={16} color="#E7F3EF" aria-hidden={true} />
-            <Text style={styles.seekSecondsText}>10</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.timeCounterText}>
-            {formatSeconds(currentTime)} / {formatSeconds(totalDurationSeconds)}
-          </Text>
         </View>
 
-        {/* Lado Direito: Somente Animação, Legenda, Áudio/Mudo, Velocidade, Transcrição, Tela Cheia */}
-        <View style={styles.rightControls}>
-          {/* Opção "Somente animação" */}
+        {/* Centro: Botão Principal de Play / Pause */}
+        <TouchableOpacity
+          onPress={handleTogglePlay}
+          style={[
+            styles.mainPlayButton,
+            { backgroundColor: isDark ? '#5ECFC3' : '#3DB3A7' },
+          ]}
+          accessibilityLabel={isPlaying ? 'Pausar exercício' : 'Iniciar exercício'}
+        >
+          {isPlaying ? (
+            <Pause size={28} color="#173D3B" />
+          ) : (
+            <Play size={28} color="#173D3B" style={{ marginLeft: 3 }} />
+          )}
+        </TouchableOpacity>
+
+        {/* Lado Direito: Avançar 10s e Mixer de Áudio */}
+        <View style={styles.controlGroup}>
           <TouchableOpacity
-            onPress={handleToggleAnimationOnly}
-            accessibilityRole="button"
-            accessibilityLabel={
-              isAnimationOnly
-                ? 'Desativar modo somente animação (ativar narração)'
-                : 'Ativar modo somente animação (silenciar narração)'
-            }
-            aria-pressed={isAnimationOnly}
-            style={[
-              styles.controlPillBtn,
-              isAnimationOnly && styles.controlPillBtnActive,
-            ]}
+            onPress={() => handleSeek(10)}
+            style={styles.iconButton}
+            accessibilityLabel="Avançar 10 segundos"
           >
-            <Eye
-              size={13}
-              color={isAnimationOnly ? '#173D3B' : '#E7F3EF'}
-              style={{ marginRight: 4 }}
-              aria-hidden={true}
-            />
-            <Text
-              style={[
-                styles.controlPillBtnText,
-                { color: isAnimationOnly ? '#173D3B' : '#E7F3EF' },
-              ]}
-            >
-              {isAnimationOnly ? 'Somente animação' : 'Narração'}
-            </Text>
+            <Clock size={16} color="#B8D7D3" />
+            <Text style={styles.seekMiniText}>+10s</Text>
           </TouchableOpacity>
 
-          {/* Mudo / Volume */}
+          {/* Toggle de Narração (Voz) */}
           <TouchableOpacity
-            onPress={handleToggleMute}
-            accessibilityRole="button"
-            accessibilityLabel={isMuted ? 'Ativar áudio' : 'Desativar áudio'}
-            style={[styles.controlIconBtn, isMuted && styles.controlIconBtnActive]}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            onPress={handleToggleVoice}
+            style={[styles.iconButton, !isVoiceActive && styles.iconButtonDimmed]}
+            accessibilityLabel={isVoiceActive ? 'Silenciar narração' : 'Ativar narração'}
           >
-            {isMuted ? (
-              <VolumeX size={16} color="#D98968" aria-hidden={true} />
+            {isVoiceActive ? (
+              <Volume2 size={18} color="#5ECFC3" />
             ) : (
-              <Volume2 size={16} color="#E7F3EF" aria-hidden={true} />
+              <VolumeX size={18} color="#B8D7D3" />
             )}
           </TouchableOpacity>
 
-          {/* Legendas PT */}
-          <TouchableOpacity
-            onPress={() => setShowCaptions(!showCaptions)}
-            accessibilityRole="button"
-            accessibilityLabel="Alternar legendas em português"
-            style={[
-              styles.controlIconBtn,
-              showCaptions && styles.controlIconBtnActive,
-            ]}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          >
-            <Captions
-              size={16}
-              color={showCaptions ? '#79B8A4' : '#8C9E9B'}
-              aria-hidden={true}
-            />
-          </TouchableOpacity>
-
-          {/* Trilha Sonora / Música de Fundo */}
+          {/* Toggle de Música Ambiente */}
           <TouchableOpacity
             onPress={handleToggleAmbientMusic}
-            accessibilityRole="button"
-            accessibilityLabel="Música ambiente suave de fundo"
-            style={[
-              styles.controlIconBtn,
-              isAmbientMusicOn && styles.controlIconBtnActive,
-            ]}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            style={[styles.iconButton, isAmbientMusicOn && styles.iconButtonActive]}
+            accessibilityLabel={isAmbientMusicOn ? 'Desativar música de fundo' : 'Ativar música de fundo'}
           >
-            <Music
-              size={16}
-              color={isAmbientMusicOn ? '#79B8A4' : '#8C9E9B'}
-              aria-hidden={true}
-            />
-          </TouchableOpacity>
-
-          {/* Velocidade */}
-          <TouchableOpacity
-            onPress={handleCycleSpeed}
-            accessibilityRole="button"
-            accessibilityLabel={`Velocidade de reprodução: ${playbackSpeed}x`}
-            style={styles.speedBtn}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          >
-            <Text style={styles.speedBtnText}>{playbackSpeed}x</Text>
-          </TouchableOpacity>
-
-          {/* Transcrição */}
-          {practice.transcript ? (
-            <TouchableOpacity
-              onPress={() => setShowTranscript(!showTranscript)}
-              accessibilityRole="button"
-              accessibilityLabel="Ver transcrição completa da prática"
-              style={[
-                styles.controlIconBtn,
-                showTranscript && styles.controlIconBtnActive,
-              ]}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
-              <FileText
-                size={16}
-                color={showTranscript ? '#79B8A4' : '#8C9E9B'}
-                aria-hidden={true}
-              />
-            </TouchableOpacity>
-          ) : null}
-
-          {/* Tela Cheia */}
-          <TouchableOpacity
-            onPress={() => setIsFullscreen(!isFullscreen)}
-            accessibilityRole="button"
-            accessibilityLabel={
-              isFullscreen ? 'Sair de tela cheia' : 'Tela cheia'
-            }
-            style={styles.controlIconBtn}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          >
-            {isFullscreen ? (
-              <Minimize2 size={16} color="#E7F3EF" aria-hidden={true} />
-            ) : (
-              <Maximize2 size={16} color="#E7F3EF" aria-hidden={true} />
-            )}
+            <Music size={18} color={isAmbientMusicOn ? '#5ECFC3' : '#B8D7D3'} />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* 4. Painel de Transcrição Expansível */}
-      {showTranscript && practice.transcript && (
-        <View style={styles.transcriptDrawer}>
-          <View style={styles.transcriptHeader}>
-            <Text style={styles.transcriptTitle}>
-              Transcrição em Português (Brasil)
-            </Text>
-            <TouchableOpacity
-              onPress={() => setShowTranscript(false)}
-              accessibilityRole="button"
-              accessibilityLabel="Fechar transcrição"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Text style={styles.transcriptCloseText}>Fechar</Text>
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.transcriptBody}>{practice.transcript}</Text>
-        </View>
-      )}
+      {/* 4. Barra Secundária de Recursos: Velocidade, Legendas e Modo Apenas Animação */}
+      <View style={styles.secondaryBar}>
+        <TouchableOpacity
+          onPress={handleCycleSpeed}
+          style={styles.badgeBtn}
+          accessibilityLabel={`Velocidade ${playbackSpeed}x`}
+        >
+          <Text style={styles.badgeBtnText}>{playbackSpeed}x</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setShowCaptions(!showCaptions)}
+          style={[styles.badgeBtn, showCaptions && styles.badgeBtnActive]}
+          accessibilityLabel="Alternar legendas"
+        >
+          <Captions size={14} color={showCaptions ? '#5ECFC3' : '#B8D7D3'} />
+          <Text style={[styles.badgeBtnText, showCaptions && { color: '#5ECFC3' }]}>
+            Legendas
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={handleToggleAnimationOnly}
+          style={[styles.badgeBtn, isAnimationOnly && styles.badgeBtnActive]}
+          accessibilityLabel="Apenas animação visual silenciosa"
+        >
+          <Sparkles size={14} color={isAnimationOnly ? '#5ECFC3' : '#B8D7D3'} />
+          <Text style={[styles.badgeBtnText, isAnimationOnly && { color: '#5ECFC3' }]}>
+            Silencioso
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -608,12 +424,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
-    shadowColor: '#000000',
+    marginVertical: 10,
+    elevation: 4,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
-    elevation: 3,
-    marginBottom: 20,
   },
   fullscreenContainer: {
     position: 'absolute',
@@ -626,258 +442,129 @@ const styles = StyleSheet.create({
   },
   mediaStage: {
     width: '100%',
-    position: 'relative',
-    backgroundColor: '#0F1B1A',
+    minHeight: 380,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-  },
-  videoStage: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-    minHeight: 260,
-    justifyContent: 'center',
-    alignItems: 'center',
     position: 'relative',
+    backgroundColor: '#0F1E1C',
   },
-  videoBackground: {
-    ...StyleSheet.absoluteFillObject,
+  guidedCanvasWrapper: {
     width: '100%',
-    height: '100%',
-  },
-  videoOverlayShade: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 27, 26, 0.45)',
-  },
-  instructorBadge: {
-    position: 'absolute',
-    top: 14,
-    left: 14,
-    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(23, 61, 59, 0.85)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 8,
+    justifyContent: 'center',
+    paddingVertical: 16,
   },
-  instructorAvatarCircle: {
-    width: 24,
-    height: 24,
+  captionOverlay: {
+    width: '90%',
+    backgroundColor: 'rgba(15, 30, 28, 0.85)',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(94, 207, 195, 0.2)',
   },
-  instructorName: {
+  captionOverlayText: {
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  instructorRole: {
-    color: '#A3D4C5',
-    fontSize: 9,
-  },
-  centerPlayButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(47, 127, 124, 0.95)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  interactiveStage: {
-    width: '100%',
-    minHeight: 300,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 24,
-  },
-  audioStage: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-    minHeight: 240,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  audioBgImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
-    opacity: 0.3,
-  },
-  audioCenterContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-  },
-  audioIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(47, 127, 124, 0.3)',
-    borderWidth: 1.5,
-    borderColor: '#79B8A4',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  audioTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 14,
+    lineHeight: 20,
     textAlign: 'center',
-    marginBottom: 4,
+    fontWeight: '500',
   },
-  audioSubtitle: {
-    color: '#A3D4C5',
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  captionsContainer: {
-    position: 'absolute',
-    bottom: 12,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(15, 27, 26, 0.85)',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  captionText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  progressTrackWrapper: {
+  progressBarWrapper: {
     width: '100%',
-    height: 6,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  progressBarBackground: {
+    width: '100%',
+    height: 5,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 3,
+    overflow: 'hidden',
   },
-  progressTrack: {
-    width: '100%',
+  progressBarFill: {
     height: '100%',
+    borderRadius: 3,
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#79B8A4',
+  timeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
+  timeText: {
+    color: '#A2C2BE',
+    fontSize: 12,
+    fontWeight: '500',
   },
   controlsBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    flexWrap: 'wrap',
-    gap: 8,
   },
-  leftControls: {
+  controlGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  controlIconBtnPrimary: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#2F7F7C',
+  iconButton: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  controlIconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    padding: 8,
+    borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  iconButtonActive: {
+    backgroundColor: 'rgba(94, 207, 195, 0.2)',
+  },
+  iconButtonDimmed: {
+    opacity: 0.5,
+  },
+  seekMiniText: {
+    color: '#B8D7D3',
+    fontSize: 9,
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  mainPlayButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
   },
-  controlIconBtnActive: {
-    backgroundColor: 'rgba(121, 184, 164, 0.25)',
-    borderWidth: 1,
-    borderColor: '#79B8A4',
-  },
-  controlPillBtn: {
+  secondaryBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 44,
+    justifyContent: 'center',
+    gap: 10,
+    paddingBottom: 14,
+    paddingHorizontal: 16,
+  },
+  badgeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: 12,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  controlPillBtnActive: {
-    backgroundColor: '#79B8A4',
-  },
-  controlPillBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  seekSecondsText: {
-    position: 'absolute',
-    fontSize: 8,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    top: 25,
-  },
-  timeCounterText: {
-    color: '#DCE9E5',
-    fontSize: 11,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  rightControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  speedBtn: {
-    height: 44,
-    minWidth: 44,
-    paddingHorizontal: 8,
-    borderRadius: 22,
+    paddingVertical: 6,
+    borderRadius: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  speedBtnText: {
-    color: '#E7F3EF',
-    fontSize: 11,
-    fontWeight: '700',
+  badgeBtnActive: {
+    backgroundColor: 'rgba(94, 207, 195, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(94, 207, 195, 0.35)',
   },
-  transcriptDrawer: {
-    padding: 16,
-    backgroundColor: 'rgba(15, 27, 26, 0.95)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  transcriptHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  transcriptTitle: {
-    color: '#79B8A4',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  transcriptCloseText: {
-    color: '#D98968',
+  badgeBtnText: {
+    color: '#B8D7D3',
     fontSize: 12,
-    fontWeight: '700',
-  },
-  transcriptBody: {
-    color: '#E7F3EF',
-    fontSize: 13,
-    lineHeight: 20,
+    fontWeight: '600',
   },
 });
