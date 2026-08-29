@@ -24,20 +24,9 @@ import {
   ChevronRight,
   Search,
   X,
-  Leaf,
-  Sun,
-  Heart,
-  Target,
-  User,
-  Waves,
-  Users,
-  Cloud,
-  Zap,
   Smartphone,
   PersonStanding,
   Compass,
-  CheckCircle2,
-  Headphones,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
 import { AnxietySlider } from '../../src/components/mood/AnxietySlider';
@@ -47,13 +36,27 @@ import { useMoodStore } from '../../src/store/moodStore';
 import { useAuth } from '../../src/hooks/useAuth';
 import { authService } from '../../src/services/auth/authService';
 import { supabase, isSupabaseConfigured } from '../../src/services/supabase/client';
-import { useTheme } from '../../src/hooks/useTheme';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
-import { AVAILABLE_EMOTIONS, AVAILABLE_ACTIVITIES } from '../../src/mocks/moods.mock';
+import { AVAILABLE_ACTIVITIES } from '../../src/mocks/moods.mock';
 import { MoodValue, PlannedExercise } from '../../src/types';
 import { storage } from '../../src/services/storage/asyncStorage';
 
 const DRAFT_STORAGE_KEY = 'respira_mood_draft';
+
+// Tokens de contraste dedicados ao formulário de "Momento Atual" (fundo branco / claro com WCAG AA)
+const FORM_THEME = {
+  title: '#172321', // Títulos principais (WCAG AA > 11:1)
+  question: '#243431', // Perguntas e subtítulos (WCAG AA > 9:1)
+  subtitle: '#566460', // Descrições e textos secundários (WCAG AA > 5.5:1)
+  labelMuted: '#5F6D69', // Labels auxiliares: "Opcional", "Tranquilo", "Intenso", "0", "10", "• 4 min", "Você poderá escolher mais de uma.", "X/500"
+  primaryGreen: '#247B74', // Progresso, links, selecionados e botões
+  white: '#FFFFFF',
+  border: '#D8DEDB',
+  borderSelected: '#247B74',
+  cardBg: '#FFFFFF',
+  cardBgSelected: '#EDF7F5',
+  anxietyWarm: '#D87556',
+};
 
 const INITIAL_PRACTICES = [
   {
@@ -99,95 +102,52 @@ const EXTRA_PRACTICES = [
     description: 'Aterramento sensorial com os 5 sentidos para sair da sobrecarga mental.',
     icon: Compass,
   },
-  {
-    id: 'ex-task',
-    title: 'Organizar pequena tarefa',
-    category: 'Atividades práticas',
-    durationMinutes: 8,
-    description: 'Arrumar um cantinho ou mesa com atenção focada para clareza.',
-    icon: CheckCircle2,
-  },
-  {
-    id: 'ex-creative',
-    title: 'Atividade criativa',
-    category: 'Atividades criativas',
-    durationMinutes: 5,
-    description: 'Desenhar ou escrever pensamentos livremente sem cobrança.',
-    icon: Leaf,
-  },
-  {
-    id: 'ex-focus',
-    title: 'Exercício de concentração',
-    category: 'Atenção e foco',
-    durationMinutes: 3,
-    description: 'Contagem regressiva sincronizada com a respiração calma.',
-    icon: Target,
-  },
-  {
-    id: 'ex-sounds',
-    title: 'Escuta de sons relaxantes',
-    category: 'Sons e ambientes',
-    durationMinutes: 10,
-    description: 'Sons suaves de chuva, mar ou floresta para descansar a mente.',
-    icon: Headphones,
-  },
 ];
 
 const ALL_PRACTICES = [...INITIAL_PRACTICES, ...EXTRA_PRACTICES];
 
 const EMOTION_ITEMS = [
-  { label: 'Calmo', icon: Leaf },
-  { label: 'Esperançoso', icon: Sun },
-  { label: 'Grato', icon: Heart },
-  { label: 'Alegre', icon: Smile },
-  { label: 'Focado', icon: Target },
-  { label: 'Presente', icon: User },
-  { label: 'Relaxado', icon: Waves },
-  { label: 'Conectado', icon: Users },
-  { label: 'Preocupado', icon: Cloud },
-  { label: 'Inquieto', icon: Zap },
+  { label: 'Calmo(a)', icon: Smile },
+  { label: 'Ansioso(a)', icon: AlertCircle },
+  { label: 'Cansado(a)', icon: Frown },
+  { label: 'Feliz', icon: Smile },
+  { label: 'Triste', icon: Frown },
+  { label: 'Irritado(a)', icon: AlertCircle },
+  { label: 'Grato(a)', icon: Smile },
+  { label: 'Estressado(a)', icon: AlertCircle },
 ];
 
 export default function NewMoodScreen() {
   const router = useRouter();
-  const { user } = useAuth();
-  const { colors, isDark } = useTheme();
   const { isDesktop } = useBreakpoint();
   const { addRecord } = useMoodStore();
+  const { user } = useAuth();
   const { showToast } = useToast();
 
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
-
   const [mood, setMood] = useState<MoodValue | null>(4);
   const [anxietyLevel, setAnxietyLevel] = useState<number>(3);
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>([]);
   const [selectedActivities, setSelectedActivities] = useState<string[]>([]);
   const [selectedPracticeId, setSelectedPracticeId] = useState<string | null>(null);
-  const [selectedPeriod, setSelectedPeriod] = useState<'morning' | 'afternoon' | 'night'>('morning');
+  const [selectedPeriod, setSelectedPeriod] = useState<'morning' | 'afternoon' | 'night'>('afternoon');
   const [notes, setNotes] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
 
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [activitySearchQuery, setActivitySearchQuery] = useState('');
   const [isAllPracticesModalOpen, setIsAllPracticesModalOpen] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const hasChanges = useMemo(() => {
-    return (
-      mood !== null ||
-      anxietyLevel !== 3 ||
-      selectedEmotions.length > 0 ||
-      selectedActivities.length > 0 ||
-      selectedPracticeId !== null ||
-      notes.trim().length > 0
-    );
-  }, [mood, anxietyLevel, selectedEmotions, selectedActivities, selectedPracticeId, notes]);
+  const hasChanges =
+    mood !== 4 ||
+    anxietyLevel !== 3 ||
+    selectedEmotions.length > 0 ||
+    selectedActivities.length > 0 ||
+    selectedPracticeId !== null ||
+    notes.trim().length > 0;
 
   useEffect(() => {
-    if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.title = 'Registrar momento — Respira';
-    }
-
     async function loadDraft() {
       try {
         const draft = await storage.getItem<{
@@ -278,7 +238,6 @@ export default function NewMoodScreen() {
     try {
       setIsSaving(true);
 
-      // Obter ID do usuário autenticado real
       let activeUserId = user?.id;
       if (!activeUserId) {
         const stored = await authService.getStoredSession();
@@ -317,10 +276,6 @@ export default function NewMoodScreen() {
               ? 'practice-quick-conscious-pause'
               : option.id === 'ex-grounding'
               ? 'practice-grounding-54321'
-              : option.id === 'ex-sounds'
-              ? 'practice-soundscape-rain'
-              : option.id === 'ex-focus'
-              ? 'practice-focus-recovery'
               : 'practice-breathing-478';
 
           plannedExercises = [
@@ -338,7 +293,6 @@ export default function NewMoodScreen() {
         }
       }
 
-      // Persistência real no Supabase e store
       await addRecord({
         userId: activeUserId,
         mood: chosenMood,
@@ -349,10 +303,7 @@ export default function NewMoodScreen() {
         notes: notes.trim() || undefined,
       });
 
-      // Recarrega imediatamente os registros da store para refletir médias e gráfico
       await useMoodStore.getState().fetchRecords(activeUserId);
-
-      // Limpar rascunho após confirmação de sucesso
       await storage.removeItem(DRAFT_STORAGE_KEY);
       showToast({ message: 'Momento registrado', type: 'success' });
       router.replace('/(tabs)/diary');
@@ -384,7 +335,8 @@ export default function NewMoodScreen() {
   return (
     <AppShell scrollable={false}>
       <View style={[styles.screenContainer, isDesktop && styles.screenContainerDesktop]}>
-        <View style={[styles.headerContainer, { borderBottomColor: isDark ? colors.border : '#E7EBE9' }]}>
+        {/* Cabeçalho */}
+        <View style={styles.headerContainer}>
           <View style={styles.headerTopRow}>
             <TouchableOpacity
               onPress={handleHeaderBack}
@@ -392,14 +344,14 @@ export default function NewMoodScreen() {
               accessibilityLabel="Voltar"
               style={styles.headerBackBtn}
             >
-              <ArrowLeft size={20} color={isDark ? colors.text : '#1F2927'} strokeWidth={1.75} />
+              <ArrowLeft size={20} color={FORM_THEME.title} strokeWidth={1.75} />
             </TouchableOpacity>
 
-            <Text style={[styles.headerTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+            <Text style={[styles.headerTitle, { color: FORM_THEME.title }]}>
               Registrar momento
             </Text>
 
-            <Text style={styles.headerStepIndicator}>
+            <Text style={[styles.headerStepIndicator, { color: FORM_THEME.primaryGreen }]}>
               {currentStep} de 3
             </Text>
           </View>
@@ -409,26 +361,30 @@ export default function NewMoodScreen() {
           </View>
         </View>
 
+        {/* Conteúdo dos Passos */}
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {/* ========================================================================= */}
+          {/* ETAPA 1 DE 3 */}
+          {/* ========================================================================= */}
           {currentStep === 1 && (
             <View style={styles.stepBlock}>
               <Text
                 accessibilityRole="header"
                 aria-level={1}
-                style={[styles.stepTitle, { color: isDark ? colors.text : '#1F2927' }]}
+                style={[styles.stepTitle, { color: FORM_THEME.title }]}
               >
                 Como você está agora?
               </Text>
-              <Text style={[styles.stepSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
+              <Text style={[styles.stepSubtitle, { color: FORM_THEME.subtitle }]}>
                 Escolha as opções que mais combinam com este momento.
               </Text>
 
               <View style={styles.questionSection}>
-                <Text style={[styles.questionLabel, { color: isDark ? colors.text : '#1F2927' }]}>
+                <Text style={[styles.questionLabel, { color: FORM_THEME.question }]}>
                   Como está seu humor?
                 </Text>
 
@@ -447,17 +403,8 @@ export default function NewMoodScreen() {
                         accessibilityState={{ checked: isSelected, selected: isSelected }}
                         style={[
                           styles.moodCard,
-                          isSelected && [
-                            styles.moodCardSelected,
-                            {
-                              backgroundColor: isDark ? '#1C3833' : '#EDF7F5',
-                              borderColor: '#247B74',
-                            },
-                          ],
-                          !isSelected && {
-                            backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
-                            borderColor: isDark ? colors.border : '#D8DEDB',
-                          },
+                          isSelected && styles.moodCardSelected,
+                          !isSelected && styles.moodCardUnselected,
                         ]}
                       >
                         <View style={styles.moodIconWrap}>
@@ -465,12 +412,12 @@ export default function NewMoodScreen() {
                             size={24}
                             color={
                               isSelected
-                                ? '#247B74'
+                                ? FORM_THEME.primaryGreen
                                 : opt.value >= 4
-                                ? '#247B74'
+                                ? FORM_THEME.primaryGreen
                                 : opt.value === 3
-                                ? isDark ? colors.textMuted : '#68736F'
-                                : '#D87556'
+                                ? FORM_THEME.subtitle
+                                : FORM_THEME.anxietyWarm
                             }
                             strokeWidth={1.75}
                           />
@@ -479,11 +426,7 @@ export default function NewMoodScreen() {
                           style={[
                             styles.moodCardLabel,
                             {
-                              color: isSelected
-                                ? '#247B74'
-                                : isDark
-                                ? colors.text
-                                : '#1F2927',
+                              color: isSelected ? FORM_THEME.primaryGreen : FORM_THEME.question,
                               fontWeight: isSelected ? '600' : '400',
                             },
                           ]}
@@ -498,7 +441,7 @@ export default function NewMoodScreen() {
               </View>
 
               <View style={styles.questionSection}>
-                <Text style={[styles.questionLabel, { color: isDark ? colors.text : '#1F2927' }]}>
+                <Text style={[styles.questionLabel, { color: FORM_THEME.question }]}>
                   Qual é o seu nível de ansiedade?
                 </Text>
 
@@ -510,21 +453,24 @@ export default function NewMoodScreen() {
             </View>
           )}
 
+          {/* ========================================================================= */}
+          {/* ETAPA 2 DE 3 */}
+          {/* ========================================================================= */}
           {currentStep === 2 && (
             <View style={styles.stepBlock}>
               <Text
                 accessibilityRole="header"
                 aria-level={1}
-                style={[styles.stepTitle, { color: isDark ? colors.text : '#1F2927' }]}
+                style={[styles.stepTitle, { color: FORM_THEME.title }]}
               >
                 Conte um pouco mais
               </Text>
-              <Text style={[styles.stepSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
+              <Text style={[styles.stepSubtitle, { color: FORM_THEME.subtitle }]}>
                 Estas respostas são opcionais e ajudam a dar contexto ao seu registro.
               </Text>
 
               <View style={styles.questionSection}>
-                <Text style={[styles.questionLabel, { color: isDark ? colors.text : '#1F2927' }]}>
+                <Text style={[styles.questionLabel, { color: FORM_THEME.question }]}>
                   Como você se sente?
                 </Text>
 
@@ -543,22 +489,13 @@ export default function NewMoodScreen() {
                         accessibilityLabel={`Sentimento: ${item.label}`}
                         style={[
                           styles.emotionBox,
-                          isSelected && [
-                            styles.emotionBoxSelected,
-                            {
-                              backgroundColor: isDark ? '#1C3833' : '#EDF7F5',
-                              borderColor: '#247B74',
-                            },
-                          ],
-                          !isSelected && {
-                            backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
-                            borderColor: isDark ? colors.border : '#D8DEDB',
-                          },
+                          isSelected && styles.emotionBoxSelected,
+                          !isSelected && styles.emotionBoxUnselected,
                         ]}
                       >
                         <Icon
                           size={18}
-                          color={isSelected ? '#247B74' : isDark ? colors.textMuted : '#68736F'}
+                          color={isSelected ? FORM_THEME.primaryGreen : FORM_THEME.subtitle}
                           strokeWidth={1.75}
                           style={styles.emotionIcon}
                         />
@@ -566,7 +503,7 @@ export default function NewMoodScreen() {
                           style={[
                             styles.emotionLabel,
                             {
-                              color: isSelected ? '#247B74' : isDark ? colors.text : '#1F2927',
+                              color: isSelected ? FORM_THEME.primaryGreen : FORM_THEME.question,
                               fontWeight: isSelected ? '600' : '400',
                             },
                           ]}
@@ -576,7 +513,7 @@ export default function NewMoodScreen() {
 
                         {isSelected && (
                           <View style={styles.checkBadge}>
-                            <Check size={10} color="#FFFFFF" strokeWidth={2.5} />
+                            <Check size={10} color={FORM_THEME.white} strokeWidth={2.5} />
                           </View>
                         )}
                       </TouchableOpacity>
@@ -586,7 +523,7 @@ export default function NewMoodScreen() {
               </View>
 
               <View style={styles.questionSection}>
-                <Text style={[styles.questionLabel, { color: isDark ? colors.text : '#1F2927' }]}>
+                <Text style={[styles.questionLabel, { color: FORM_THEME.question }]}>
                   O que você estava fazendo?
                 </Text>
 
@@ -595,43 +532,23 @@ export default function NewMoodScreen() {
                   activeOpacity={0.8}
                   accessibilityRole="button"
                   accessibilityLabel="Selecione uma atividade"
-                  style={[
-                    styles.activitySelectBox,
-                    {
-                      backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
-                      borderColor: isDark ? colors.border : '#D8DEDB',
-                    },
-                  ]}
+                  style={styles.activitySelectBox}
                 >
-                  <Text
-                    style={[
-                      styles.activitySelectPlaceholder,
-                      { color: isDark ? colors.textMuted : '#68736F' },
-                    ]}
-                  >
+                  <Text style={[styles.activitySelectPlaceholder, { color: FORM_THEME.subtitle }]}>
                     Selecione uma atividade
                   </Text>
-                  <ChevronDown size={18} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} />
+                  <ChevronDown size={18} color={FORM_THEME.subtitle} strokeWidth={1.75} />
                 </TouchableOpacity>
 
-                <Text style={[styles.activityHelperText, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                <Text style={[styles.activityHelperText, { color: FORM_THEME.labelMuted }]}>
                   Você poderá escolher mais de uma.
                 </Text>
 
                 {selectedActivities.length > 0 && (
                   <View style={styles.selectedActivitiesRow}>
                     {selectedActivities.map((act) => (
-                      <View
-                        key={act}
-                        style={[
-                          styles.selectedActivityChip,
-                          {
-                            backgroundColor: isDark ? '#1C3833' : '#EDF7F5',
-                            borderColor: '#247B74',
-                          },
-                        ]}
-                      >
-                        <Text style={[styles.selectedActivityChipText, { color: '#247B74' }]}>
+                      <View key={act} style={styles.selectedActivityChip}>
+                        <Text style={[styles.selectedActivityChipText, { color: FORM_THEME.primaryGreen }]}>
                           {act}
                         </Text>
                         <TouchableOpacity
@@ -640,7 +557,7 @@ export default function NewMoodScreen() {
                           accessibilityLabel={`Remover ${act}`}
                           style={{ padding: 2, marginLeft: 4 }}
                         >
-                          <X size={12} color="#247B74" strokeWidth={2} />
+                          <X size={12} color={FORM_THEME.primaryGreen} strokeWidth={2} />
                         </TouchableOpacity>
                       </View>
                     ))}
@@ -650,20 +567,23 @@ export default function NewMoodScreen() {
             </View>
           )}
 
+          {/* ========================================================================= */}
+          {/* ETAPA 3 DE 3 */}
+          {/* ========================================================================= */}
           {currentStep === 3 && (
             <View style={styles.stepBlock}>
               <Text
                 accessibilityRole="header"
                 aria-level={1}
-                style={[styles.stepTitle, { color: isDark ? colors.text : '#1F2927' }]}
+                style={[styles.stepTitle, { color: FORM_THEME.title }]}
               >
                 Para cuidar de você hoje
               </Text>
-              <Text style={[styles.stepSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
+              <Text style={[styles.stepSubtitle, { color: FORM_THEME.subtitle }]}>
                 Se quiser, escolha uma prática simples para fazer depois.
               </Text>
 
-              <View style={[styles.practicesListWrap, { borderTopColor: isDark ? colors.border : '#E7EBE9' }]}>
+              <View style={styles.practicesListWrap}>
                 {INITIAL_PRACTICES.map((prat) => {
                   const isSelected = selectedPracticeId === prat.id;
                   const Icon = prat.icon;
@@ -676,17 +596,14 @@ export default function NewMoodScreen() {
                       accessibilityRole="radio"
                       accessibilityState={{ checked: isSelected, selected: isSelected }}
                       accessibilityLabel={`${prat.title}, ${prat.durationMinutes} minutos`}
-                      style={[
-                        styles.practiceRow,
-                        { borderBottomColor: isDark ? colors.border : '#E7EBE9' },
-                      ]}
+                      style={styles.practiceRow}
                     >
-                      <Icon size={20} color="#247B74" strokeWidth={1.75} style={{ marginRight: 12 }} />
+                      <Icon size={20} color={FORM_THEME.primaryGreen} strokeWidth={1.75} style={{ marginRight: 12 }} />
 
                       <View style={styles.practiceTextCol}>
-                        <Text style={[styles.practiceTitleText, { color: isDark ? colors.text : '#1F2927' }]}>
+                        <Text style={[styles.practiceTitleText, { color: FORM_THEME.question }]}>
                           {prat.title}
-                          <Text style={[styles.practiceDurationText, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                          <Text style={[styles.practiceDurationText, { color: FORM_THEME.labelMuted }]}>
                             {' '}• {prat.durationMinutes} min
                           </Text>
                         </Text>
@@ -695,8 +612,8 @@ export default function NewMoodScreen() {
                       <View
                         style={[
                           styles.radioCircle,
-                          isSelected && { borderColor: '#247B74', backgroundColor: '#247B74' },
-                          !isSelected && { borderColor: isDark ? colors.border : '#D8DEDB' },
+                          isSelected && styles.radioCircleSelected,
+                          !isSelected && styles.radioCircleUnselected,
                         ]}
                       >
                         {isSelected && <View style={styles.radioInnerDot} />}
@@ -713,15 +630,15 @@ export default function NewMoodScreen() {
                 accessibilityLabel="Ver todas as práticas"
                 style={styles.viewAllPracticesLink}
               >
-                <Text style={styles.viewAllPracticesLinkText}>
+                <Text style={[styles.viewAllPracticesLinkText, { color: FORM_THEME.primaryGreen }]}>
                   Ver todas as práticas
                 </Text>
-                <ChevronRight size={16} color="#247B74" strokeWidth={1.75} />
+                <ChevronRight size={16} color={FORM_THEME.primaryGreen} strokeWidth={1.75} />
               </TouchableOpacity>
 
               {selectedPracticeId && (
                 <View style={styles.periodSelectorWrap}>
-                  <Text style={[styles.periodLabel, { color: isDark ? colors.text : '#1F2927' }]}>
+                  <Text style={[styles.periodLabel, { color: FORM_THEME.question }]}>
                     Momento planejado para a prática:
                   </Text>
                   <View style={styles.periodPillsRow}>
@@ -737,18 +654,13 @@ export default function NewMoodScreen() {
                           accessibilityLabel={`Período: ${pLabel}`}
                           style={[
                             styles.periodPill,
-                            isPSelected
-                              ? { backgroundColor: '#247B74', borderColor: '#247B74' }
-                              : {
-                                  backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
-                                  borderColor: isDark ? colors.border : '#D8DEDB',
-                                },
+                            isPSelected ? styles.periodPillSelected : styles.periodPillUnselected,
                           ]}
                         >
                           <Text
                             style={[
                               styles.periodPillText,
-                              { color: isPSelected ? '#FFFFFF' : isDark ? colors.text : '#1F2927' },
+                              { color: isPSelected ? FORM_THEME.white : FORM_THEME.question },
                             ]}
                           >
                             {pLabel}
@@ -762,10 +674,10 @@ export default function NewMoodScreen() {
 
               <View style={styles.notesSection}>
                 <View style={styles.notesLabelRow}>
-                  <Text style={[styles.questionLabel, { color: isDark ? colors.text : '#1F2927' }]}>
+                  <Text style={[styles.questionLabel, { color: FORM_THEME.question }]}>
                     Quer anotar alguma coisa?
                   </Text>
-                  <Text style={[styles.optionalTag, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                  <Text style={[styles.optionalTag, { color: FORM_THEME.labelMuted }]}>
                     Opcional
                   </Text>
                 </View>
@@ -777,19 +689,19 @@ export default function NewMoodScreen() {
                   multiline
                   numberOfLines={4}
                   placeholder="Escreva algo que queira lembrar sobre este momento."
-                  placeholderTextColor={isDark ? colors.textMuted : '#8F9B97'}
+                  placeholderTextColor="#8F9B97"
                   style={[
                     styles.textareaInput,
                     {
-                      backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
-                      borderColor: isDark ? colors.border : '#D8DEDB',
-                      color: isDark ? colors.text : '#1F2927',
+                      backgroundColor: FORM_THEME.cardBg,
+                      borderColor: FORM_THEME.border,
+                      color: FORM_THEME.question,
                     },
                   ]}
                 />
 
                 {notes.length > 0 && (
-                  <Text style={[styles.charCounter, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                  <Text style={[styles.charCounter, { color: FORM_THEME.labelMuted }]}>
                     {notes.length}/500
                   </Text>
                 )}
@@ -798,7 +710,8 @@ export default function NewMoodScreen() {
           )}
         </ScrollView>
 
-        <View style={[styles.footerContainer, { borderTopColor: isDark ? colors.border : '#E7EBE9', backgroundColor: isDark ? colors.surface : '#FFFFFF' }]}>
+        {/* Barra Inferior com Botões de Ação */}
+        <View style={styles.footerContainer}>
           {currentStep === 1 && (
             <TouchableOpacity
               onPress={handleNextStep}
@@ -818,9 +731,9 @@ export default function NewMoodScreen() {
                 activeOpacity={0.85}
                 accessibilityRole="button"
                 accessibilityLabel="Voltar para etapa 1"
-                style={[styles.secondaryBtn, { borderColor: '#247B74' }]}
+                style={styles.secondaryBtn}
               >
-                <Text style={[styles.secondaryBtnText, { color: '#247B74' }]}>Voltar</Text>
+                <Text style={[styles.secondaryBtnText, { color: FORM_THEME.primaryGreen }]}>Voltar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -842,9 +755,9 @@ export default function NewMoodScreen() {
                 activeOpacity={0.85}
                 accessibilityRole="button"
                 accessibilityLabel="Voltar para etapa 2"
-                style={[styles.secondaryBtn, { borderColor: '#247B74' }]}
+                style={styles.secondaryBtn}
               >
-                <Text style={[styles.secondaryBtnText, { color: '#247B74' }]}>Voltar</Text>
+                <Text style={[styles.secondaryBtnText, { color: FORM_THEME.primaryGreen }]}>Voltar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -856,7 +769,7 @@ export default function NewMoodScreen() {
                 style={[styles.primaryBtn, isSaving && { opacity: 0.7 }]}
               >
                 {isSaving ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color={FORM_THEME.white} />
                 ) : (
                   <Text style={styles.primaryBtnText}>Salvar registro</Text>
                 )}
@@ -866,6 +779,7 @@ export default function NewMoodScreen() {
         </View>
       </View>
 
+      {/* Modal: Selecionar Atividades */}
       <Modal
         visible={isActivityModalOpen}
         transparent
@@ -873,17 +787,9 @@ export default function NewMoodScreen() {
         onRequestClose={() => setIsActivityModalOpen(false)}
       >
         <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalSheet,
-              {
-                backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                borderColor: isDark ? colors.border : '#D8DEDB',
-              },
-            ]}
-          >
+          <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+              <Text style={[styles.modalTitle, { color: FORM_THEME.title }]}>
                 Selecionar atividades
               </Text>
               <TouchableOpacity
@@ -892,30 +798,22 @@ export default function NewMoodScreen() {
                 accessibilityLabel="Fechar seleção de atividades"
                 style={{ padding: 4 }}
               >
-                <X size={20} color={isDark ? colors.text : '#1F2927'} strokeWidth={1.75} />
+                <X size={20} color={FORM_THEME.title} strokeWidth={1.75} />
               </TouchableOpacity>
             </View>
 
-            <View
-              style={[
-                styles.modalSearchBox,
-                {
-                  backgroundColor: isDark ? colors.surfaceSecondary : '#F7F8F5',
-                  borderColor: isDark ? colors.border : '#D8DEDB',
-                },
-              ]}
-            >
-              <Search size={16} color={isDark ? colors.textMuted : '#68736F'} strokeWidth={1.75} />
+            <View style={styles.modalSearchBox}>
+              <Search size={16} color={FORM_THEME.subtitle} strokeWidth={1.75} />
               <TextInput
                 value={activitySearchQuery}
                 onChangeText={setActivitySearchQuery}
                 placeholder="Buscar atividade..."
-                placeholderTextColor={isDark ? colors.textMuted : '#8F9B97'}
-                style={[styles.modalSearchInput, { color: isDark ? colors.text : '#1F2927' }]}
+                placeholderTextColor="#8F9B97"
+                style={[styles.modalSearchInput, { color: FORM_THEME.question }]}
               />
               {activitySearchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setActivitySearchQuery('')}>
-                  <X size={14} color="#68736F" strokeWidth={2} />
+                  <X size={14} color={FORM_THEME.subtitle} strokeWidth={2} />
                 </TouchableOpacity>
               )}
             </View>
@@ -929,16 +827,13 @@ export default function NewMoodScreen() {
                     onPress={() => toggleActivity(act)}
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: isSelected }}
-                    style={[
-                      styles.modalOptionRow,
-                      { borderBottomColor: isDark ? colors.border : '#E7EBE9' },
-                    ]}
+                    style={styles.modalOptionRow}
                   >
                     <Text
                       style={[
                         styles.modalOptionText,
                         {
-                          color: isSelected ? '#247B74' : isDark ? colors.text : '#1F2927',
+                          color: isSelected ? FORM_THEME.primaryGreen : FORM_THEME.question,
                           fontWeight: isSelected ? '600' : '400',
                         },
                       ]}
@@ -948,11 +843,11 @@ export default function NewMoodScreen() {
                     <View
                       style={[
                         styles.checkboxSquare,
-                        isSelected && { backgroundColor: '#247B74', borderColor: '#247B74' },
-                        !isSelected && { borderColor: isDark ? colors.border : '#D8DEDB' },
+                        isSelected && { backgroundColor: FORM_THEME.primaryGreen, borderColor: FORM_THEME.primaryGreen },
+                        !isSelected && { borderColor: FORM_THEME.border },
                       ]}
                     >
-                      {isSelected && <Check size={12} color="#FFFFFF" strokeWidth={2.5} />}
+                      {isSelected && <Check size={12} color={FORM_THEME.white} strokeWidth={2.5} />}
                     </View>
                   </TouchableOpacity>
                 );
@@ -969,6 +864,7 @@ export default function NewMoodScreen() {
         </View>
       </Modal>
 
+      {/* Modal: Todas as Práticas */}
       <Modal
         visible={isAllPracticesModalOpen}
         transparent
@@ -976,17 +872,9 @@ export default function NewMoodScreen() {
         onRequestClose={() => setIsAllPracticesModalOpen(false)}
       >
         <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalSheet,
-              {
-                backgroundColor: isDark ? colors.surface : '#FFFFFF',
-                borderColor: isDark ? colors.border : '#D8DEDB',
-              },
-            ]}
-          >
+          <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: isDark ? colors.text : '#1F2927' }]}>
+              <Text style={[styles.modalTitle, { color: FORM_THEME.title }]}>
                 Todas as práticas
               </Text>
               <TouchableOpacity
@@ -995,7 +883,7 @@ export default function NewMoodScreen() {
                 accessibilityLabel="Fechar lista de práticas"
                 style={{ padding: 4 }}
               >
-                <X size={20} color={isDark ? colors.text : '#1F2927'} strokeWidth={1.75} />
+                <X size={20} color={FORM_THEME.title} strokeWidth={1.75} />
               </TouchableOpacity>
             </View>
 
@@ -1011,21 +899,18 @@ export default function NewMoodScreen() {
                       setSelectedPracticeId(isSelected ? null : prat.id);
                       setIsAllPracticesModalOpen(false);
                     }}
-                    style={[
-                      styles.practiceRow,
-                      { borderBottomColor: isDark ? colors.border : '#E7EBE9' },
-                    ]}
+                    style={styles.practiceRow}
                   >
-                    <Icon size={20} color="#247B74" strokeWidth={1.75} style={{ marginRight: 12 }} />
+                    <Icon size={20} color={FORM_THEME.primaryGreen} strokeWidth={1.75} style={{ marginRight: 12 }} />
                     <View style={styles.practiceTextCol}>
-                      <Text style={[styles.practiceTitleText, { color: isDark ? colors.text : '#1F2927' }]}>
+                      <Text style={[styles.practiceTitleText, { color: FORM_THEME.question }]}>
                         {prat.title}
-                        <Text style={[styles.practiceDurationText, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                        <Text style={[styles.practiceDurationText, { color: FORM_THEME.labelMuted }]}>
                           {' '}• {prat.durationMinutes} min
                         </Text>
                       </Text>
                       <Text
-                        style={[styles.practiceDescModal, { color: isDark ? colors.textMuted : '#68736F' }]}
+                        style={[styles.practiceDescModal, { color: FORM_THEME.subtitle }]}
                         numberOfLines={1}
                       >
                         {prat.description}
@@ -1035,8 +920,8 @@ export default function NewMoodScreen() {
                     <View
                       style={[
                         styles.radioCircle,
-                        isSelected && { borderColor: '#247B74', backgroundColor: '#247B74' },
-                        !isSelected && { borderColor: isDark ? colors.border : '#D8DEDB' },
+                        isSelected && styles.radioCircleSelected,
+                        !isSelected && styles.radioCircleUnselected,
                       ]}
                     >
                       {isSelected && <View style={styles.radioInnerDot} />}
@@ -1080,6 +965,7 @@ const styles = StyleSheet.create({
   headerContainer: {
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
+    borderBottomColor: '#E7EBE9',
     paddingTop: Platform.OS === 'ios' ? 12 : 8,
   },
   headerTopRow: {
@@ -1102,8 +988,7 @@ const styles = StyleSheet.create({
   },
   headerStepIndicator: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#247B74',
+    fontWeight: '600',
     minWidth: 44,
     textAlign: 'right',
   },
@@ -1163,7 +1048,13 @@ const styles = StyleSheet.create({
     minHeight: 80,
   },
   moodCardSelected: {
+    backgroundColor: '#EDF7F5',
+    borderColor: '#247B74',
     borderWidth: 1.5,
+  },
+  moodCardUnselected: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D8DEDB',
   },
   moodIconWrap: {
     marginBottom: 6,
@@ -1189,7 +1080,13 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   emotionBoxSelected: {
+    backgroundColor: '#EDF7F5',
+    borderColor: '#247B74',
     borderWidth: 1.5,
+  },
+  emotionBoxUnselected: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D8DEDB',
   },
   emotionIcon: {
     marginRight: 8,
@@ -1211,6 +1108,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 8,
     borderWidth: 1,
+    borderColor: '#D8DEDB',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1237,6 +1136,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 6,
     borderWidth: 1,
+    backgroundColor: '#EDF7F5',
+    borderColor: '#247B74',
   },
   selectedActivityChipText: {
     fontSize: 13,
@@ -1244,6 +1145,7 @@ const styles = StyleSheet.create({
   },
   practicesListWrap: {
     borderTopWidth: 1,
+    borderTopColor: '#E7EBE9',
     marginBottom: 8,
   },
   practiceRow: {
@@ -1251,6 +1153,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     borderBottomWidth: 1,
+    borderBottomColor: '#E7EBE9',
   },
   practiceTextCol: {
     flex: 1,
@@ -1276,6 +1179,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 8,
   },
+  radioCircleSelected: {
+    borderColor: '#247B74',
+    backgroundColor: '#247B74',
+  },
+  radioCircleUnselected: {
+    borderColor: '#D8DEDB',
+    backgroundColor: 'transparent',
+  },
   radioInnerDot: {
     width: 8,
     height: 8,
@@ -1292,7 +1203,6 @@ const styles = StyleSheet.create({
   viewAllPracticesLinkText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#247B74',
   },
   periodSelectorWrap: {
     marginBottom: 20,
@@ -1314,6 +1224,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  periodPillSelected: {
+    backgroundColor: '#247B74',
+    borderColor: '#247B74',
+  },
+  periodPillUnselected: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D8DEDB',
   },
   periodPillText: {
     fontSize: 13.5,
@@ -1351,6 +1269,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     borderTopWidth: 1,
+    borderTopColor: '#E7EBE9',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 20,
     paddingVertical: 14,
     paddingBottom: Platform.OS === 'ios' ? 28 : 16,
@@ -1371,6 +1291,7 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 8,
     borderWidth: 1,
+    borderColor: '#247B74',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1398,15 +1319,13 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    width: '100%',
-    maxWidth: 600,
-    alignSelf: 'center',
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 20,
+    maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1415,30 +1334,33 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
   modalSearchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 42,
+    backgroundColor: '#F7F8F5',
     borderRadius: 8,
     borderWidth: 1,
+    borderColor: '#D8DEDB',
     paddingHorizontal: 12,
-    marginBottom: 14,
-    gap: 8,
+    height: 44,
+    marginBottom: 12,
   },
   modalSearchInput: {
     flex: 1,
+    marginLeft: 8,
     fontSize: 14,
-    height: '100%',
   },
   modalOptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
+    borderBottomColor: '#E7EBE9',
   },
   modalOptionText: {
     fontSize: 15,
@@ -1453,7 +1375,7 @@ const styles = StyleSheet.create({
   },
   modalConfirmBtn: {
     backgroundColor: '#247B74',
-    height: 46,
+    height: 48,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',

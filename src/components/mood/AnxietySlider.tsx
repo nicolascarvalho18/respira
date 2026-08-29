@@ -86,7 +86,7 @@ export const AnxietySlider: React.FC<AnxietySliderProps> = ({
           <Text
             style={[
               styles.currentValueText,
-              { color: isDark ? '#5ECFC3' : '#238C82' },
+              { color: '#247B74' },
             ]}
           >
             {`${clampedValue} de 10`}
@@ -96,10 +96,10 @@ export const AnxietySlider: React.FC<AnxietySliderProps> = ({
 
       {/* 2. Rótulos dos Extremos (0 e 10) */}
       <View style={styles.topLabelsRow}>
-        <Text style={[styles.endpointNumber, { color: isDark ? '#FFFFFF' : '#1F2927' }]}>
+        <Text style={[styles.endpointNumber, { color: '#5F6D69' }]}>
           0
         </Text>
-        <Text style={[styles.endpointNumber, { color: isDark ? '#FFFFFF' : '#1F2927' }]}>
+        <Text style={[styles.endpointNumber, { color: '#5F6D69' }]}>
           10
         </Text>
       </View>
@@ -200,10 +200,10 @@ export const AnxietySlider: React.FC<AnxietySliderProps> = ({
 
       {/* 4. Rótulos Descritivos Inferiores ("Tranquilo" e "Intenso") */}
       <View style={styles.bottomLabelsRow}>
-        <Text style={[styles.bottomLabelText, { color: isDark ? '#CBD5E1' : '#708885' }]}>
+        <Text style={[styles.bottomLabelText, { color: '#5F6D69' }]}>
           Tranquilo
         </Text>
-        <Text style={[styles.bottomLabelText, { color: isDark ? '#CBD5E1' : '#708885' }]}>
+        <Text style={[styles.bottomLabelText, { color: '#5F6D69' }]}>
           Intenso
         </Text>
       </View>
