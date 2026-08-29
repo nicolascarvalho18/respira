@@ -3,6 +3,7 @@ import { storage } from '../storage/asyncStorage';
 import { secureStorage } from '../storage/secureStorage';
 import { userAccountService } from '../../server/services/userAccountService';
 import { supabaseUserService } from './supabaseUserService';
+import { supabaseAuthService } from '../auth/supabaseAuthService';
 import { isSupabaseConfigured } from '../supabase/client';
 import { logger } from '../../utils/logger';
 
@@ -124,7 +125,14 @@ class UserService {
     currentPassword?: string
   ): Promise<boolean> {
     logger.info(`Deleting account and local data for user ${userId}`);
-    await userAccountService.requestAccountDeletion(userId, confirmationPhrase, currentPassword);
+    if (currentPassword) {
+      const res = await supabaseAuthService.deleteAccount(currentPassword);
+      if (!res.success) {
+        throw new Error(res.error || 'Não foi possível excluir sua conta.');
+      }
+    } else {
+      await userAccountService.requestAccountDeletion(userId, confirmationPhrase, currentPassword);
+    }
     await storage.clear();
     await secureStorage.deleteItem('auth_token');
     await secureStorage.deleteItem('auth_refresh_token');

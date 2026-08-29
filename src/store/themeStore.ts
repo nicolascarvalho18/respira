@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { storage } from '../services/storage/asyncStorage';
 import { COLORS } from '../constants/theme';
+import { supabase, isSupabaseConfigured } from '../services/supabase/client';
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -23,8 +24,33 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   colors: COLORS.light,
 
   initializeTheme: async () => {
-    const savedMode = (await storage.getItem<string>(THEME_STORAGE_KEY)) || 'light';
-    const validMode: ThemeMode = savedMode === 'dark' ? 'dark' : 'light';
+    let validMode: ThemeMode = 'light';
+
+    // 1. Tentar carregar das preferências salvas no Supabase se houver sessão ativa
+    if (isSupabaseConfigured) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: prefs } = await supabase
+            .from('user_preferences')
+            .select('theme')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (prefs?.theme === 'dark' || prefs?.theme === 'light') {
+            validMode = prefs.theme;
+          }
+        }
+      } catch (_e) {
+        // Fallback para storage local
+      }
+    }
+
+    if (!validMode || validMode === 'light') {
+      const savedMode = (await storage.getItem<string>(THEME_STORAGE_KEY)) || 'light';
+      validMode = savedMode === 'dark' ? 'dark' : 'light';
+    }
+
     const isDark = validMode === 'dark';
 
     set({
@@ -44,6 +70,27 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
       isDark,
       colors: isDark ? COLORS.dark : COLORS.light,
     });
+
+    // 2. Persistir no Supabase em segundo plano
+    if (isSupabaseConfigured) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase
+            .from('user_preferences')
+            .upsert(
+              {
+                user_id: user.id,
+                theme: validMode,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: 'user_id' }
+            );
+        }
+      } catch (_e) {
+        // Persistência local garantida
+      }
+    }
   },
 
   toggleTheme: async () => {

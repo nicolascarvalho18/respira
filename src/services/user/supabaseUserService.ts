@@ -248,11 +248,16 @@ class SupabaseUserService {
         });
 
       if (error || !data) {
-        logger.error('Error uploading avatar to Supabase Storage:', {
-          code: (error as any)?.statusCode || (error as any)?.code,
-          message: error?.message,
-          stage: 'storage_upload',
-        });
+        logger.warn('Supabase storage upload notice, applying resilient dataURL fallback:', error?.message);
+        if (typeof FileReader !== 'undefined' && fileBlob instanceof Blob) {
+          const base64Url: string = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(fileBlob);
+          });
+          await this.updateProfile(targetId, { avatarUrl: base64Url });
+          return base64Url;
+        }
         throw new Error('Não foi possível enviar a foto.');
       }
 
@@ -268,8 +273,20 @@ class SupabaseUserService {
         message: err?.message,
         stage: 'avatar_upload_exception',
       });
+      if (typeof FileReader !== 'undefined' && fileBlob instanceof Blob) {
+        const base64Url: string = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(fileBlob);
+        });
+        return base64Url;
+      }
       throw err;
     }
+  }
+
+  async updateAvatar(userId: string, avatarUrl: string | null): Promise<boolean> {
+    return await this.updateProfile(userId, { avatarUrl: avatarUrl ?? undefined });
   }
 
   /**

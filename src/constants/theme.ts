@@ -1,6 +1,7 @@
 /**
  * Sistema de Design Tokens do Respira
- * Cores, Tipografia, Espaçamentos, Raios, Sombras e Breakpoints Originais.
+ * Cores, Tipografia, Espaçamentos, Raios, Sombras e Breakpoints.
+ * Tema Escuro Confortável com Alto Contraste (WCAG AA) e Tons Suaves.
  */
 
 export const COLOR_TOKENS = {
@@ -27,7 +28,7 @@ export const COLOR_TOKENS = {
   textMutedDark: '#E2E8F0',
 
   placeholderLight: '#8F9B97',
-  placeholderDark: '#CBD5E1',
+  placeholderDark: '#94A3B8',
 
   anxiety: '#D87556',
   danger: '#C84E45',
@@ -37,13 +38,13 @@ export const COLOR_TOKENS = {
 
   success: '#247B74',
   successLight: '#EDF7F5',
-  successDark: '#65D6A6',
+  successDark: '#4ADE80',
   warning: '#D87556',
   warningLight: '#FFF4EE',
-  warningDark: '#F28B82',
+  warningDark: '#FBBF24',
   error: '#C84E45',
   errorLight: '#FDF2F2',
-  errorDark: '#F28B82',
+  errorDark: '#F87171',
   info: '#247B74',
   infoLight: '#EDF7F5',
   infoDark: '#5ECFC3',
@@ -94,7 +95,7 @@ export const COLORS = {
     primary: '#5ECFC3',
     primaryHover: '#7FE0D6',
     primaryDark: '#247B74',
-    primaryLight: '#243330',
+    primaryLight: '#223431',
     primaryMuted: '#2D4B48',
     secondary: '#5ECFC3',
     secondaryDark: '#389B93',
@@ -102,32 +103,32 @@ export const COLORS = {
     accent: '#F28B82',
     accentDark: '#B86043',
     accentLight: '#3D251C',
-    highlight: '#2A3C38',
+    highlight: '#2B3F3B',
     background: COLOR_TOKENS.backgroundDark,
     surface: COLOR_TOKENS.surfaceDark,
     surfaceSecondary: COLOR_TOKENS.surfaceSecondaryDark,
     surfaceSubtle: COLOR_TOKENS.surfaceSubtleDark,
-    text: '#FFFFFF',
-    textSecondary: '#F1F5F9',
-    textMuted: '#E2E8F0',
-    textLight: '#E2E8F0',
-    placeholder: '#CBD5E1',
+    text: COLOR_TOKENS.textPrimaryDark,
+    textSecondary: COLOR_TOKENS.textSecondaryDark,
+    textMuted: COLOR_TOKENS.textMutedDark,
+    textLight: COLOR_TOKENS.textMutedDark,
+    placeholder: COLOR_TOKENS.placeholderDark,
     border: COLOR_TOKENS.borderDark,
-    borderStrong: '#3D524E',
-    grid: '#2E3D3A',
-    success: '#65D6A6',
-    successLight: '#1C302D',
-    warning: '#F28B82',
-    warningLight: '#3D251C',
-    error: '#F28B82',
+    borderStrong: '#425D57',
+    grid: '#2E433F',
+    success: COLOR_TOKENS.successDark,
+    successLight: '#1A332B',
+    warning: COLOR_TOKENS.warningDark,
+    warningLight: '#3A2B15',
+    error: COLOR_TOKENS.errorDark,
     errorLight: '#3A1E1D',
-    info: '#5ECFC3',
-    infoLight: '#1C302D',
+    info: COLOR_TOKENS.infoDark,
+    infoLight: '#1A3330',
     cardBg: COLOR_TOKENS.surfaceDark,
-    tabBarBg: '#1C2624',
-    tabBarInactive: '#E2E8F0',
+    tabBarBg: '#15211E',
+    tabBarInactive: '#94A3B8',
     tabBarActive: '#5ECFC3',
-    iconInactive: '#E2E8F0',
+    iconInactive: '#94A3B8',
     overlay: 'rgba(0, 0, 0, 0.75)',
   },
 };
@@ -178,54 +179,15 @@ export const TYPOGRAPHY = {
 };
 
 export const SPACING = {
+  xxs: 2,
   xs: 4,
   sm: 8,
   md: 12,
   lg: 16,
   xl: 24,
   xxl: 32,
-  xxxl: 48,
-};
-
-export const RADIUS = {
-  xs: 6,
-  sm: 10,
-  md: 14,
-  lg: 18,
-  xl: 24,
-  xxl: 32,
-  full: 9999,
-};
-
-export const BREAKPOINTS = {
-  mobileMax: 767,
-  tabletMin: 768,
-  tabletMax: 1199,
-  desktopMin: 1200,
-};
-
-export const SHADOWS = {
-  sm: {
-    shadowColor: '#173D3B',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  md: {
-    shadowColor: '#173D3B',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  lg: {
-    shadowColor: '#173D3B',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 6,
-  },
+  xxxl: 40,
+  huge: 48,
 };
 
 export const ANIMATIONS = {
@@ -234,3 +196,44 @@ export const ANIMATIONS = {
   slow: 250,
 };
 
+export const RADIUS = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  full: 9999,
+};
+
+export const SHADOWS = {
+  sm: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  md: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  lg: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+};
+
+export const BREAKPOINTS = {
+  mobileMax: 767,
+  tabletMin: 768,
+  tablet: 768,
+  desktopMin: 1024,
+  desktop: 1024,
+  wide: 1280,
+};
