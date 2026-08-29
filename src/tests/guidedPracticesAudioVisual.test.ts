@@ -55,6 +55,34 @@ describe('Guided Audiovisual Practices & Character System Tests', () => {
       expect(scriptPMR.some((s) => s.text.includes('punhos'))).toBe(true);
     });
 
+    it('provides standard guided breathing cycle script with 4s inhale, 2s hold, 6s exhale, 2s pause', () => {
+      const defaultScript = guidedVoiceService.getNarrationScript('practice-breathing-guided');
+      expect(defaultScript.length).toBeGreaterThan(0);
+      const inhale = defaultScript.find((s) => s.phase === 'inhale');
+      const hold = defaultScript.find((s) => s.phase === 'hold');
+      const exhale = defaultScript.find((s) => s.phase === 'exhale');
+      const holdAfter = defaultScript.find((s) => s.phase === 'hold_after_exhale');
+
+      expect(inhale?.text).toBe('Inspire lentamente pelo nariz.');
+      expect(inhale?.durationSeconds).toBe(4);
+      expect(hold?.text).toBe('Segure suavemente.');
+      expect(hold?.durationSeconds).toBe(2);
+      expect(exhale?.text).toBe('Agora, solte o ar devagar pela boca.');
+      expect(exhale?.durationSeconds).toBe(6);
+      expect(holdAfter?.durationSeconds).toBe(2);
+    });
+
+    it('supports voice speed multiplier (0.75x, 1x, 1.25x)', () => {
+      guidedVoiceService.setVoiceSpeedMultiplier(0.75);
+      expect(guidedVoiceService.getVoiceSpeedMultiplier()).toBe(0.75);
+
+      guidedVoiceService.setVoiceSpeedMultiplier(1.25);
+      expect(guidedVoiceService.getVoiceSpeedMultiplier()).toBe(1.25);
+
+      guidedVoiceService.setVoiceSpeedMultiplier(1.0);
+      expect(guidedVoiceService.getVoiceSpeedMultiplier()).toBe(1.0);
+    });
+
     it('supports independent voice and ambient music volume mixing and muting', () => {
       guidedVoiceService.setVoiceVolume(0.8);
       expect(guidedVoiceService.getVoiceVolume()).toBe(0.8);

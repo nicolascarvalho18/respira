@@ -153,11 +153,12 @@ export const GuidedVideoAudioPlayer: React.FC<GuidedVideoAudioPlayerProps> = ({
     hapticService.triggerHold();
   };
 
-  // Velocidade de Reprodução
+  // Velocidade de Reprodução e Narração (0.75x, 1x, 1.25x)
   const handleCycleSpeed = () => {
-    const speeds: (0.75 | 1 | 1.25 | 1.5)[] = [1, 1.25, 1.5, 0.75];
-    const nextSpeed = speeds[(speeds.indexOf(playbackSpeed) + 1) % speeds.length];
+    const speeds: (0.75 | 1 | 1.25)[] = [1, 1.25, 0.75];
+    const nextSpeed = speeds[(speeds.indexOf(playbackSpeed as any) + 1) % speeds.length];
     setPlaybackSpeed(nextSpeed);
+    guidedVoiceService.setVoiceSpeedMultiplier(nextSpeed);
     hapticService.triggerHold();
   };
 

@@ -8,9 +8,9 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import { ShieldAlert, Sparkles, CheckCircle, RefreshCw } from 'lucide-react-native';
+import { ShieldAlert, Sparkles, CheckCircle2 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
-import { CharacterGuidedCanvas, CharacterPosture } from './CharacterGuidedCanvas';
+import { CharacterGuidedCanvas } from './CharacterGuidedCanvas';
 import { guidedVoiceService } from '../../services/sound/guidedVoiceService';
 import { hapticService } from '../../services/haptics/hapticService';
 import { Practice } from '../../types';
@@ -32,21 +32,26 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
 }) => {
   const { colors, isDark } = useTheme();
 
-  // Configuração da técnica respiratória
-  const rawConfig = practice.breathingConfig || {
+  // Ciclo padrão calibrado: 4s Inspirar, 2s Segurar, 6s Expirar, 2s Pausa
+  const defaultBreathingConfig = {
     inhaleSeconds: 4,
-    holdSeconds: 7,
-    exhaleSeconds: 8,
+    holdSeconds: 2,
+    exhaleSeconds: 6,
+    holdAfterExhaleSeconds: 2,
     cycles: 4,
   };
+
+  const rawConfig = practice.breathingConfig || defaultBreathingConfig;
 
   const [noHoldMode, setNoHoldMode] = useState(false);
 
   // Configuração ativa respeitando modo de acessibilidade
   const config = {
-    ...rawConfig,
+    inhaleSeconds: rawConfig.inhaleSeconds,
     holdSeconds: noHoldMode ? 0 : rawConfig.holdSeconds,
-    holdAfterExhaleSeconds: noHoldMode ? 0 : rawConfig.holdAfterExhaleSeconds || 0,
+    exhaleSeconds: rawConfig.exhaleSeconds,
+    holdAfterExhaleSeconds: noHoldMode ? 0 : (rawConfig.holdAfterExhaleSeconds ?? 2),
+    cycles: rawConfig.cycles || 4,
   };
 
   type Phase = 'intro' | 'inhale' | 'hold' | 'exhale' | 'hold_after_exhale' | 'finished';
@@ -54,34 +59,27 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
   const [currentPhase, setCurrentPhase] = useState<Phase>('intro');
   const [secondsLeft, setSecondsLeft] = useState(3);
   const [currentCycle, setCurrentCycle] = useState(1);
-  const [currentCaption, setCurrentCaption] = useState('Prepare-se. Encontre uma postura relaxada.');
+  const [currentCaption, setCurrentCaption] = useState('Encontre uma posição confortável e relaxe os ombros.');
 
-  const ringScale = useRef(new Animated.Value(0.7)).current;
+  const ringScale = useRef(new Animated.Value(0.82)).current;
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Determinar postura da personagem baseada na técnica
-  let posture: CharacterPosture = 'breathing_diaphragmatic';
-  if (practice.id === 'practice-breathing-box' || practice.id === 'practice-breathing-44') {
-    posture = 'breathing_relaxed';
-  } else if (practice.id === 'practice-grounding-54321') {
-    posture = 'grounding_mug';
-  }
-
-  // Narração de introdução
+  // Narração de introdução ao iniciar
   useEffect(() => {
     if (isPlaying && currentPhase === 'intro') {
       guidedVoiceService.speak(
-        `Vamos iniciar a ${practice.title}. Sente-se confortavelmente e relaxe os ombros.`,
+        'Encontre uma posição confortável e relaxe os ombros.',
         undefined,
-        0.88
+        0.80
       );
     }
   }, [isPlaying]);
 
-  // Transições de Fases da Respiração
+  // Gerenciamento dos temporizadores e transição entre fases da respiração
   useEffect(() => {
     if (!isPlaying) {
       if (timerRef.current) clearInterval(timerRef.current);
+      guidedVoiceService.cancel();
       return;
     }
 
@@ -89,7 +87,7 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
       return;
     }
 
-    // Gerenciador de contagem regressiva por segundo
+    // Cronômetro exato de 1 segundo real (1000ms)
     timerRef.current = setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev > 1) {
@@ -107,6 +105,7 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
     };
   }, [isPlaying, currentPhase, currentCycle, noHoldMode]);
 
+  // Transição de Fases da Respiração
   const handlePhaseTransition = () => {
     if (currentPhase === 'intro') {
       startInhalePhase();
@@ -119,7 +118,7 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
     } else if (currentPhase === 'hold') {
       startExhalePhase();
     } else if (currentPhase === 'exhale') {
-      if (config.holdAfterExhaleSeconds && config.holdAfterExhaleSeconds > 0) {
+      if (config.holdAfterExhaleSeconds > 0) {
         startHoldAfterExhalePhase();
       } else {
         advanceCycleOrFinish();
@@ -132,15 +131,17 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
   const startInhalePhase = () => {
     setCurrentPhase('inhale');
     setSecondsLeft(config.inhaleSeconds);
-    setCurrentCaption('Inspire lentamente pelo nariz, sentindo o ar preencher o abdômen.');
+    setCurrentCaption('Inspire lentamente pelo nariz.');
     hapticService.triggerInhale();
 
-    guidedVoiceService.speak('Inspire lentamente pelo nariz.', undefined, 0.9);
+    // Narração inicial com silêncio em seguida
+    guidedVoiceService.speak('Inspire lentamente pelo nariz.', undefined, 0.80);
 
+    // Animação suave e contínua do círculo expandindo
     Animated.timing(ringScale, {
-      toValue: 1.25,
+      toValue: 1.26,
       duration: config.inhaleSeconds * 1000,
-      easing: Easing.bezier(0.4, 0.0, 0.2, 1),
+      easing: Easing.bezier(0.35, 0.0, 0.2, 1),
       useNativeDriver: Platform.OS !== 'web',
     }).start();
   };
@@ -148,22 +149,25 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
   const startHoldPhase = () => {
     setCurrentPhase('hold');
     setSecondsLeft(config.holdSeconds);
-    setCurrentCaption('Segure o ar com calma, mantendo o corpo perfeitamente relaxado.');
+    setCurrentCaption('Segure suavemente.');
     hapticService.triggerHold();
 
-    guidedVoiceService.speak('Segure o ar com calma.', undefined, 0.9);
+    // Narração inicial
+    guidedVoiceService.speak('Segure suavemente.', undefined, 0.80);
   };
 
   const startExhalePhase = () => {
     setCurrentPhase('exhale');
     setSecondsLeft(config.exhaleSeconds);
-    setCurrentCaption('Solte o ar devagar pela boca, liberando qualquer tensão.');
+    setCurrentCaption('Agora, solte o ar devagar pela boca.');
     hapticService.triggerExhale();
 
-    guidedVoiceService.speak('Solte o ar devagar pela boca.', undefined, 0.88);
+    // Narração inicial
+    guidedVoiceService.speak('Agora, solte o ar devagar pela boca.', undefined, 0.80);
 
+    // Animação suave e contínua do círculo recolhendo
     Animated.timing(ringScale, {
-      toValue: 0.7,
+      toValue: 0.82,
       duration: config.exhaleSeconds * 1000,
       easing: Easing.bezier(0.25, 0.1, 0.25, 1),
       useNativeDriver: Platform.OS !== 'web',
@@ -172,11 +176,10 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
 
   const startHoldAfterExhalePhase = () => {
     setCurrentPhase('hold_after_exhale');
-    setSecondsLeft(config.holdAfterExhaleSeconds || 4);
-    setCurrentCaption('Pausa suave com os pulmões vazios.');
+    setSecondsLeft(config.holdAfterExhaleSeconds);
+    setCurrentCaption('Pausa suave antes do próximo ciclo.');
     hapticService.triggerHold();
-
-    guidedVoiceService.speak('Pausa suave.', undefined, 0.9);
+    // 2 segundos de silêncio para tranquilidade
   };
 
   const advanceCycleOrFinish = () => {
@@ -188,11 +191,11 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
     } else {
       setCurrentPhase('finished');
       setSecondsLeft(0);
-      setCurrentCaption('Muito bem! Volte a respirar no seu ritmo natural.');
+      setCurrentCaption('Muito bem! Retorne ao seu ritmo natural.');
       guidedVoiceService.speak(
-        'Prática concluída. Retorne à sua respiração natural e sinta a sensação de paz.',
+        'Muito bem. Sinta a sensação de tranquilidade em seu corpo.',
         undefined,
-        0.88
+        0.80
       );
       onComplete?.();
     }
@@ -209,7 +212,7 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
       case 'exhale':
         return 'Expirar';
       case 'hold_after_exhale':
-        return 'Pausa vazia';
+        return 'Pausa';
       case 'finished':
         return 'Concluído';
       default:
@@ -235,12 +238,12 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
 
   return (
     <View style={styles.container}>
-      {/* 1. Header do Guia com Ciclo e Acessibilidade */}
+      {/* 1. Barra Superior com Ciclo e Acessibilidade */}
       <View style={styles.headerRow}>
         <View style={styles.cycleBadge}>
           <Text style={[styles.cycleText, { color: isDark ? '#5ECFC3' : '#1F766E' }]}>
             {currentPhase === 'finished'
-              ? 'Prática finalizada'
+              ? 'Prática concluída'
               : `Ciclo ${currentCycle} de ${config.cycles}`}
           </Text>
         </View>
@@ -261,22 +264,22 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
               },
             ]}
           >
-            <Sparkles size={14} color={noHoldMode ? '#1F766E' : colors.textSecondary} />
+            <Sparkles size={13} color={noHoldMode ? '#1F766E' : colors.textSecondary} />
             <Text
               style={[
                 styles.accessibleBtnText,
                 { color: noHoldMode ? '#1F766E' : colors.textSecondary },
               ]}
             >
-              {noHoldMode ? 'Modo contínuo ativo' : 'Sem pausa respiratória'}
+              {noHoldMode ? 'Modo sem pausa ativo' : 'Sem pausa'}
             </Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* 2. Área Visual Central com Personagem e Anel de Respiração */}
+      {/* 2. Palco Visual Central: Círculo de Respiração e Personagem Oficial */}
       <View style={styles.visualArea}>
-        {/* Anel de Respiração Sincronizado */}
+        {/* Círculo de Respiração Suave */}
         <Animated.View
           style={[
             styles.breathingRing,
@@ -284,13 +287,13 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
               transform: [{ scale: ringScale }],
               borderColor: getPhaseColor(),
               backgroundColor: isDark
-                ? 'rgba(31, 118, 110, 0.12)'
-                : 'rgba(31, 118, 110, 0.08)',
+                ? 'rgba(31, 118, 110, 0.10)'
+                : 'rgba(31, 118, 110, 0.06)',
             },
           ]}
         />
 
-        {/* Personagem Oficial Guiada com Cinemática de Respiração */}
+        {/* Personagem Oficial Centralizada (Corpo Inteiro com Almofada) */}
         <View style={styles.characterContainer}>
           <CharacterGuidedCanvas
             phase={currentPhase === 'finished' || currentPhase === 'intro' ? 'idle' : currentPhase}
@@ -301,13 +304,12 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
                 ? config.holdSeconds
                 : currentPhase === 'exhale'
                 ? config.exhaleSeconds
-                : 4
+                : 2
             }
-            posture={posture}
           />
         </View>
 
-        {/* Contador Flutuante e Indicador da Fase */}
+        {/* Indicador Flutuante da Etapa e Contagem em Segundos Reais */}
         {currentPhase !== 'intro' && currentPhase !== 'finished' && (
           <View style={[styles.floatingCounter, { backgroundColor: isDark ? '#1C2825' : '#FFFFFF' }]}>
             <Text style={[styles.phaseTitleText, { color: getPhaseColor() }]}>
@@ -320,14 +322,14 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
         )}
       </View>
 
-      {/* 3. Legendas em Português Sincronizadas */}
+      {/* 3. Legenda Sincronizada em Português */}
       <View style={[styles.captionBox, { backgroundColor: isDark ? '#1C2624' : '#EFF6F3' }]}>
         <Text style={[styles.captionText, { color: isDark ? '#F1F5F9' : '#163F3A' }]}>
           {currentCaption}
         </Text>
       </View>
 
-      {/* 4. Aviso Educativo e de Segurança */}
+      {/* 4. Aviso de Conforto e Segurança */}
       <View style={styles.safetyRow}>
         <ShieldAlert size={14} color={colors.textSecondary} />
         <Text style={[styles.safetyText, { color: colors.textSecondary }]}>
@@ -342,7 +344,7 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   headerRow: {
     width: '100%',
@@ -350,12 +352,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   cycleBadge: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingVertical: 5,
+    borderRadius: 18,
     backgroundColor: 'rgba(31, 118, 110, 0.12)',
   },
   cycleText: {
@@ -365,28 +367,28 @@ const styles = StyleSheet.create({
   accessibleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
   },
   accessibleBtnText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
   },
   visualArea: {
     width: '100%',
-    height: 400,
+    height: 380,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   breathingRing: {
     position: 'absolute',
-    width: 320,
-    height: 320,
-    borderRadius: 160,
-    borderWidth: 3,
+    width: 290,
+    height: 290,
+    borderRadius: 145,
+    borderWidth: 2.5,
     zIndex: 1,
   },
   characterContainer: {
@@ -395,38 +397,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,
+    paddingHorizontal: 12,
   },
   floatingCounter: {
     position: 'absolute',
-    bottom: 12,
+    bottom: 8,
     alignItems: 'center',
-    paddingHorizontal: 22,
-    paddingVertical: 8,
-    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 6,
+    borderRadius: 22,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 6,
+    elevation: 3,
     zIndex: 10,
   },
   phaseTitleText: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
   secondsLeftNumber: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '800',
     marginTop: -2,
   },
   captionBox: {
     width: '92%',
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 14,
-    marginTop: 14,
+    borderRadius: 12,
+    marginTop: 12,
     alignItems: 'center',
   },
   captionText: {
@@ -440,11 +443,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 20,
-    marginTop: 10,
+    marginTop: 8,
   },
   safetyText: {
     fontSize: 11,
-    lineHeight: 16,
+    lineHeight: 15,
     flex: 1,
   },
 });

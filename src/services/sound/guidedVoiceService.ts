@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import { logger } from '../../utils/logger';
 
 export interface PracticePhaseScript {
@@ -12,6 +11,8 @@ class GuidedVoiceService {
   private isVoiceMuted: boolean = false;
   private ambientVolume: number = 0.35;
   private isAmbientMuted: boolean = false;
+  private voiceSpeedMultiplier: number = 1.0; // 0.75x, 1x, 1.25x
+  private baseRate: number = 0.80; // Velocidade padrão suave e relaxante
   private currentUtterance: any = null;
   private preferredVoice: any = null;
   private initialized: boolean = false;
@@ -25,12 +26,17 @@ class GuidedVoiceService {
       const loadVoice = () => {
         const voices = window.speechSynthesis.getVoices();
         // Priorizar vozes pt-BR femininas naturais
-        const ptVoices = voices.filter((v) => v.lang.startsWith('pt'));
+        const ptVoices = voices.filter(
+          (v) => v.lang.startsWith('pt') || v.lang.includes('PT') || v.lang.includes('BR')
+        );
+
         const preferred =
           ptVoices.find(
             (v) =>
               v.name.toLowerCase().includes('luciana') ||
               v.name.toLowerCase().includes('leticia') ||
+              v.name.toLowerCase().includes('francisca') ||
+              v.name.toLowerCase().includes('vitoria') ||
               v.name.toLowerCase().includes('maria') ||
               v.name.toLowerCase().includes('female') ||
               v.name.toLowerCase().includes('natural')
@@ -50,22 +56,27 @@ class GuidedVoiceService {
   }
 
   /**
-   * Fala uma instrução suave de forma sincronizada com o exercício
+   * Fala uma instrução suave de forma sincronizada com o exercício.
+   * Não acelera palavras e fala apenas a instrução inicial, deixando silêncio.
    */
-  speak(text: string, onEnd?: () => void, rate: number = 0.88): void {
-    if (this.isVoiceMuted || this.voiceVolume === 0) {
+  speak(text: string, onEnd?: () => void, customRateMultiplier?: number): void {
+    if (this.isVoiceMuted || this.voiceVolume === 0 || !text || text.trim().length === 0) {
       onEnd?.();
       return;
     }
 
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
+        // Interromper qualquer fala anterior para não sobrepor
         window.speechSynthesis.cancel();
+
+        const rateMultiplier = customRateMultiplier ?? this.voiceSpeedMultiplier;
+        const finalRate = Math.max(0.65, Math.min(1.2, this.baseRate * rateMultiplier));
 
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'pt-BR';
-        utterance.rate = rate; // Ritmo calmo e compassado para relaxamento
-        utterance.pitch = 0.98; // Tom natural e acolhedor
+        utterance.rate = finalRate; // Ritmo compassado e acolhedor (0.75x a 0.85x)
+        utterance.pitch = 0.96;     // Tom suave, calmo e ligeiramente mais baixo
         utterance.volume = this.voiceVolume;
 
         if (this.preferredVoice) {
@@ -78,7 +89,7 @@ class GuidedVoiceService {
         };
 
         utterance.onerror = (err) => {
-          logger.warn('Speech synthesis notice:', err);
+          logger.warn('Speech synthesis notification:', err);
           this.currentUtterance = null;
           onEnd?.();
         };
@@ -103,6 +114,15 @@ class GuidedVoiceService {
       }
     }
     this.currentUtterance = null;
+  }
+
+  // Controles de Velocidade de Voz (0.75x, 1x, 1.25x)
+  setVoiceSpeedMultiplier(multiplier: number): void {
+    this.voiceSpeedMultiplier = Math.max(0.75, Math.min(1.5, multiplier));
+  }
+
+  getVoiceSpeedMultiplier(): number {
+    return this.voiceSpeedMultiplier;
   }
 
   // Controles de Volume e Mixer
@@ -142,161 +162,113 @@ class GuidedVoiceService {
   }
 
   /**
-   * Obtém roteiro de narração detalhado por prática
+   * Obtém o roteiro de narração calibrado para cada prática
    */
   getNarrationScript(practiceId: string): PracticePhaseScript[] {
     switch (practiceId) {
-      // 1. Respiração 4-7-8
-      case 'practice-breathing-478':
-        return [
-          {
-            phase: 'intro',
-            text: 'Bem-vindo à Respiração 4-7-8. Acomode-se com a coluna ereta e os ombros relaxados. Coloque uma mão sobre o peito e a outra sobre a barriga.',
-            durationSeconds: 12,
-          },
-          {
-            phase: 'inhale',
-            text: 'Inspire lentamente pelo nariz, sentindo o ar preencher o abdômen.',
-            durationSeconds: 4,
-          },
-          {
-            phase: 'hold',
-            text: 'Segure o ar com calma, mantendo o corpo perfeitamente relaxado.',
-            durationSeconds: 7,
-          },
-          {
-            phase: 'exhale',
-            text: 'Solte o ar devagar pela boca, liberando qualquer tensão.',
-            durationSeconds: 8,
-          },
-          {
-            phase: 'outro',
-            text: 'Muito bem. Retorne suavemente à sua respiração natural e sinta a sensação de paz no seu corpo.',
-            durationSeconds: 10,
-          },
-        ];
-
-      // 2. Respiração Quadrada
-      case 'practice-breathing-box':
-        return [
-          {
-            phase: 'intro',
-            text: 'Respiração Quadrada. Vamos acompanhar quatro tempos iguais de quatro segundos para recuperar o equilíbrio e a clareza.',
-            durationSeconds: 10,
-          },
-          { phase: 'inhale', text: 'Inspire pelo nariz com suavidade: 1, 2, 3, 4.', durationSeconds: 4 },
-          { phase: 'hold', text: 'Mantenha o ar nos pulmões com serenidade: 1, 2, 3, 4.', durationSeconds: 4 },
-          { phase: 'exhale', text: 'Expire devagar de forma contínua: 1, 2, 3, 4.', durationSeconds: 4 },
-          { phase: 'hold_after_exhale', text: 'Pausa tranquila com os pulmões vazios: 1, 2, 3, 4.', durationSeconds: 4 },
-          { phase: 'outro', text: 'Excelente. Sinta o centramento e a estabilidade mental.', durationSeconds: 8 },
-        ];
-
-      // 3. Respiração Diafragmática
+      // 1. Prática Geral / Respiração Guiada Padrão (4s Inhale, 2s Hold, 6s Exhale, 2s Pause)
+      default:
+      case 'practice-breathing-guided':
+      case 'practice-breathing-extended-exhale':
       case 'practice-breathing-diaphragmatic':
         return [
           {
             phase: 'intro',
-            text: 'Respiração Diafragmática. Repouse uma mão no peito e a outra sobre a barriga.',
-            durationSeconds: 10,
+            text: 'Encontre uma posição confortável e relaxe os ombros.',
+            durationSeconds: 3,
           },
           {
             phase: 'inhale',
-            text: 'Inspire profundamente pelo nariz, fazendo apenas a mão da barriga subir suavemente.',
+            text: 'Inspire lentamente pelo nariz.',
             durationSeconds: 4,
           },
           {
+            phase: 'hold',
+            text: 'Segure suavemente.',
+            durationSeconds: 2,
+          },
+          {
             phase: 'exhale',
-            text: 'Expire devagar pela boca, sentindo o abdômen recolher sem mover o peito.',
-            durationSeconds: 5,
+            text: 'Agora, solte o ar devagar pela boca.',
+            durationSeconds: 6,
+          },
+          {
+            phase: 'hold_after_exhale',
+            text: '', // 2 segundos de silêncio
+            durationSeconds: 2,
           },
           {
             phase: 'outro',
-            text: 'Muito bem. Esta respiração acalma o sistema nervoso de forma profunda.',
+            text: 'Muito bem. Sinta a sensação de tranquilidade em seu corpo.',
+            durationSeconds: 6,
+          },
+        ];
+
+      // 2. Respiração 4-7-8
+      case 'practice-breathing-478':
+        return [
+          {
+            phase: 'intro',
+            text: 'Encontre uma postura confortável e relaxe os ombros.',
+            durationSeconds: 4,
+          },
+          {
+            phase: 'inhale',
+            text: 'Inspire lentamente pelo nariz.',
+            durationSeconds: 4,
+          },
+          {
+            phase: 'hold',
+            text: 'Segure o ar com calma.',
+            durationSeconds: 7,
+          },
+          {
+            phase: 'exhale',
+            text: 'Solte o ar devagar pela boca.',
             durationSeconds: 8,
           },
+          {
+            phase: 'outro',
+            text: 'Muito bem. Retorne ao seu ritmo natural.',
+            durationSeconds: 6,
+          },
         ];
 
-      // 4. Coerência Cardíaca
-      case 'practice-heart-coherence':
+      // 3. Respiração Quadrada
+      case 'practice-breathing-box':
         return [
           {
             phase: 'intro',
-            text: 'Coerência Cardíaca. Coloque a mão sobre o centro do peito e sinta o contato acolhedor.',
-            durationSeconds: 10,
+            text: 'Acompanhe os quatro tempos iguais com serenidade.',
+            durationSeconds: 4,
           },
-          { phase: 'inhale', text: 'Inspire suavemente pelo nariz durante 5 segundos.', durationSeconds: 5 },
-          { phase: 'exhale', text: 'Expire calmamente pela boca durante 5 segundos.', durationSeconds: 5 },
-          { phase: 'outro', text: 'Sinta seus batimentos cardíacos entrarem em harmonia e serenidade.', durationSeconds: 8 },
+          { phase: 'inhale', text: 'Inspire suavemente pelo nariz.', durationSeconds: 4 },
+          { phase: 'hold', text: 'Segure o ar.', durationSeconds: 4 },
+          { phase: 'exhale', text: 'Solte o ar devagar.', durationSeconds: 4 },
+          { phase: 'hold_after_exhale', text: 'Pausa suave.', durationSeconds: 4 },
+          { phase: 'outro', text: 'Excelente. Sinta a estabilidade mental.', durationSeconds: 6 },
         ];
 
-      // 5. Expiração Prolongada
-      case 'practice-breathing-extended-exhale':
-        return [
-          {
-            phase: 'intro',
-            text: 'Respiração com Expiração Prolongada. Vamos inspirar em 3 segundos e soltar o ar no dobro do tempo.',
-            durationSeconds: 10,
-          },
-          { phase: 'inhale', text: 'Inspire pelo nariz: 1, 2, 3.', durationSeconds: 3 },
-          { phase: 'exhale', text: 'Solte suavemente pela boca como se soprasse uma vela: 1, 2, 3, 4, 5, 6.', durationSeconds: 6 },
-          { phase: 'outro', text: 'Perceba como seu corpo desacelera a cada ciclo.', durationSeconds: 8 },
-        ];
-
-      // 6. Ancoragem 5-4-3-2-1
+      // 4. Aterramento 5-4-3-2-1
       case 'practice-grounding-54321':
         return [
-          {
-            phase: 'intro',
-            text: 'Técnica de Aterramento 5-4-3-2-1. Vamos usar os cinco sentidos para ancorar no presente.',
-            durationSeconds: 10,
-          },
-          { phase: 'step', text: 'Observe 5 coisas que você pode ver ao seu redor com atenção aos detalhes.', durationSeconds: 15 },
-          { phase: 'step', text: 'Sinta 4 texturas reais: a roupa, a cadeira, suas mãos ou a mesa.', durationSeconds: 15 },
-          { phase: 'step', text: 'Identifique 3 sons presentes no ambiente, perto ou longe.', durationSeconds: 15 },
-          { phase: 'step', text: 'Perceba 2 aromas sutis no ar.', durationSeconds: 12 },
-          { phase: 'step', text: 'Diga internamente uma frase de gentileza: "Estou seguro, presente e em paz aqui agora."', durationSeconds: 12 },
-          { phase: 'outro', text: 'Você está ancorado no presente. Respire com tranquilidade.', durationSeconds: 8 },
+          { phase: 'intro', text: 'Vamos voltar a atenção para o momento presente.', durationSeconds: 8 },
+          { phase: 'step', text: 'Observe 5 coisas que você pode ver ao seu redor.', durationSeconds: 30 },
+          { phase: 'step', text: 'Perceba 4 coisas que você pode tocar agora.', durationSeconds: 30 },
+          { phase: 'step', text: 'Note 3 sons que você consegue escutar.', durationSeconds: 30 },
+          { phase: 'step', text: 'Identifique 2 aromas ou sensações de tato no ar.', durationSeconds: 30 },
+          { phase: 'step', text: 'Reconheça 1 emoção ou sentimento que você acolhe em si.', durationSeconds: 30 },
+          { phase: 'outro', text: 'Você está no presente, em segurança.', durationSeconds: 10 },
         ];
 
-      // 7. Relaxamento Muscular Progressivo
+      // 5. Relaxamento Muscular Progressivo
       case 'practice-pmr-relaxation':
         return [
-          {
-            phase: 'intro',
-            text: 'Relaxamento Muscular Progressivo. Vamos soltar as tensões acumuladas em cada região do corpo.',
-            durationSeconds: 10,
-          },
-          { phase: 'step', text: 'Feche as mãos em punhos firmes por 5 segundos... e solte de uma vez, sentindo o alívio.', durationSeconds: 15 },
-          { phase: 'step', text: 'Eleve os ombros suavemente em direção às orelhas... e solte todo o peso.', durationSeconds: 15 },
-          { phase: 'step', text: 'Franza a testa e aperte os olhos com gentileza... e relaxe todos os músculos faciais.', durationSeconds: 15 },
-          { phase: 'step', text: 'Contraia o abdômen suavemente... e solte deixando a respiração fluir.', durationSeconds: 15 },
-          { phase: 'step', text: 'Tensione as pernas e aponte os pés... e relaxe completamente.', durationSeconds: 15 },
-          { phase: 'outro', text: 'Sinta todo o seu corpo leve e descontraído.', durationSeconds: 8 },
-        ];
-
-      // Padrão Geral
-      default:
-        return [
-          {
-            phase: 'intro',
-            text: 'Bem-vindo a esta prática guiada. Reserve este momento para cuidar de você com gentileza.',
-            durationSeconds: 10,
-          },
-          {
-            phase: 'inhale',
-            text: 'Inspire profundamente, enchendo os pulmões de ar fresco.',
-            durationSeconds: 4,
-          },
-          {
-            phase: 'exhale',
-            text: 'Expire devagar, liberando todo o cansaço.',
-            durationSeconds: 5,
-          },
-          {
-            phase: 'outro',
-            text: 'Prática concluída com sucesso. Leve esta sensação de leveza para o seu dia.',
-            durationSeconds: 8,
-          },
+          { phase: 'intro', text: 'Vamos relaxar as principais tensões musculares do corpo.', durationSeconds: 10 },
+          { phase: 'step', text: 'Feche suavemente os punhos por alguns segundos... e agora solte completamente.', durationSeconds: 30 },
+          { phase: 'step', text: 'Eleve os ombros em direção às orelhas... e solte, sentindo o peso aliviar.', durationSeconds: 30 },
+          { phase: 'step', text: 'Solte os músculos da face e da mandíbula, deixando a boca entreaberta.', durationSeconds: 30 },
+          { phase: 'outro', text: 'Sinta o alívio e a leveza espalhados por todo o seu corpo.', durationSeconds: 10 },
         ];
     }
   }
