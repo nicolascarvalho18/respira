@@ -45,6 +45,7 @@ export type PracticeCategory =
   | 'body_movement'
   | 'relaxation'
   | 'sleep'
+  | 'focus'
   | 'mindfulness_focus'
   | 'quick_pauses'
   | 'morning_routine'
@@ -140,6 +141,21 @@ export interface UserPracticeProgress {
     notes?: string;
   }[];
   isDownloadedOffline?: boolean;
+}
+
+export interface MusicTrack {
+  id: string;
+  title: string;
+  artist: string;
+  category: 'relax' | 'sleep' | 'study' | 'meditate' | 'decelerate' | 'pause';
+  categoryLabel: string;
+  durationMinutes: number;
+  durationSeconds: number;
+  audioUrl: string;
+  thumbnailUrl: string;
+  accentColor: string;
+  description: string;
+  isFavorite?: boolean;
 }
 
 export interface ArticleSection {
