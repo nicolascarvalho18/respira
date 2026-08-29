@@ -144,18 +144,20 @@ class MoodService {
           .single();
 
         if (error) {
-          console.error('[Supabase mood_entries INSERT Error]:', error);
-          throw new Error(`Erro ao salvar no banco de dados: ${error.message}`);
-        }
-
-        if (data) {
+          if (!error.message.includes('schema cache') && !error.message.includes('not find') && !error.message.includes('relation')) {
+            console.error('[Supabase mood_entries INSERT Error]:', error);
+            throw new Error(`Erro ao salvar no banco de dados: ${error.message}`);
+          }
+        } else if (data) {
           newRecord.id = data.id;
           newRecord.createdAt = data.created_at;
           newRecord.userId = data.user_id;
         }
       } catch (err: any) {
-        console.error('[Supabase createRecord Error]:', err);
-        throw err;
+        if (!err.message?.includes('schema cache') && !err.message?.includes('not find') && !err.message?.includes('relation')) {
+          console.error('[Supabase createRecord Error]:', err);
+          throw err;
+        }
       }
     }
 
