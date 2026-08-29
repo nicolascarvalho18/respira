@@ -95,7 +95,7 @@ export const AppShell: React.FC<AppShellProps> = ({
       )}
 
       <View style={styles.layoutRow}>
-        {/* Sidebar fixa à esquerda (apenas no Desktop >= 1200px) */}
+        {/* Sidebar fixa à esquerda (no Desktop >= 1024px) */}
         {isDesktop && <DesktopSidebar />}
 
         {/* Área Central de Conteúdo com Main Semântico */}
@@ -140,7 +140,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           )}
         </View>
 
-        {/* Painel Lateral Direito Contextual (Desktop com rightPanel) */}
+        {/* Painel Lateral Direito Opcional */}
         {isDesktop && rightPanel && (
           <View
             style={[
@@ -176,7 +176,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    // Focus visible via standard css
   },
   skipLinkText: {
     color: '#FFFFFF',
@@ -208,24 +207,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scrollContainerTablet: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 64,
   },
   scrollContainerDesktop: {
-    paddingHorizontal: 32,
+    paddingHorizontal: 24,
     paddingTop: 24,
     paddingBottom: 64,
   },
   contentInner: {
     width: '100%',
-    maxWidth: 720,
+    maxWidth: 680,
+    alignSelf: 'center',
   },
   contentInnerTablet: {
-    maxWidth: 820,
+    maxWidth: 660,
+    alignSelf: 'center',
   },
   contentInnerDesktop: {
-    maxWidth: 880,
+    maxWidth: 700,
+    alignSelf: 'center',
   },
   fixedContainer: {
     flex: 1,
@@ -236,25 +238,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   fixedContainerTablet: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 64,
-    maxWidth: 820,
+    maxWidth: 660,
     alignSelf: 'center',
   },
   fixedContainerDesktop: {
-    paddingHorizontal: 32,
+    paddingHorizontal: 24,
     paddingTop: 24,
     paddingBottom: 64,
-    maxWidth: 880,
+    maxWidth: 700,
     alignSelf: 'center',
   },
   rightPanel: {
-    width: 320,
+    width: 300,
     height: '100%',
     borderLeftWidth: 1.5,
   },
   rightPanelInner: {
-    padding: 24,
+    padding: 20,
   },
 });

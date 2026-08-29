@@ -241,7 +241,7 @@ export default function HomeScreen() {
   );
 
   return (
-    <AppShell rightPanel={renderDesktopRightPanel()}>
+    <AppShell>
       {/* 1. Cabeçalho Superior Compacto e Natural */}
       <View style={styles.topHeader}>
         <View style={styles.userGreetingRow}>
@@ -915,6 +915,8 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   quickActionCard: {
+    flex: 1,
+    minWidth: 0,
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,

@@ -157,13 +157,11 @@ export default function ContentScreen() {
 
   return (
     <AppShell>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={[
+      <View
+        style={[
           styles.contentContainer,
           { paddingHorizontal: width < 380 ? 16 : 20 },
         ]}
-        showsVerticalScrollIndicator={false}
       >
         {/* 1. Cabeçalho Equilibrado */}
         <View style={styles.headerBlock}>
@@ -534,7 +532,7 @@ export default function ContentScreen() {
             </TouchableOpacity>
           )}
         </View>
-      </ScrollView>
+      </View>
 
       {/* Modal de Filtros Rápidos */}
       <Modal
