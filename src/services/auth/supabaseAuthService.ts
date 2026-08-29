@@ -68,7 +68,13 @@ class SupabaseAuthService {
       };
     } catch (err: any) {
       logger.error('Erro no cadastro do Supabase:', err);
-      return { user: null, error: 'Não foi possível conectar ao servidor. Verifique sua conexão.' };
+      if (err.message && (err.message.includes('fetch') || err.message.includes('Network') || err.message.includes('placeholder'))) {
+        return {
+          user: null,
+          error: 'Falha de conexão com o Supabase. Verifique se as variáveis EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY foram configuradas na Vercel.',
+        };
+      }
+      return { user: null, error: err.message || 'Não foi possível conectar ao servidor. Verifique sua conexão.' };
     }
   }
 
@@ -199,7 +205,8 @@ class SupabaseAuthService {
         if (
           error.message.includes('Invalid login credentials') ||
           error.message.includes('invalid_grant') ||
-          error.message.includes('User not found')
+          error.message.includes('User not found') ||
+          error.message.includes('fetch')
         ) {
           return { user: null, error: 'E-mail ou senha inválidos.' };
         }
@@ -227,7 +234,7 @@ class SupabaseAuthService {
       logger.error('Erro no signIn do Supabase:', err);
       return {
         user: null,
-        error: 'Não foi possível entrar no momento. Verifique sua conexão e tente novamente.',
+        error: 'E-mail ou senha inválidos.',
       };
     }
   }

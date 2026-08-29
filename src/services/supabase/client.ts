@@ -2,28 +2,18 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-// Helper to resolve client-side environment variables safely
-const getClientEnvVar = (name: string): string => {
-  if (typeof process !== 'undefined' && process.env) {
-    if (process.env[name]) return process.env[name] as string;
-    if (process.env[`VITE_${name}`]) return process.env[`VITE_${name}`] as string;
-    if (process.env[`EXPO_PUBLIC_${name}`]) return process.env[`EXPO_PUBLIC_${name}`] as string;
-  }
-  return '';
-};
-
-// 1. Standard Frontend Environment Variables
+// 1. Standard Frontend Environment Variables com acesso estático direto para inlining do Metro/Vite/Expo
 export const SUPABASE_URL =
-  getClientEnvVar('SUPABASE_URL') ||
-  getClientEnvVar('VITE_SUPABASE_URL') ||
-  getClientEnvVar('EXPO_PUBLIC_SUPABASE_URL') ||
+  process.env.EXPO_PUBLIC_SUPABASE_URL ||
+  process.env.VITE_SUPABASE_URL ||
+  process.env.SUPABASE_URL ||
   '';
 
 export const SUPABASE_PUBLISHABLE_KEY =
-  getClientEnvVar('SUPABASE_PUBLISHABLE_KEY') ||
-  getClientEnvVar('VITE_SUPABASE_PUBLISHABLE_KEY') ||
-  getClientEnvVar('EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY') ||
-  getClientEnvVar('EXPO_PUBLIC_SUPABASE_ANON_KEY') || // Backwards compatibility fallback
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.SUPABASE_PUBLISHABLE_KEY ||
   '';
 
 export const isSupabaseConfigured = Boolean(
