@@ -1,45 +1,45 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Image,
   Platform,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+  Share,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   ArrowLeft,
   Play,
   Bookmark,
-  Leaf,
-  CheckCircle2,
+  Share2,
   SlidersHorizontal,
   ArrowRight,
   ShieldAlert,
   Smile,
   Meh,
   Frown,
-  Download,
   Check,
   RotateCcw,
   Clock,
-  Heart,
-  HelpCircle,
   Activity,
-  Layers,
+  Headphones,
+  Info,
+  ChevronRight,
+  Sparkles,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { useToast } from '../ui/Toast';
-import { AppButton } from '../ui/AppButton';
-import { Card } from '../ui/Card';
-import { Badge } from '../ui/Badge';
 import { GuidedVideoAudioPlayer } from './GuidedVideoAudioPlayer';
-import { PracticeCard } from './PracticeCard';
 import { PracticeSelectorModal } from './PracticeSelectorModal';
 import { usePracticeStore } from '../../store/practiceStore';
 import { useAuth } from '../../hooks/useAuth';
-import { Practice, UserPracticeProgress } from '../../types';
+import { getPracticeImage, getPracticeAltText } from '../../utils/practiceImages';
+import { Practice } from '../../types';
 
 export interface UniversalPracticePlayerProps {
   practice: Practice;
@@ -68,24 +68,26 @@ export const UniversalPracticePlayer: React.FC<UniversalPracticePlayerProps> = (
     userProgress,
     saveProgress,
     recordPostFeeling,
-    toggleOfflineDownload,
-    downloadedIds,
   } = usePracticeStore();
 
   const currentProgress = userProgress[practice.id];
-  const isDownloaded = downloadedIds.includes(practice.id);
 
   const [isPlayerActive, setIsPlayerActive] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [selectedFeeling, setSelectedFeeling] = useState<'calmer' | 'same' | 'uncomfortable' | null>(null);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [hasRecordedCompletion, setHasRecordedCompletion] = useState(false);
+  const [showStickyBottomBar, setShowStickyBottomBar] = useState(false);
 
-  // Related & Next practices lookup
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // Práticas Relacionadas (máximo 3)
   const relatedPractices = (practice.relatedPracticeIds || [])
     .map((id) => allPractices.find((p) => p.id === id))
-    .filter((p): p is Practice => p !== undefined);
+    .filter((p): p is Practice => p !== undefined)
+    .slice(0, 3);
 
+  // Próxima prática recomendada
   const currentIndex = allPractices.findIndex((p) => p.id === practice.id);
   const nextPractice =
     practice.nextPracticeId && allPractices.find((p) => p.id === practice.nextPracticeId)
@@ -96,6 +98,7 @@ export const UniversalPracticePlayer: React.FC<UniversalPracticePlayerProps> = (
 
   const handleStartOrContinue = () => {
     setIsPlayerActive(true);
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
   };
 
   const handleProgressUpdate = async (posSec: number, totalSec: number) => {
@@ -103,7 +106,13 @@ export const UniversalPracticePlayer: React.FC<UniversalPracticePlayerProps> = (
   };
 
   const handlePlayerComplete = async () => {
-    await saveProgress(userId, practice.id, practice.durationMinutes * 60, practice.durationMinutes * 60, true);
+    await saveProgress(
+      userId,
+      practice.id,
+      practice.durationMinutes * 60,
+      practice.durationMinutes * 60,
+      true
+    );
     if (!hasRecordedCompletion) {
       setHasRecordedCompletion(true);
       await onRecordCompletion(practice.id);
@@ -115,6 +124,7 @@ export const UniversalPracticePlayer: React.FC<UniversalPracticePlayerProps> = (
     setShowCompletionModal(false);
     setSelectedFeeling(null);
     setHasRecordedCompletion(false);
+    setIsPlayerActive(true);
   };
 
   const handleSelectNextPractice = () => {
@@ -122,6 +132,7 @@ export const UniversalPracticePlayer: React.FC<UniversalPracticePlayerProps> = (
       setShowCompletionModal(false);
       setSelectedFeeling(null);
       setHasRecordedCompletion(false);
+      setIsPlayerActive(false);
       onSelectPractice(nextPractice);
     }
   };
@@ -130,682 +141,1139 @@ export const UniversalPracticePlayer: React.FC<UniversalPracticePlayerProps> = (
     setSelectedFeeling(feeling);
     await recordPostFeeling(userId, practice.id, feeling);
     showToast({
-      message: 'Sensação registrada',
+      message: 'Sensação registrada no seu diário',
       type: 'info',
     });
   };
 
-  const handleDownloadToggle = async () => {
-    const isNowDownloaded = await toggleOfflineDownload(practice.id);
-    showToast({
-      message: isNowDownloaded
-        ? 'Prática disponibilizada para acesso offline.'
-        : 'Download offline removido.',
-      type: 'info',
-    });
-  };
-
-  const getObjectiveLabel = () => {
-    switch (practice.objective) {
-      case 'relax':
-        return 'Relaxar';
-      case 'sleep_better':
-        return 'Dormir melhor';
-      case 'regain_focus':
-        return 'Recuperar o foco';
-      case 'relieve_tension':
-        return 'Aliviar a tensão';
-      case 'take_a_pause':
-        return 'Fazer uma pausa';
-      default:
-        return 'Bem-estar e calma';
+  const handleShare = async () => {
+    try {
+      if (Platform.OS === 'web' && typeof navigator !== 'undefined' && (navigator as any).share) {
+        await (navigator as any).share({
+          title: `${practice.title} — Respira`,
+          text: practice.description,
+          url: window.location.href,
+        });
+      } else if (Platform.OS !== 'web') {
+        await Share.share({
+          message: `${practice.title} no Respira: ${practice.description}`,
+          title: practice.title,
+        });
+      } else {
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          await navigator.clipboard.writeText(window.location.href);
+          showToast({ message: 'Link copiado para a área de transferência', type: 'success' });
+        }
+      }
+    } catch (_err) {
+      // Compartilhamento cancelado
     }
   };
 
+  // Monitorar rolagem para exibir barra fixa inferior
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const scrollY = event.nativeEvent.contentOffset.y;
+    if (scrollY > 280 && !isPlayerActive) {
+      if (!showStickyBottomBar) setShowStickyBottomBar(true);
+    } else {
+      if (showStickyBottomBar) setShowStickyBottomBar(false);
+    }
+  };
+
+  // Obter rótulo e categoria amigáveis
+  const getCategoryLabel = () => {
+    switch (practice.category) {
+      case 'breathing':
+        return 'Respiração';
+      case 'guided_meditation':
+        return 'Meditação';
+      case 'mindfulness':
+        return 'Atenção plena';
+      case 'body_movement':
+        return 'Corpo e movimento';
+      case 'morning_routine':
+        return 'Rotina matinal';
+      case 'bedtime_prep':
+        return 'Sono e relaxamento';
+      case 'quick_pauses':
+        return 'Pausas rápidas';
+      default:
+        return 'Bem-estar';
+    }
+  };
+
+  // Descrição humanizada e responsável (sem promessas médicas)
+  const getHumanizedDescription = () => {
+    if (practice.id === 'practice-heart-coherence' || practice.title.toLowerCase().includes('coerência')) {
+      return 'Uma prática de respiração ritmada para ajudar você a desacelerar e observar seu corpo com mais atenção.';
+    }
+    return practice.description;
+  };
+
+  // Etapas da Timeline Vertical Humanizadas
+  const getTimelineStages = () => {
+    if (practice.stages && practice.stages.length > 0) {
+      return practice.stages.map((st) => ({
+        stepNumber: String(st.step).padStart(2, '0'),
+        title: st.title.replace(/\(\d+s\)/g, '').trim(),
+        description: st.instruction,
+      }));
+    }
+
+    if (practice.id === 'practice-heart-coherence' || practice.category === 'breathing') {
+      return [
+        {
+          stepNumber: '01',
+          title: 'Perceba o contato',
+          description: 'Repouse uma das mãos sobre o peito e observe o contato suave da respiração.',
+        },
+        {
+          stepNumber: '02',
+          title: 'Encontre seu ritmo',
+          description: 'Inspire e expire suavemente, sem ultrapassar os seus limites confortáveis.',
+        },
+        {
+          stepNumber: '03',
+          title: 'Continue com atenção',
+          description: 'Mantenha um ritmo confortável durante a prática, soltando o ar devagar.',
+        },
+      ];
+    }
+
+    return [
+      {
+        stepNumber: '01',
+        title: 'Prepare o ambiente',
+        description: 'Sente-se com a coluna apoiada e descanse as mãos onde for mais confortável.',
+      },
+      {
+        stepNumber: '02',
+        title: 'Acompanhe a condução',
+        description: 'Respire no seu tempo natural seguindo as orientações com tranquilidade.',
+      },
+      {
+        stepNumber: '03',
+        title: 'Retorne com calma',
+        description: 'Ao finalizar, perceba como seu corpo e sua mente se sentem agora.',
+      },
+    ];
+  };
+
+  // O que você pode perceber (percepções responsáveis)
+  const getPerceptions = () => {
+    if (practice.benefits && practice.benefits.length > 0) {
+      return practice.benefits;
+    }
+    return [
+      'Sensação de ritmo mais lento e organizado.',
+      'Maior atenção à respiração e ao momento presente.',
+    ];
+  };
+
+  // Formatação de data em português
+  const formatCompletedDate = (isoDate?: string) => {
+    if (!isoDate) return null;
+    try {
+      const date = new Date(isoDate);
+      return date.toLocaleDateString('pt-BR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+    } catch {
+      return null;
+    }
+  };
+
+  const completedCount = currentProgress?.completedCount || practice.completedCount || 0;
+  const lastCompletedDate = formatCompletedDate(currentProgress?.lastCompletedAt);
+  const hasProgress = currentProgress && currentProgress.progressPercent > 0 && currentProgress.progressPercent < 100;
+  const primaryButtonLabel = hasProgress ? 'Continuar prática' : 'Começar prática';
   const initialPosition = currentProgress ? currentProgress.playbackPositionSeconds : 0;
-  const hasExistingProgress = currentProgress && currentProgress.progressPercent > 0 && currentProgress.progressPercent < 100;
 
   return (
-    <ScrollView
-      style={styles.scrollView}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* 1. Barra Superior com Voltar, Favoritar e Download Offline */}
-      <View style={styles.topNavRow}>
+    <View style={[styles.screenContainer, { backgroundColor: isDark ? '#121E1C' : '#F7F8F4' }]}>
+      {/* 1. CABEÇALHO COMPACTO E FIXO */}
+      <View
+        style={[
+          styles.headerBar,
+          {
+            backgroundColor: isDark ? '#121E1C' : '#F7F8F4',
+            borderBottomColor: isDark ? '#1E2F2B' : '#E2E8E5',
+          },
+        ]}
+      >
         <TouchableOpacity
           onPress={onBack}
           accessibilityRole="button"
           accessibilityLabel="Voltar às práticas"
-          style={[styles.backBtn, { backgroundColor: isDark ? colors.surfaceSecondary : '#E7F3EF' }]}
+          style={styles.headerIconButton}
         >
-          <ArrowLeft size={18} color={isDark ? colors.text : '#173D3B'} />
-          <Text style={[styles.backBtnText, { color: isDark ? colors.text : '#173D3B' }]}>
-            Práticas
-          </Text>
+          <ArrowLeft size={20} color={isDark ? '#F1F5F9' : '#183330'} />
         </TouchableOpacity>
 
-        <View style={styles.topRightActions}>
-          <TouchableOpacity
-            onPress={handleDownloadToggle}
-            accessibilityRole="button"
-            accessibilityLabel={isDownloaded ? 'Remover download offline' : 'Baixar para acesso offline'}
-            style={[
-              styles.iconActionBtn,
-              isDownloaded && { backgroundColor: '#E7F3EF', borderColor: '#2F7F7C' },
-              { backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
-            ]}
-          >
-            {isDownloaded ? (
-              <Check size={16} color="#2F7F7C" />
-            ) : (
-              <Download size={16} color={isDark ? colors.textMuted : '#667775'} />
-            )}
-          </TouchableOpacity>
+        <Text
+          numberOfLines={1}
+          style={[styles.headerTitle, { color: isDark ? '#F1F5F9' : '#183330' }]}
+        >
+          {practice.title}
+        </Text>
 
+        <View style={styles.headerRightActions}>
           <TouchableOpacity
             onPress={() => onToggleFavorite(practice.id)}
             accessibilityRole="button"
             accessibilityLabel={practice.isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-            style={[
-              styles.iconActionBtn,
-              { backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
-            ]}
+            style={styles.headerIconButton}
           >
             <Bookmark
-              size={16}
-              color="#2F7F7C"
-              fill={practice.isFavorite ? '#2F7F7C' : 'transparent'}
+              size={18}
+              color="#176F69"
+              fill={practice.isFavorite ? '#176F69' : 'transparent'}
             />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleShare}
+            accessibilityRole="button"
+            accessibilityLabel="Compartilhar prática"
+            style={styles.headerIconButton}
+          >
+            <Share2 size={18} color={isDark ? '#A2B5B1' : '#647572'} />
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => setIsSelectorOpen(true)}
             accessibilityRole="button"
-            accessibilityLabel="Filtrar ou alternar atividade"
-            style={[
-              styles.iconActionBtn,
-              { backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
-            ]}
+            accessibilityLabel="Opções e outras práticas"
+            style={styles.headerIconButton}
           >
-            <SlidersHorizontal size={16} color={isDark ? colors.textMuted : '#667775'} aria-hidden={true} />
+            <SlidersHorizontal size={18} color={isDark ? '#A2B5B1' : '#647572'} />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* 2. Reprodutor de Vídeo / Áudio / Interativo */}
-      <View style={styles.playerWrapper}>
-        <GuidedVideoAudioPlayer
-          practice={practice}
-          initialPositionSeconds={initialPosition}
-          onProgressUpdate={handleProgressUpdate}
-          onComplete={handlePlayerComplete}
-        />
-      </View>
-
-      {/* 3. Título e Metadados da Prática */}
-      <View style={styles.headerInfo}>
-        <View style={styles.badgeRow}>
-          <Badge label={practice.level} variant="success" size="sm" />
-          <Badge label={getObjectiveLabel()} variant="info" size="sm" />
-          <Text style={[styles.durationMeta, { color: isDark ? colors.textMuted : '#667775' }]}>
-            {practice.durationMinutes} minutos
-          </Text>
-        </View>
-
-        <Text style={[styles.title, { color: isDark ? colors.text : '#173D3B' }]}>
-          {practice.title}
-        </Text>
-
-        <Text style={[styles.description, { color: isDark ? colors.textMuted : '#567571' }]}>
-          {practice.description}
-        </Text>
-      </View>
-
-      {/* 4. Confirmação Pós-Prática Discreta */}
-      {showCompletionModal && (
-        <Card
-          variant="bordered"
-          style={[
-            styles.completionCard,
-            { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: '#2F7F7C' },
-          ]}
-        >
-          <View style={styles.completionHeaderRow}>
-            <CheckCircle2 size={22} color="#2F7F7C" />
-            <Text style={[styles.completionTitle, { color: isDark ? colors.text : '#173D3B' }]}>
-              Prática concluída. Como você está se sentindo agora?
-            </Text>
-          </View>
-
-          <Text style={[styles.completionSub, { color: isDark ? colors.textMuted : '#667775' }]}>
-            Reconhecer seu estado auxilia no acompanhamento pessoal do seu bem-estar:
-          </Text>
-
-          <View style={styles.feelingsOptionRow}>
-            <TouchableOpacity
-              onPress={() => handleSelectFeeling('calmer')}
-              style={[
-                styles.feelingBtn,
-                selectedFeeling === 'calmer' && styles.feelingBtnSelected,
-                { backgroundColor: isDark ? colors.surfaceSecondary : '#F7F9F8' },
-              ]}
-            >
-              <Smile size={18} color="#2F7F7C" />
-              <Text style={[styles.feelingBtnText, { color: isDark ? colors.text : '#173D3B' }]}>
-                Mais tranquilo(a)
-              </Text>
-            </TouchableOpacity>
+      {/* CONTEÚDO COM ROLAGEM SUAVE */}
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+      >
+        {/* 2. REPRODUTOR GUIADO (QUANDO ATIVO) OU APRESENTAÇÃO HERO */}
+        {isPlayerActive ? (
+          <View style={styles.playerContainer}>
+            <GuidedVideoAudioPlayer
+              practice={practice}
+              initialPositionSeconds={initialPosition}
+              onProgressUpdate={handleProgressUpdate}
+              onComplete={handlePlayerComplete}
+            />
 
             <TouchableOpacity
-              onPress={() => handleSelectFeeling('same')}
-              style={[
-                styles.feelingBtn,
-                selectedFeeling === 'same' && styles.feelingBtnSelected,
-                { backgroundColor: isDark ? colors.surfaceSecondary : '#F7F9F8' },
-              ]}
+              onPress={() => setIsPlayerActive(false)}
+              style={styles.minimizePlayerBtn}
             >
-              <Meh size={18} color="#D98968" />
-              <Text style={[styles.feelingBtnText, { color: isDark ? colors.text : '#173D3B' }]}>
-                Igual
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => handleSelectFeeling('uncomfortable')}
-              style={[
-                styles.feelingBtn,
-                selectedFeeling === 'uncomfortable' && styles.feelingBtnSelected,
-                { backgroundColor: isDark ? colors.surfaceSecondary : '#F7F9F8' },
-              ]}
-            >
-              <Frown size={18} color="#D9534F" />
-              <Text style={[styles.feelingBtnText, { color: isDark ? colors.text : '#173D3B' }]}>
-                Ainda desconfortável
-              </Text>
+              <Text style={styles.minimizePlayerText}>Ver detalhes da prática</Text>
             </TouchableOpacity>
           </View>
-
-          <View style={{ marginTop: 14, width: '100%', gap: 8 }}>
-            {nextPractice && nextPractice.id !== practice.id && (
-              <AppButton
-                title={`Continuar: ${nextPractice.title}`}
-                rightIcon={<ArrowRight size={16} color="#FFFFFF" />}
-                onPress={handleSelectNextPractice}
-                size="md"
+        ) : (
+          <View style={styles.heroSection}>
+            {/* Imagem Realista 16:9 com Cantos de 16px */}
+            <View style={styles.heroImageWrapper}>
+              <Image
+                source={getPracticeImage(practice.id)}
+                style={styles.heroImage}
+                resizeMode="cover"
+                accessibilityLabel={getPracticeAltText(practice.id)}
               />
-            )}
+            </View>
 
-            <View style={{ flexDirection: 'row', gap: 8, width: '100%' }}>
+            {/* Chips Discretos de Categoria, Nível e Duração */}
+            <View style={styles.chipsRow}>
+              <View style={[styles.metaChip, { backgroundColor: isDark ? '#1D3430' : '#E6F1EE' }]}>
+                <Text style={[styles.metaChipText, { color: isDark ? '#5ECFC3' : '#176F69' }]}>
+                  {getCategoryLabel()}
+                </Text>
+              </View>
+
+              <View style={[styles.metaChip, { backgroundColor: isDark ? '#1D3430' : '#E6F1EE' }]}>
+                <Text style={[styles.metaChipText, { color: isDark ? '#5ECFC3' : '#176F69' }]}>
+                  {practice.level}
+                </Text>
+              </View>
+
+              <View style={[styles.metaChip, { backgroundColor: isDark ? '#1D3430' : '#E6F1EE' }]}>
+                <Clock size={12} color={isDark ? '#5ECFC3' : '#176F69'} style={{ marginRight: 4 }} />
+                <Text style={[styles.metaChipText, { color: isDark ? '#5ECFC3' : '#176F69' }]}>
+                  {practice.durationMinutes} min
+                </Text>
+              </View>
+            </View>
+
+            {/* Título Principal: 32px, Peso 700 */}
+            <Text style={[styles.heroTitle, { color: isDark ? '#F1F5F9' : '#183330' }]}>
+              {practice.title}
+            </Text>
+
+            {/* Descrição Curta Humanizada */}
+            <Text style={[styles.heroDescription, { color: isDark ? '#A2B5B1' : '#647572' }]}>
+              {getHumanizedDescription()}
+            </Text>
+
+            {/* 3. BOTÃO PRINCIPAL (ALTURA 52px, VERDE-PETRÓLEO) */}
+            <TouchableOpacity
+              onPress={handleStartOrContinue}
+              activeOpacity={0.88}
+              accessibilityRole="button"
+              accessibilityLabel={primaryButtonLabel}
+              style={styles.primaryActionButton}
+            >
+              <Play size={18} color="#FFFFFF" fill="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.primaryActionButtonText}>{primaryButtonLabel}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* FEEDBACK PÓS-PRÁTICA (MODAL DISCRETO) */}
+        {showCompletionModal && (
+          <View style={[styles.postPracticeCard, { backgroundColor: isDark ? '#192A27' : '#FFFFFF', borderColor: '#176F69' }]}>
+            <View style={styles.postPracticeHeader}>
+              <Check size={20} color="#176F69" />
+              <Text style={[styles.postPracticeTitle, { color: isDark ? '#F1F5F9' : '#183330' }]}>
+                Prática concluída. Como você está se sentindo agora?
+              </Text>
+            </View>
+
+            <View style={styles.feelingOptionsRow}>
               <TouchableOpacity
-                onPress={handleRestartPractice}
+                onPress={() => handleSelectFeeling('calmer')}
                 style={[
-                  styles.postActionBtnSecondary,
-                  { backgroundColor: isDark ? colors.surfaceSecondary : '#F2F8F6', borderColor: '#247B74' },
+                  styles.feelingOptionBtn,
+                  selectedFeeling === 'calmer' && styles.feelingOptionBtnActive,
+                  { backgroundColor: isDark ? '#121E1C' : '#F7F8F4' },
                 ]}
               >
-                <RotateCcw size={15} color="#247B74" />
-                <Text style={[styles.postActionBtnText, { color: '#247B74' }]}>Fazer novamente</Text>
+                <Smile size={16} color="#176F69" />
+                <Text style={[styles.feelingOptionText, { color: isDark ? '#F1F5F9' : '#183330' }]}>
+                  Mais tranquilo(a)
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => setIsSelectorOpen(true)}
+                onPress={() => handleSelectFeeling('same')}
                 style={[
-                  styles.postActionBtnSecondary,
-                  { backgroundColor: isDark ? colors.surfaceSecondary : '#F2F8F6', borderColor: '#247B74' },
+                  styles.feelingOptionBtn,
+                  selectedFeeling === 'same' && styles.feelingOptionBtnActive,
+                  { backgroundColor: isDark ? '#121E1C' : '#F7F8F4' },
                 ]}
               >
-                <SlidersHorizontal size={15} color="#247B74" />
-                <Text style={[styles.postActionBtnText, { color: '#247B74' }]}>Escolher outra prática</Text>
+                <Meh size={16} color="#B76B45" />
+                <Text style={[styles.feelingOptionText, { color: isDark ? '#F1F5F9' : '#183330' }]}>
+                  Igual
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => handleSelectFeeling('uncomfortable')}
+                style={[
+                  styles.feelingOptionBtn,
+                  selectedFeeling === 'uncomfortable' && styles.feelingOptionBtnActive,
+                  { backgroundColor: isDark ? '#121E1C' : '#F7F8F4' },
+                ]}
+              >
+                <Frown size={16} color="#B76B45" />
+                <Text style={[styles.feelingOptionText, { color: isDark ? '#F1F5F9' : '#183330' }]}>
+                  Desconfortável
+                </Text>
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity
-              onPress={() => router.push('/mood/new')}
-              style={[
-                styles.postActionBtnTertiary,
-                { borderColor: isDark ? colors.border : '#E0E5E2' },
-              ]}
-            >
-              <Smile size={15} color={isDark ? colors.textMuted : '#68736F'} />
-              <Text style={[styles.postActionBtnTertiaryText, { color: isDark ? colors.text : '#1F2927' }]}>
-                Registrar no Diário de Humor
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </Card>
-      )}
+            <View style={styles.postPracticeActionsRow}>
+              {nextPractice && nextPractice.id !== practice.id && (
+                <TouchableOpacity
+                  onPress={handleSelectNextPractice}
+                  style={styles.postNextBtn}
+                >
+                  <Text style={styles.postNextBtnText}>Próxima: {nextPractice.title}</Text>
+                  <ArrowRight size={14} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                </TouchableOpacity>
+              )}
 
-      {/* 5. Orientações Antes de Começar */}
-      {practice.guidelinesBeforeStarting && practice.guidelinesBeforeStarting.length > 0 && (
-        <Card
-          variant="bordered"
-          style={[
-            styles.sectionCard,
-            { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
-          ]}
-        >
-          <View style={styles.sectionHeader}>
-            <Clock size={16} color="#2F7F7C" />
-            <Text style={[styles.sectionHeading, { color: isDark ? colors.text : '#173D3B' }]}>
-              Orientações antes de começar
-            </Text>
-          </View>
-
-          <View style={{ gap: 8, marginTop: 8 }}>
-            {practice.guidelinesBeforeStarting.map((guide, idx) => (
-              <View key={idx} style={styles.bulletItem}>
-                <View style={styles.bulletDot} />
-                <Text style={[styles.bulletText, { color: isDark ? colors.text : '#3A504E' }]}>
-                  {guide}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </Card>
-      )}
-
-      {/* 6. Etapas da Atividade */}
-      {practice.stages && practice.stages.length > 0 && (
-        <Card
-          variant="bordered"
-          style={[
-            styles.sectionCard,
-            { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
-          ]}
-        >
-          <View style={styles.sectionHeader}>
-            <Layers size={16} color="#2F7F7C" />
-            <Text style={[styles.sectionHeading, { color: isDark ? colors.text : '#173D3B' }]}>
-              Etapas da atividade
-            </Text>
-          </View>
-
-          <View style={{ gap: 10, marginTop: 10 }}>
-            {practice.stages.map((st) => (
-              <View
-                key={st.step}
-                style={[
-                  styles.stageCard,
-                  { backgroundColor: isDark ? colors.surfaceSecondary : '#F7F9F8' },
-                ]}
+              <TouchableOpacity
+                onPress={handleRestartPractice}
+                style={[styles.postRepeatBtn, { borderColor: isDark ? '#293B37' : '#E2E8E5' }]}
               >
-                <View style={styles.stageNumberCircle}>
-                  <Text style={styles.stageNumberText}>{st.step}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.stageTitle, { color: isDark ? colors.text : '#173D3B' }]}>
-                    {st.title}
-                  </Text>
-                  <Text style={[styles.stageInstruction, { color: isDark ? colors.textMuted : '#567571' }]}>
-                    {st.instruction}
-                  </Text>
-                </View>
-              </View>
-            ))}
+                <RotateCcw size={14} color="#176F69" />
+                <Text style={styles.postRepeatBtnText}>Fazer novamente</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </Card>
-      )}
+        )}
 
-      {/* 7. Benefícios (sem promessas médicas) */}
-      {practice.benefits && practice.benefits.length > 0 && (
-        <Card
-          variant="bordered"
-          style={[
-            styles.sectionCard,
-            { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
-          ]}
-        >
-          <View style={styles.sectionHeader}>
-            <Heart size={16} color="#2F7F7C" />
-            <Text style={[styles.sectionHeading, { color: isDark ? colors.text : '#173D3B' }]}>
-              Benefícios para o seu bem-estar
-            </Text>
+        {/* 4. SEÇÃO: ANTES DE COMEÇAR (COMPACTA, SEM CARDS GIGANTES) */}
+        <View style={styles.sectionBlock}>
+          <Text style={[styles.sectionTitle, { color: isDark ? '#F1F5F9' : '#183330' }]}>
+            Antes de começar
+          </Text>
+
+          <View style={styles.guidelinesList}>
+            <View style={styles.guidelineItem}>
+              <View style={styles.guidelineDot} />
+              <Text style={[styles.guidelineText, { color: isDark ? '#F1F5F9' : '#183330' }]}>
+                Encontre uma posição confortável.
+              </Text>
+            </View>
+
+            <View style={styles.guidelineItem}>
+              <View style={styles.guidelineDot} />
+              <Text style={[styles.guidelineText, { color: isDark ? '#F1F5F9' : '#183330' }]}>
+                Respire sem forçar e siga no seu próprio ritmo.
+              </Text>
+            </View>
           </View>
+        </View>
 
-          <View style={{ gap: 6, marginTop: 8 }}>
-            {practice.benefits.map((b, idx) => (
-              <View key={idx} style={styles.benefitRow}>
-                <Check size={14} color="#2F7F7C" style={{ marginTop: 2 }} />
-                <Text style={[styles.benefitText, { color: isDark ? colors.text : '#3A504E' }]}>
-                  {b}
+        {/* 5. SEÇÃO: ETAPAS DA PRÁTICA (TIMELINE VERTICAL ELEGANTE) */}
+        <View style={styles.sectionBlock}>
+          <Text style={[styles.sectionTitle, { color: isDark ? '#F1F5F9' : '#183330' }]}>
+            Etapas da prática
+          </Text>
+
+          <View style={styles.timelineContainer}>
+            {getTimelineStages().map((stage, idx, arr) => {
+              const isLast = idx === arr.length - 1;
+              return (
+                <View key={stage.stepNumber} style={styles.timelineRow}>
+                  {/* Coluna Esquerda: Círculo com Número e Linha Vertical */}
+                  <View style={styles.timelineLeftCol}>
+                    <View
+                      style={[
+                        styles.timelineCircle,
+                        {
+                          backgroundColor: isDark ? '#1D3430' : '#E6F1EE',
+                          borderColor: isDark ? '#2D4E47' : '#D2E5E0',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.timelineNumberText,
+                          { color: isDark ? '#5ECFC3' : '#176F69' },
+                        ]}
+                      >
+                        {stage.stepNumber}
+                      </Text>
+                    </View>
+                    {!isLast && <View style={[styles.timelineVerticalLine, { backgroundColor: isDark ? '#233733' : '#E2E8E5' }]} />}
+                  </View>
+
+                  {/* Coluna Direita: Título e Instrução */}
+                  <View style={styles.timelineContentCol}>
+                    <Text
+                      style={[
+                        styles.timelineStageTitle,
+                        { color: isDark ? '#F1F5F9' : '#183330' },
+                      ]}
+                    >
+                      {stage.title}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.timelineStageDescription,
+                        { color: isDark ? '#A2B5B1' : '#647572' },
+                      ]}
+                    >
+                      {stage.description}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* 6. SEÇÃO: O QUE VOCÊ PODE PERCEBER (LINGUAGEM RESPONSÁVEL) */}
+        <View style={styles.sectionBlock}>
+          <Text style={[styles.sectionTitle, { color: isDark ? '#F1F5F9' : '#183330' }]}>
+            O que você pode perceber
+          </Text>
+
+          <View style={styles.perceptionsList}>
+            {getPerceptions().map((item, idx) => (
+              <View key={idx} style={styles.perceptionItem}>
+                <Check size={16} color="#176F69" style={{ marginTop: 2, marginRight: 10 }} />
+                <Text style={[styles.perceptionText, { color: isDark ? '#F1F5F9' : '#183330' }]}>
+                  {item}
                 </Text>
               </View>
             ))}
           </View>
-        </Card>
-      )}
 
-      {/* 8. Cuidados e Limitações Físicas */}
-      {practice.careAndLimitations && practice.careAndLimitations.length > 0 && (
+          <Text style={[styles.perceptionNote, { color: isDark ? '#A2B5B1' : '#647572' }]}>
+            Cada pessoa pode perceber a prática de uma maneira diferente.
+          </Text>
+        </View>
+
+        {/* 7. SEÇÃO: CUIDADOS — "RESPEITE O SEU RITMO" */}
         <View
           style={[
-            styles.careAlertCard,
+            styles.careWarningCard,
             {
-              backgroundColor: isDark ? '#2D201A' : '#FFF5F0',
-              borderColor: isDark ? '#5C382A' : '#F7D0C0',
+              backgroundColor: isDark ? '#261D18' : '#FFF6F0',
+              borderLeftColor: '#B76B45',
             },
           ]}
         >
-          <ShieldAlert size={18} color="#D98968" style={{ marginTop: 1, marginRight: 8 }} />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.careTitle, { color: '#D98968' }]}>
-              Cuidados e Limitações
-            </Text>
-            {practice.careAndLimitations.map((care, idx) => (
-              <Text key={idx} style={[styles.careText, { color: isDark ? '#E5D0C5' : '#733722' }]}>
-                • {care}
-              </Text>
-            ))}
+          <View style={styles.careWarningHeader}>
+            <ShieldAlert size={16} color="#B76B45" style={{ marginRight: 8 }} />
+            <Text style={styles.careWarningTitle}>Respeite o seu ritmo</Text>
           </View>
-        </View>
-      )}
 
-      {/* 9. Histórico Pessoal de Conclusões */}
-      <Card
-        variant="bordered"
-        style={[
-          styles.sectionCard,
-          { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
-        ]}
-      >
-        <View style={styles.historyRow}>
-          <Activity size={16} color="#2F7F7C" />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.historyLabel, { color: isDark ? colors.text : '#173D3B' }]}>
-              Histórico pessoal nesta prática
-            </Text>
-            <Text style={[styles.historyMeta, { color: isDark ? colors.textMuted : '#667775' }]}>
-              Concluída {currentProgress?.completedCount || practice.completedCount || 0} vezes • Última vez: {currentProgress?.lastCompletedAt ? new Date(currentProgress.lastCompletedAt).toLocaleDateString('pt-BR') : 'Ainda não realizada'}
-            </Text>
-          </View>
-        </View>
-      </Card>
-
-      {/* 10. Práticas Relacionadas */}
-      {relatedPractices.length > 0 && (
-        <View style={styles.relatedSection}>
-          <Text style={[styles.relatedHeading, { color: isDark ? colors.text : '#173D3B' }]}>
-            Práticas relacionadas
+          <Text style={[styles.careWarningBody, { color: isDark ? '#E5D0C5' : '#733722' }]}>
+            Não force a respiração nem prenda o ar se isso causar desconforto. Se sentir tontura, falta de ar ou mal-estar, interrompa a prática e volte à respiração natural.
           </Text>
+        </View>
 
-          <View style={{ gap: 10 }}>
-            {relatedPractices.map((rel) => (
-              <PracticeCard
-                key={rel.id}
-                practice={rel}
-                progress={userProgress[rel.id]}
-                onPress={() => onSelectPractice(rel)}
-                onToggleFavorite={onToggleFavorite}
-              />
-            ))}
+        {/* 8. SEÇÃO: HISTÓRICO PESSOAL COMPACTO */}
+        <View
+          style={[
+            styles.historyCompactRow,
+            {
+              backgroundColor: isDark ? '#192A27' : '#FFFFFF',
+              borderColor: isDark ? '#293B37' : '#E2E8E5',
+            },
+          ]}
+        >
+          <View style={styles.historyLeft}>
+            <Activity size={18} color="#176F69" style={{ marginRight: 12 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.historyMainText, { color: isDark ? '#F1F5F9' : '#183330' }]}>
+                {completedCount === 0
+                  ? 'Você ainda não concluiu esta prática'
+                  : `Você concluiu esta prática ${completedCount} ${
+                      completedCount === 1 ? 'vez' : 'vezes'
+                    }`}
+              </Text>
+              {lastCompletedDate && (
+                <Text style={[styles.historySubText, { color: isDark ? '#A2B5B1' : '#647572' }]}>
+                  Última prática em {lastCompletedDate}
+                </Text>
+              )}
+            </View>
           </View>
+
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/diary')}
+            style={styles.historyLinkBtn}
+          >
+            <Text style={styles.historyLinkText}>Ver histórico</Text>
+            <ChevronRight size={14} color="#176F69" />
+          </TouchableOpacity>
+        </View>
+
+        {/* 9. SEÇÃO: PRÁTICAS RELACIONADAS (CARDS HORIZONTAIS COMPACTOS) */}
+        {relatedPractices.length > 0 && (
+          <View style={styles.relatedSection}>
+            <View style={styles.relatedHeaderRow}>
+              <Text style={[styles.sectionTitle, { color: isDark ? '#F1F5F9' : '#183330', marginBottom: 0 }]}>
+                Práticas relacionadas
+              </Text>
+              <TouchableOpacity
+                onPress={() => router.push('/(tabs)/practices')}
+                style={styles.seeAllLink}
+              >
+                <Text style={styles.seeAllLinkText}>Ver todas</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.relatedCardsList}>
+              {relatedPractices.map((rel) => {
+                const relProgress = userProgress[rel.id];
+                const hasRelProgress = relProgress && relProgress.progressPercent > 0 && relProgress.progressPercent < 100;
+
+                return (
+                  <TouchableOpacity
+                    key={rel.id}
+                    onPress={() => onSelectPractice(rel)}
+                    activeOpacity={0.85}
+                    style={[
+                      styles.relatedCardItem,
+                      {
+                        backgroundColor: isDark ? '#192A27' : '#FFFFFF',
+                        borderColor: isDark ? '#293B37' : '#E2E8E5',
+                      },
+                    ]}
+                  >
+                    {/* Imagem 96x96px */}
+                    <Image
+                      source={getPracticeImage(rel.id)}
+                      style={styles.relatedCardImage}
+                      resizeMode="cover"
+                      accessibilityLabel={getPracticeAltText(rel.id)}
+                    />
+
+                    {/* Informações da Prática */}
+                    <View style={styles.relatedCardContent}>
+                      <View style={styles.relatedCardTopRow}>
+                        <Text
+                          numberOfLines={2}
+                          style={[
+                            styles.relatedCardTitle,
+                            { color: isDark ? '#F1F5F9' : '#183330' },
+                          ]}
+                        >
+                          {rel.title}
+                        </Text>
+
+                        <TouchableOpacity
+                          onPress={() => onToggleFavorite(rel.id)}
+                          style={styles.relatedFavBtn}
+                          accessibilityLabel={rel.isFavorite ? 'Desfavoritar' : 'Favoritar'}
+                        >
+                          <Bookmark
+                            size={16}
+                            color="#176F69"
+                            fill={rel.isFavorite ? '#176F69' : 'transparent'}
+                          />
+                        </TouchableOpacity>
+                      </View>
+
+                      <View style={styles.relatedCardMetaRow}>
+                        <Headphones size={13} color={isDark ? '#A2B5B1' : '#647572'} />
+                        <Text style={[styles.relatedCardMetaText, { color: isDark ? '#A2B5B1' : '#647572' }]}>
+                          {rel.durationMinutes} min • {rel.level}
+                        </Text>
+                      </View>
+
+                      {/* Barra de Progresso quando aplicável */}
+                      {hasRelProgress && (
+                        <View style={styles.relatedProgressBarBg}>
+                          <View
+                            style={[
+                              styles.relatedProgressBarFill,
+                              { width: `${relProgress.progressPercent}%` },
+                            ]}
+                          />
+                        </View>
+                      )}
+
+                      <View style={styles.relatedCardBottomRow}>
+                        <Text style={styles.relatedActionText}>
+                          {hasRelProgress ? 'Continuar' : 'Começar'}
+                        </Text>
+                        <ArrowRight size={13} color="#176F69" />
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* 11. BARRA INFERIOR FIXA NA ROLAGEM (STICKY BOTTOM BAR) */}
+      {showStickyBottomBar && !isPlayerActive && (
+        <View
+          style={[
+            styles.stickyBottomBar,
+            {
+              backgroundColor: isDark ? '#192A27' : '#FFFFFF',
+              borderTopColor: isDark ? '#293B37' : '#E2E8E5',
+            },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={handleStartOrContinue}
+            activeOpacity={0.88}
+            style={styles.stickyActionButton}
+          >
+            <Play size={16} color="#FFFFFF" fill="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.stickyActionButtonText}>{primaryButtonLabel}</Text>
+          </TouchableOpacity>
         </View>
       )}
 
-      {/* Modal de Seleção Dinâmica */}
+      {/* Modal de Seleção de Outras Atividades */}
       <PracticeSelectorModal
         visible={isSelectorOpen}
         practices={allPractices}
         currentPracticeId={practice.id}
         isActivityInProgress={isPlayerActive}
-        onClose={() => setIsSelectorOpen(false)}
         onSelectPractice={(p) => {
           setIsSelectorOpen(false);
+          setIsPlayerActive(false);
           onSelectPractice(p);
         }}
+        onClose={() => setIsSelectorOpen(false)}
       />
-    </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  screenContainer: {
+    flex: 1,
+    width: '100%',
+  },
+  headerBar: {
+    width: '100%',
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    zIndex: 10,
+  },
+  headerIconButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginHorizontal: 8,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   scrollView: {
     flex: 1,
   },
-  contentContainer: {
-    paddingBottom: 40,
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 90,
   },
-  topNavRow: {
+  heroSection: {
+    width: '100%',
+    marginBottom: 32,
+  },
+  heroImageWrapper: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#E6F1EE',
+    marginBottom: 16,
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  metaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  metaChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  heroTitle: {
+    fontSize: 28,
+    lineHeight: 36,
+    fontWeight: '700',
+    marginBottom: 8,
+    letterSpacing: -0.5,
+  },
+  heroDescription: {
+    fontSize: 16,
+    lineHeight: 25,
+    fontWeight: '400',
+    marginBottom: 20,
+  },
+  primaryActionButton: {
+    width: '100%',
+    height: 52,
+    backgroundColor: '#176F69',
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 3,
+    shadowColor: '#176F69',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  primaryActionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '650' as any,
+  },
+  playerContainer: {
+    width: '100%',
+    marginBottom: 24,
+  },
+  minimizePlayerBtn: {
+    alignSelf: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginTop: 4,
+  },
+  minimizePlayerText: {
+    color: '#176F69',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  postPracticeCard: {
+    width: '100%',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    marginBottom: 28,
+  },
+  postPracticeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  postPracticeTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    flex: 1,
+  },
+  feelingOptionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  feelingOptionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 12,
+  },
+  feelingOptionBtnActive: {
+    borderWidth: 1.5,
+    borderColor: '#176F69',
+  },
+  feelingOptionText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  postPracticeActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  postNextBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#176F69',
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  postNextBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  postRepeatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  postRepeatBtnText: {
+    color: '#176F69',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  sectionBlock: {
+    width: '100%',
+    marginBottom: 32,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '650' as any,
+    marginBottom: 14,
+    letterSpacing: -0.3,
+  },
+  guidelinesList: {
+    gap: 10,
+  },
+  guidelineItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  guidelineDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#176F69',
+    marginRight: 10,
+  },
+  guidelineText: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '400',
+    flex: 1,
+  },
+  timelineContainer: {
+    width: '100%',
+    paddingLeft: 4,
+  },
+  timelineRow: {
+    flexDirection: 'row',
+  },
+  timelineLeftCol: {
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  timelineCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timelineNumberText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  timelineVerticalLine: {
+    width: 2,
+    flex: 1,
+    marginVertical: 4,
+  },
+  timelineContentCol: {
+    flex: 1,
+    paddingBottom: 22,
+  },
+  timelineStageTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 3,
+  },
+  timelineStageDescription: {
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '400',
+  },
+  perceptionsList: {
+    gap: 10,
+    marginBottom: 10,
+  },
+  perceptionItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  perceptionText: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '400',
+    flex: 1,
+  },
+  perceptionNote: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  careWarningCard: {
+    width: '100%',
+    padding: 16,
+    borderRadius: 12,
+    borderLeftWidth: 3,
+    marginBottom: 32,
+  },
+  careWarningHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  careWarningTitle: {
+    color: '#B76B45',
+    fontSize: 15,
+    fontWeight: '650' as any,
+  },
+  careWarningBody: {
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '400',
+  },
+  historyCompactRow: {
+    width: '100%',
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 32,
+  },
+  historyLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  historyMainText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  historySubText: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  historyLinkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  historyLinkText: {
+    color: '#176F69',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  relatedSection: {
+    width: '100%',
+  },
+  relatedHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 14,
   },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
+  seeAllLink: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
-  backBtnText: {
+  seeAllLinkText: {
+    color: '#176F69',
     fontSize: 13,
-    fontWeight: '700',
-  },
-  topRightActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  iconActionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  playerWrapper: {
-    marginBottom: 16,
-  },
-  headerInfo: {
-    marginBottom: 16,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  durationMeta: {
-    fontSize: 12,
     fontWeight: '600',
   },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-    marginBottom: 6,
+  relatedCardsList: {
+    gap: 12,
   },
-  description: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  completionCard: {
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    marginBottom: 16,
-  },
-  completionHeaderRow: {
+  relatedCardItem: {
+    width: '100%',
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  completionTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    flex: 1,
-  },
-  completionSub: {
-    fontSize: 12,
-    lineHeight: 16,
-    marginBottom: 12,
-  },
-  feelingsOptionRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  feelingBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 6,
-    borderRadius: 10,
-    alignItems: 'center',
-    gap: 4,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  feelingBtnSelected: {
-    borderColor: '#2F7F7C',
-    backgroundColor: '#E7F3EF',
-  },
-  feelingBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  sectionCard: {
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 14,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  sectionHeading: {
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  bulletItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  bulletDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#2F7F7C',
-    marginTop: 7,
-  },
-  bulletText: {
-    fontSize: 13,
-    lineHeight: 18,
-    flex: 1,
-  },
-  stageCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    padding: 10,
-    borderRadius: 10,
-  },
-  stageNumberCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#2F7F7C',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-  },
-  stageNumberText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  stageTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  stageInstruction: {
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  benefitRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  benefitText: {
-    fontSize: 13,
-    lineHeight: 18,
-    flex: 1,
-  },
-  careAlertCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 14,
     borderRadius: 14,
     borderWidth: 1,
-    marginBottom: 14,
+    overflow: 'hidden',
+    padding: 10,
+    gap: 12,
   },
-  careTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    marginBottom: 4,
+  relatedCardImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 12,
   },
-  careText: {
-    fontSize: 12,
-    lineHeight: 17,
+  relatedCardContent: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingVertical: 2,
   },
-  historyRow: {
+  relatedCardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  relatedCardTitle: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '600',
+    flex: 1,
+    marginRight: 6,
+  },
+  relatedFavBtn: {
+    padding: 4,
+  },
+  relatedCardMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-  },
-  historyLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  historyMeta: {
-    fontSize: 11,
+    gap: 5,
     marginTop: 2,
   },
-  relatedSection: {
-    marginTop: 10,
+  relatedCardMetaText: {
+    fontSize: 12,
+    fontWeight: '400',
   },
-  relatedHeading: {
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 12,
+  relatedProgressBarBg: {
+    width: '100%',
+    height: 3,
+    backgroundColor: 'rgba(23, 111, 105, 0.12)',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginTop: 4,
   },
-  postActionBtnSecondary: {
-    flex: 1,
+  relatedProgressBarFill: {
+    height: '100%',
+    backgroundColor: '#176F69',
+    borderRadius: 2,
+  },
+  relatedCardBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    borderWidth: 1,
+    gap: 4,
+    alignSelf: 'flex-start',
+    marginTop: 4,
   },
-  postActionBtnText: {
-    fontSize: 12.5,
+  relatedActionText: {
+    color: '#176F69',
+    fontSize: 13,
     fontWeight: '600',
   },
-  postActionBtnTertiary: {
+  stickyBottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 14,
+    borderTopWidth: 1,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    zIndex: 100,
+  },
+  stickyActionButton: {
+    width: '100%',
+    height: 52,
+    backgroundColor: '#176F69',
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginTop: 2,
   },
-  postActionBtnTertiaryText: {
-    fontSize: 13,
-    fontWeight: '500',
+  stickyActionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '650' as any,
   },
 });
