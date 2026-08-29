@@ -17,7 +17,7 @@ export default function RelaxationScreen() {
   const [activePractice, setActivePractice] = useState<Practice>(defaultRelax);
 
   return (
-    <AppShell>
+    <AppShell scrollable={false}>
       <UniversalPracticePlayer
         practice={activePractice}
         allPractices={practices}

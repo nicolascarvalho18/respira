@@ -44,7 +44,7 @@ export default function PracticeByIdScreen() {
   };
 
   return (
-    <AppShell>
+    <AppShell scrollable={false}>
       <UniversalPracticePlayer
         practice={activePractice}
         allPractices={practices}

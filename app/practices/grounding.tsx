@@ -17,7 +17,7 @@ export default function GroundingScreen() {
   const [activePractice, setActivePractice] = useState<Practice>(defaultGrounding);
 
   return (
-    <AppShell>
+    <AppShell scrollable={false}>
       <UniversalPracticePlayer
         practice={activePractice}
         allPractices={practices}

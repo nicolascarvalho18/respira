@@ -172,7 +172,7 @@ export default function ArticleDetailSlugScreen() {
   };
 
   return (
-    <AppShell>
+    <AppShell scrollable={false}>
       {/* Barra de Progresso de Leitura Fixa no Topo */}
       <View style={styles.topProgressTrack}>
         <View

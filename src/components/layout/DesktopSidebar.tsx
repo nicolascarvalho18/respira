@@ -17,6 +17,8 @@ import {
   Wind,
   MessageCircle,
   LifeBuoy,
+  Smile,
+  Library,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuth } from '../../hooks/useAuth';
@@ -30,10 +32,16 @@ export const DesktopSidebar: React.FC = () => {
 
   const navItems = [
     {
-      label: 'Diário & Início',
+      label: 'Início',
       route: '/(tabs)',
       icon: Home,
-      isActive: pathname === '/' || pathname === '/(tabs)' || pathname === '/diary' || pathname === '/(tabs)/index',
+      isActive: pathname === '/' || pathname === '/(tabs)' || pathname === '/(tabs)/index',
+    },
+    {
+      label: 'Diário de Humor',
+      route: '/(tabs)/diary',
+      icon: Smile,
+      isActive: pathname.includes('/diary'),
     },
     {
       label: 'Práticas',
@@ -44,7 +52,7 @@ export const DesktopSidebar: React.FC = () => {
     {
       label: 'Conteúdos',
       route: '/(tabs)/content',
-      icon: BookOpen,
+      icon: Library,
       isActive: pathname.includes('/content') || pathname.includes('/contents'),
     },
     {

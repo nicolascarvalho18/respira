@@ -25,7 +25,7 @@ export default function BreathingScreen() {
   }, [tech, practices]);
 
   return (
-    <AppShell>
+    <AppShell scrollable={false}>
       <UniversalPracticePlayer
         practice={activePractice}
         allPractices={practices}
