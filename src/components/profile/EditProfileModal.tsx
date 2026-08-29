@@ -16,6 +16,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/user/userService';
 import { useToast } from '../ui/Toast';
+import { processAvatarImage } from '../../utils/imageProcessor';
 
 export interface EditProfileModalProps {
   visible: boolean;
@@ -59,7 +60,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     .charAt(0)
     .toUpperCase() || 'U';
 
-  const handleFileChange = (event: any) => {
+  const handleFileChange = async (event: any) => {
     setAvatarError(null);
     const file = event.target?.files?.[0];
     if (!file) return;
@@ -75,10 +76,16 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       return;
     }
 
-    setSelectedAvatarFile(file);
-    if (typeof URL !== 'undefined' && URL.createObjectURL) {
-      const objectUrl = URL.createObjectURL(file);
-      setAvatarPreviewUrl(objectUrl);
+    try {
+      const processed = await processAvatarImage(file);
+      setSelectedAvatarFile(processed.blob as File);
+      setAvatarPreviewUrl(processed.previewUrl);
+    } catch (err) {
+      console.warn('[EditProfileModal] Image processing fallback:', err);
+      setSelectedAvatarFile(file);
+      if (typeof URL !== 'undefined' && URL.createObjectURL) {
+        setAvatarPreviewUrl(URL.createObjectURL(file));
+      }
     }
   };
 
@@ -129,35 +136,35 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       // 2. Se houver um novo arquivo selecionado, fazer upload real no Supabase Storage
       if (selectedAvatarFile) {
         try {
-          const extension = selectedAvatarFile.name.split('.').pop()?.toLowerCase() || 'jpg';
-          finalAvatarUrl = await userService.uploadAvatar(user.id, selectedAvatarFile, extension);
+          finalAvatarUrl = await userService.uploadAvatar(user.id, selectedAvatarFile, 'webp');
         } catch (uploadErr: any) {
-          console.error('Storage upload error:', uploadErr);
-          setAvatarError('Não foi possível salvar a foto');
+          console.error('[EditProfileModal Storage upload error]:', uploadErr);
+          setAvatarError(uploadErr.message || 'Não foi possível salvar a foto.');
           setIsSaving(false);
           return;
         }
       } else if (avatarPreviewUrl === null) {
         // Usuário removeu a foto
         finalAvatarUrl = null;
+        await userService.updateAvatar(user.id, null);
       }
 
       // 3. Salvar nome, biografia e avatar_url no banco via upsert
       const updated = await userService.updateProfile(user.id, {
         name: sanitizedName,
         bio: sanitizedBio,
-        avatarUrl: finalAvatarUrl ?? undefined,
+        avatarUrl: finalAvatarUrl,
       });
 
       // 4. Atualizar o estado global
       await updateUser({
         name: updated.name,
         bio: updated.bio,
-        avatarUrl: updated.avatarUrl ?? undefined,
+        avatarUrl: finalAvatarUrl,
       });
 
       // 5. Atualizar savedAvatarUrl e limpar arquivo temporário
-      setSavedAvatarUrl(updated.avatarUrl || null);
+      setSavedAvatarUrl(finalAvatarUrl);
       setSelectedAvatarFile(null);
 
       showToast({ message: 'Alterações salvas', type: 'success' });

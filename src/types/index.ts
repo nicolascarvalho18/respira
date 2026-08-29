@@ -261,7 +261,7 @@ export interface User {
   name: string;
   email: string;
   role: Role;
-  avatarUrl?: string;
+  avatarUrl?: string | null;
   bio?: string;
   phone?: string;
   birthDate?: string;

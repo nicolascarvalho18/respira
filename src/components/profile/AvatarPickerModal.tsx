@@ -15,6 +15,7 @@ import {
   Trash2,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
+import { processAvatarImage } from '../../utils/imageProcessor';
 
 export interface AvatarPickerModalProps {
   visible: boolean;
@@ -44,26 +45,32 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
     .charAt(0)
     .toUpperCase() || 'U';
 
-  const handleFileChange = (event: any) => {
+  const handleFileChange = async (event: any) => {
     setErrorMessage(null);
     const file = event.target?.files?.[0];
     if (!file) return;
 
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (!validTypes.includes(file.type)) {
-      setErrorMessage('Formato inválido. Use arquivos JPG, PNG ou WebP.');
+      setErrorMessage('Formato inválido. Selecione arquivos JPG, PNG ou WebP.');
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setErrorMessage('O arquivo deve ter menos de 5MB.');
+      setErrorMessage('O arquivo deve ter no máximo 5MB antes do processamento.');
       return;
     }
 
-    setSelectedFile(file);
-    if (typeof URL !== 'undefined' && URL.createObjectURL) {
-      const objectUrl = URL.createObjectURL(file);
-      setPreviewUri(objectUrl);
+    try {
+      const processed = await processAvatarImage(file);
+      setSelectedFile(processed.blob);
+      setPreviewUri(processed.previewUrl);
+    } catch (err: any) {
+      console.warn('[AvatarPickerModal] Image processing notice, using raw file:', err);
+      setSelectedFile(file);
+      if (typeof URL !== 'undefined' && URL.createObjectURL) {
+        setPreviewUri(URL.createObjectURL(file));
+      }
     }
   };
 
@@ -80,12 +87,15 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
   };
 
   const handleSave = async () => {
+    if (isSaving) return;
     try {
       setIsSaving(true);
+      setErrorMessage(null);
       await onSelectAvatar(previewUri, selectedFile || undefined);
       onClose();
     } catch (err: any) {
-      setErrorMessage(err.message || 'Erro ao salvar foto de perfil. Tente novamente.');
+      console.error('[AvatarPickerModal Error]:', err);
+      setErrorMessage(err.message || 'Não foi possível salvar a foto. Verifique sua conexão e tente novamente.');
     } finally {
       setIsSaving(false);
     }

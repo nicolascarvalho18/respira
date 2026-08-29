@@ -130,13 +130,13 @@ export default function ProfileScreen() {
     try {
       let finalUrl = newAvatarUrl;
       if (file) {
-        const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
-        finalUrl = await userService.uploadAvatar(user.id, file, ext);
+        finalUrl = await userService.uploadAvatar(user.id, file, 'webp');
       } else if (newAvatarUrl === null) {
+        finalUrl = null;
         await userService.updateAvatar(user.id, null);
       }
-      updateUser({ avatarUrl: finalUrl ?? undefined });
-      showToast({ message: 'Foto salva', type: 'success' });
+      await updateUser({ avatarUrl: finalUrl });
+      showToast({ message: finalUrl ? 'Foto salva' : 'Foto removida', type: 'success' });
     } catch (err: any) {
       showToast({ message: err.message || 'Não foi possível salvar a foto.', type: 'error' });
       throw err;

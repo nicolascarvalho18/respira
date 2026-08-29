@@ -200,12 +200,12 @@ class SupabaseUserService {
 
   /**
    * 3. Upload de Foto de Perfil no Supabase Storage
-   * Salva no bucket 'avatars' com caminho `${user.id}/avatar-${Date.now()}.${fileExt}`.
+   * Salva no bucket 'avatars' com caminho previsível `${user.id}/avatar.webp`.
    */
   async uploadAvatar(
     userId: string,
     fileBlob: Blob | Uint8Array | File,
-    fileExt = 'jpg'
+    fileExt = 'webp'
   ): Promise<string | null> {
     if (!isSupabaseConfigured) {
       if (typeof FileReader !== 'undefined' && fileBlob instanceof Blob) {
@@ -221,34 +221,44 @@ class SupabaseUserService {
     }
 
     try {
-      // 1. Validar usuário autenticado
+      // 1. Obter usuário autenticado exclusivamente via Supabase Auth
       const {
         data: { user: authUser },
         error: userError,
       } = await supabase.auth.getUser();
 
       if (userError || !authUser) {
-        throw new Error('Sua sessão expirou. Entre novamente.');
+        throw new Error('Sua sessão expirou. Faça login novamente para continuar.');
       }
 
       const targetId = authUser.id;
-      const normalizedExt = fileExt.toLowerCase().replace('.', '');
-      const fileName = `${targetId}/avatar-${Date.now()}.${normalizedExt}`;
+      const normalizedExt = fileExt.toLowerCase().replace('.', '') || 'webp';
+      const filePath = `${targetId}/avatar.${normalizedExt}`;
 
-      let contentType = 'image/jpeg';
+      let contentType = 'image/webp';
       if (normalizedExt === 'png') contentType = 'image/png';
-      else if (normalizedExt === 'webp') contentType = 'image/webp';
+      else if (normalizedExt === 'jpg' || normalizedExt === 'jpeg') contentType = 'image/jpeg';
 
-      // 2. Enviar arquivo para o Storage
-      const { data, error } = await supabase.storage
+      // 2. Garantir que a linha em 'profiles' exista antes do upload (auto-upsert)
+      await supabase.from('profiles').upsert(
+        {
+          id: targetId,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' }
+      );
+
+      // 3. Enviar arquivo para o Storage com substituição (upsert: true)
+      const { data, error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(fileName, fileBlob, {
+        .upload(filePath, fileBlob, {
           upsert: true,
           contentType,
+          cacheControl: '3600',
         });
 
-      if (error || !data) {
-        logger.warn('Supabase storage upload notice, applying resilient dataURL fallback:', error?.message);
+      if (uploadError || !data) {
+        logger.warn('Supabase storage upload notice:', uploadError?.message);
         if (typeof FileReader !== 'undefined' && fileBlob instanceof Blob) {
           const base64Url: string = await new Promise<string>((resolve) => {
             const reader = new FileReader();
@@ -258,35 +268,65 @@ class SupabaseUserService {
           await this.updateProfile(targetId, { avatarUrl: base64Url });
           return base64Url;
         }
-        throw new Error('Não foi possível enviar a foto.');
+        throw new Error(uploadError?.message || 'Não foi possível enviar a foto.');
       }
 
-      // 3. Obter URL pública permanente
-      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
-      const finalUrl = urlData.publicUrl;
+      // 4. Obter URL pública permanente com timestamp de cache-buster
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const timestamp = Date.now();
+      const finalUrl = `${urlData.publicUrl}?t=${timestamp}`;
 
-      // 4. Atualizar registro do perfil com a URL definitiva
-      await this.updateProfile(targetId, { avatarUrl: finalUrl });
+      // 5. Atualizar coluna avatar_url em profiles
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert(
+          {
+            id: targetId,
+            avatar_url: finalUrl,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id' }
+        );
+
+      if (profileError) {
+        logger.error('Error saving avatar_url to profiles:', profileError);
+        throw new Error('Foto enviada, mas não foi possível atualizar seu perfil. Tente novamente.');
+      }
+
       return finalUrl;
     } catch (err: any) {
       logger.error('SupabaseUserService.uploadAvatar exception:', {
         message: err?.message,
         stage: 'avatar_upload_exception',
       });
-      if (typeof FileReader !== 'undefined' && fileBlob instanceof Blob) {
-        const base64Url: string = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(fileBlob);
-        });
-        return base64Url;
-      }
       throw err;
     }
   }
 
   async updateAvatar(userId: string, avatarUrl: string | null): Promise<boolean> {
-    return await this.updateProfile(userId, { avatarUrl: avatarUrl ?? undefined });
+    try {
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+
+      const targetId = authUser?.id || userId;
+
+      if (avatarUrl === null && isSupabaseConfigured && targetId) {
+        // Remover arquivos do Storage
+        try {
+          await supabase.storage
+            .from('avatars')
+            .remove([`${targetId}/avatar.webp`, `${targetId}/avatar.jpg`, `${targetId}/avatar.png`]);
+        } catch (_storageErr) {
+          // Ignorado
+        }
+      }
+
+      return await this.updateProfile(targetId, { avatarUrl });
+    } catch (err) {
+      logger.error('Error in updateAvatar:', err);
+      return false;
+    }
   }
 
   /**

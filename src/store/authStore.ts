@@ -199,14 +199,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user: updated });
 
     if (current.id) {
-      await supabase
-        .from('profiles')
-        .update({
-          full_name: partial.name ?? current.name,
-          avatar_url: partial.avatarUrl ?? current.avatarUrl,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', current.id);
+      try {
+        await supabase
+          .from('profiles')
+          .upsert(
+            {
+              id: current.id,
+              full_name: partial.name !== undefined ? partial.name : current.name,
+              display_name: partial.name !== undefined ? partial.name : current.name,
+              bio: partial.bio !== undefined ? partial.bio : current.bio,
+              avatar_url: partial.avatarUrl !== undefined ? partial.avatarUrl : current.avatarUrl,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'id' }
+          );
+      } catch (_e) {
+        // Ignorado
+      }
     }
   },
 
