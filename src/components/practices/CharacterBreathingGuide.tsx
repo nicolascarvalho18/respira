@@ -32,7 +32,7 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
 }) => {
   const { colors, isDark } = useTheme();
 
-  // Ciclo padrão calibrado: 4s Inspirar, 2s Segurar, 6s Expirar, 2s Pausa
+  // Ciclo padrão solicitado: 4s Inspirar, 2s Segurar, 6s Expirar, 2s Pausa
   const defaultBreathingConfig = {
     inhaleSeconds: 4,
     holdSeconds: 2,
@@ -45,7 +45,7 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
 
   const [noHoldMode, setNoHoldMode] = useState(false);
 
-  // Configuração ativa respeitando modo de acessibilidade
+  // Configuração ativa respeitando acessibilidade
   const config = {
     inhaleSeconds: rawConfig.inhaleSeconds,
     holdSeconds: noHoldMode ? 0 : rawConfig.holdSeconds,
@@ -54,24 +54,27 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
     cycles: rawConfig.cycles || 4,
   };
 
-  type Phase = 'intro' | 'inhale' | 'hold' | 'exhale' | 'hold_after_exhale' | 'finished';
+  type Phase =
+    | 'intro_1'
+    | 'intro_2'
+    | 'inhale'
+    | 'hold'
+    | 'exhale'
+    | 'hold_after_exhale'
+    | 'finished';
 
-  const [currentPhase, setCurrentPhase] = useState<Phase>('intro');
-  const [secondsLeft, setSecondsLeft] = useState(3);
+  const [currentPhase, setCurrentPhase] = useState<Phase>('intro_1');
+  const [secondsLeft, setSecondsLeft] = useState(4);
   const [currentCycle, setCurrentCycle] = useState(1);
-  const [currentCaption, setCurrentCaption] = useState('Encontre uma posição confortável e relaxe os ombros.');
+  const [currentCaption, setCurrentCaption] = useState('Encontre uma posição confortável.');
 
   const ringScale = useRef(new Animated.Value(0.82)).current;
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Narração de introdução ao iniciar
+  // Início da Introdução com fala serena e pausa de 4s
   useEffect(() => {
-    if (isPlaying && currentPhase === 'intro') {
-      guidedVoiceService.speak(
-        'Encontre uma posição confortável e relaxe os ombros.',
-        undefined,
-        0.80
-      );
+    if (isPlaying && currentPhase === 'intro_1') {
+      guidedVoiceService.speak('Encontre uma posição confortável.', undefined, 0.75);
     }
   }, [isPlaying]);
 
@@ -87,7 +90,7 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
       return;
     }
 
-    // Cronômetro exato de 1 segundo real (1000ms)
+    // Cronômetro de 1 segundo real (1000ms)
     timerRef.current = setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev > 1) {
@@ -105,9 +108,11 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
     };
   }, [isPlaying, currentPhase, currentCycle, noHoldMode]);
 
-  // Transição de Fases da Respiração
+  // Transições de Fases da Respiração
   const handlePhaseTransition = () => {
-    if (currentPhase === 'intro') {
+    if (currentPhase === 'intro_1') {
+      startIntro2Phase();
+    } else if (currentPhase === 'intro_2') {
       startInhalePhase();
     } else if (currentPhase === 'inhale') {
       if (config.holdSeconds > 0) {
@@ -128,14 +133,25 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
     }
   };
 
+  const startIntro2Phase = () => {
+    setCurrentPhase('intro_2');
+    setSecondsLeft(4);
+    setCurrentCaption('Quando estiver pronto... acompanhe no seu próprio ritmo.');
+    guidedVoiceService.speak(
+      'Quando estiver pronto... acompanhe no seu próprio ritmo.',
+      undefined,
+      0.75
+    );
+  };
+
   const startInhalePhase = () => {
     setCurrentPhase('inhale');
     setSecondsLeft(config.inhaleSeconds);
-    setCurrentCaption('Inspire lentamente pelo nariz.');
+    setCurrentCaption('Inspire suavemente pelo nariz.');
     hapticService.triggerInhale();
 
-    // Narração inicial com silêncio em seguida
-    guidedVoiceService.speak('Inspire lentamente pelo nariz.', undefined, 0.80);
+    // Narração serena no início da etapa
+    guidedVoiceService.speak('Inspire suavemente pelo nariz.', undefined, 0.75);
 
     // Animação suave e contínua do círculo expandindo
     Animated.timing(ringScale, {
@@ -149,21 +165,21 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
   const startHoldPhase = () => {
     setCurrentPhase('hold');
     setSecondsLeft(config.holdSeconds);
-    setCurrentCaption('Segure suavemente.');
+    setCurrentCaption('Segure com calma.');
     hapticService.triggerHold();
 
-    // Narração inicial
-    guidedVoiceService.speak('Segure suavemente.', undefined, 0.80);
+    // Narração suave
+    guidedVoiceService.speak('Segure com calma.', undefined, 0.75);
   };
 
   const startExhalePhase = () => {
     setCurrentPhase('exhale');
     setSecondsLeft(config.exhaleSeconds);
-    setCurrentCaption('Agora, solte o ar devagar pela boca.');
+    setCurrentCaption('Agora... solte o ar devagar, sem forçar.');
     hapticService.triggerExhale();
 
-    // Narração inicial
-    guidedVoiceService.speak('Agora, solte o ar devagar pela boca.', undefined, 0.80);
+    // Narração suave
+    guidedVoiceService.speak('Agora... solte o ar devagar, sem forçar.', undefined, 0.75);
 
     // Animação suave e contínua do círculo recolhendo
     Animated.timing(ringScale, {
@@ -191,11 +207,11 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
     } else {
       setCurrentPhase('finished');
       setSecondsLeft(0);
-      setCurrentCaption('Muito bem! Retorne ao seu ritmo natural.');
+      setCurrentCaption('Muito bem... Sinta o seu corpo calmo e relaxado.');
       guidedVoiceService.speak(
-        'Muito bem. Sinta a sensação de tranquilidade em seu corpo.',
+        'Muito bem... Sinta o seu corpo calmo e relaxado.',
         undefined,
-        0.80
+        0.75
       );
       onComplete?.();
     }
@@ -203,7 +219,8 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
 
   const getPhaseTitle = () => {
     switch (currentPhase) {
-      case 'intro':
+      case 'intro_1':
+      case 'intro_2':
         return 'Prepare-se';
       case 'inhale':
         return 'Inspirar';
@@ -296,7 +313,13 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
         {/* Personagem Oficial Centralizada (Corpo Inteiro com Almofada) */}
         <View style={styles.characterContainer}>
           <CharacterGuidedCanvas
-            phase={currentPhase === 'finished' || currentPhase === 'intro' ? 'idle' : currentPhase}
+            phase={
+              currentPhase === 'finished' ||
+              currentPhase === 'intro_1' ||
+              currentPhase === 'intro_2'
+                ? 'idle'
+                : currentPhase
+            }
             phaseDurationSeconds={
               currentPhase === 'inhale'
                 ? config.inhaleSeconds
@@ -310,7 +333,7 @@ export const CharacterBreathingGuide: React.FC<CharacterBreathingGuideProps> = (
         </View>
 
         {/* Indicador Flutuante da Etapa e Contagem em Segundos Reais */}
-        {currentPhase !== 'intro' && currentPhase !== 'finished' && (
+        {currentPhase !== 'finished' && (
           <View style={[styles.floatingCounter, { backgroundColor: isDark ? '#1C2825' : '#FFFFFF' }]}>
             <Text style={[styles.phaseTitleText, { color: getPhaseColor() }]}>
               {getPhaseTitle()}

@@ -63,11 +63,11 @@ describe('Guided Audiovisual Practices & Character System Tests', () => {
       const exhale = defaultScript.find((s) => s.phase === 'exhale');
       const holdAfter = defaultScript.find((s) => s.phase === 'hold_after_exhale');
 
-      expect(inhale?.text).toBe('Inspire lentamente pelo nariz.');
+      expect(inhale?.text).toBe('Inspire suavemente pelo nariz.');
       expect(inhale?.durationSeconds).toBe(4);
-      expect(hold?.text).toBe('Segure suavemente.');
+      expect(hold?.text).toBe('Segure com calma.');
       expect(hold?.durationSeconds).toBe(2);
-      expect(exhale?.text).toBe('Agora, solte o ar devagar pela boca.');
+      expect(exhale?.text).toBe('Agora... solte o ar devagar, sem forçar.');
       expect(exhale?.durationSeconds).toBe(6);
       expect(holdAfter?.durationSeconds).toBe(2);
     });
