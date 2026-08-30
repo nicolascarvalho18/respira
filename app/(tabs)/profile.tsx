@@ -41,6 +41,7 @@ import { AppearanceBottomSheet } from '../../src/components/profile/AppearanceBo
 import { ChatHistoryModal } from '../../src/components/profile/ChatHistoryModal';
 import { DeleteAccountModal } from '../../src/components/profile/DeleteAccountModal';
 import { userService } from '../../src/services/user/userService';
+import { supabaseUserService } from '../../src/services/user/supabaseUserService';
 import { chatService } from '../../src/services/chat/chatService';
 import { UserSession } from '../../src/types';
 
@@ -79,8 +80,18 @@ export default function ProfileScreen() {
     // Carregar consentimento de histórico de chat
     chatService.hasRetentionConsent().then(setSaveChatHistory).catch(() => {});
 
-    // Carregar sessões reais
+    // Re-buscar dados reais da tabela profiles pelo user.id
     if (user?.id) {
+      supabaseUserService.getProfile(user.id).then((freshProfile) => {
+        if (freshProfile) {
+          updateUser({
+            name: freshProfile.name || user.name,
+            bio: freshProfile.bio !== undefined ? freshProfile.bio : user.bio,
+            avatarUrl: freshProfile.avatarUrl !== undefined ? freshProfile.avatarUrl : user.avatarUrl,
+          });
+        }
+      }).catch(() => {});
+
       userService
         .getActiveSessions(user.id)
         .then((sess: UserSession[]) => {
@@ -90,7 +101,7 @@ export default function ProfileScreen() {
         })
         .catch(() => {});
     }
-  }, [user]);
+  }, [user?.id]);
 
   const handleToggleReducedMotion = async (val: boolean) => {
     setReducedMotion(val);

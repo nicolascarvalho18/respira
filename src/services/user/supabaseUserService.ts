@@ -41,12 +41,12 @@ class SupabaseUserService {
       // 2. Buscar perfil existente com maybeSingle()
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, display_name, bio, avatar_url, phone, birth_date, created_at, updated_at')
+        .select('*')
         .eq('id', targetId)
         .maybeSingle();
 
       if (error) {
-        console.error('Erro ao salvar perfil:', {
+        console.error('Erro ao buscar perfil:', {
           message: error.message,
           code: error.code,
           details: error.details,
@@ -63,12 +63,15 @@ class SupabaseUserService {
           authUser.email?.split('@')[0] ||
           'Usuário';
 
+        const defaultBio = authUser.user_metadata?.bio || '';
+        const defaultAvatar = authUser.user_metadata?.avatar_url || null;
+
         const initialProfile = {
           id: authUser.id,
           full_name: defaultName,
           display_name: defaultName,
-          bio: '',
-          avatar_url: authUser.user_metadata?.avatar_url || null,
+          bio: defaultBio,
+          avatar_url: defaultAvatar,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
@@ -82,9 +85,9 @@ class SupabaseUserService {
         if (!createError && createdData) {
           return {
             id: createdData.id,
-            name: createdData.full_name || createdData.display_name,
-            bio: createdData.bio || '',
-            avatarUrl: createdData.avatar_url,
+            name: createdData.full_name || createdData.display_name || defaultName,
+            bio: createdData.bio !== undefined ? createdData.bio : defaultBio,
+            avatarUrl: createdData.avatar_url || defaultAvatar,
             phone: createdData.phone,
             birthDate: createdData.birth_date,
             createdAt: createdData.created_at,
@@ -95,11 +98,17 @@ class SupabaseUserService {
 
       if (!data) return null;
 
+      const fallbackName =
+        authUser.user_metadata?.full_name ||
+        authUser.user_metadata?.name ||
+        authUser.email?.split('@')[0] ||
+        'Usuário';
+
       return {
         id: data.id,
-        name: data.full_name || data.display_name,
-        bio: data.bio || '',
-        avatarUrl: data.avatar_url,
+        name: data.full_name || data.display_name || fallbackName,
+        bio: data.bio !== undefined ? data.bio : (authUser.user_metadata?.bio || ''),
+        avatarUrl: data.avatar_url || authUser.user_metadata?.avatar_url || null,
         phone: data.phone,
         birthDate: data.birth_date,
         createdAt: data.created_at,
@@ -153,18 +162,17 @@ class SupabaseUserService {
     const cleanBio = params.bio.trim();
 
     // 2. Salvar nome e biografia na tabela 'profiles' via upsert
-    const { error: upsertError } = await supabase
+    const upsertPayload: Record<string, any> = {
+      id: userId,
+      full_name: cleanName,
+      display_name: cleanName,
+      bio: cleanBio,
+      updated_at: new Date().toISOString(),
+    };
+
+    let { error: upsertError } = await supabase
       .from('profiles')
-      .upsert(
-        {
-          id: userId,
-          full_name: cleanName,
-          display_name: cleanName,
-          bio: cleanBio,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'id' }
-      );
+      .upsert(upsertPayload, { onConflict: 'id' });
 
     if (upsertError) {
       console.error('Erro ao salvar perfil:', {
@@ -173,14 +181,40 @@ class SupabaseUserService {
         details: upsertError.details,
         hint: upsertError.hint,
       });
-      throw new Error('Não foi possível atualizar os seus dados.');
+
+      // Se falhou por incompatibilidade de schema cache remoto (PGRST204)
+      if (upsertError.code === 'PGRST204') {
+        const fallbackPayload: Record<string, any> = {
+          id: userId,
+          full_name: cleanName,
+          updated_at: new Date().toISOString(),
+        };
+        const retry = await supabase
+          .from('profiles')
+          .upsert(fallbackPayload, { onConflict: 'id' });
+
+        if (retry.error) {
+          const retry2 = await supabase
+            .from('profiles')
+            .upsert(
+              { id: userId, display_name: cleanName, updated_at: new Date().toISOString() },
+              { onConflict: 'id' }
+            );
+          if (retry2.error) {
+            throw new Error(retry2.error.message || 'Não foi possível atualizar os seus dados.');
+          }
+        }
+      } else {
+        throw new Error(upsertError.message || 'Não foi possível atualizar os seus dados.');
+      }
     }
 
     let finalAvatarUrl: string | null = undefined as any;
 
     // 3. Se existir uma nova foto, enviar ao bucket 'avatars'
     if (params.avatarFile) {
-      const avatarPath = `${userId}/avatar-${Date.now()}.webp`;
+      const timestamp = Date.now();
+      const avatarPath = `${userId}/avatar-${timestamp}.webp`;
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
@@ -197,12 +231,12 @@ class SupabaseUserService {
           details: (uploadError as any)?.details,
           hint: (uploadError as any)?.hint,
         });
-        throw new Error('Não foi possível enviar a imagem.');
+        throw new Error(uploadError.message || 'Não foi possível enviar a imagem.');
       }
 
       // 4. Obter URL pública permanente da imagem
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(avatarPath);
-      finalAvatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      finalAvatarUrl = `${urlData.publicUrl}?t=${timestamp}`;
 
       // 5. Salvar o caminho na coluna avatar_url da tabela profiles
       const { error: avatarUpdateError } = await supabase
@@ -220,8 +254,18 @@ class SupabaseUserService {
           details: avatarUpdateError.details,
           hint: avatarUpdateError.hint,
         });
-        throw new Error('Não foi possível atualizar os seus dados.');
+        throw new Error(avatarUpdateError.message || 'Não foi possível atualizar os seus dados.');
       }
+
+      // Sincronizar Auth User Metadata
+      await supabase.auth.updateUser({
+        data: {
+          full_name: cleanName,
+          name: cleanName,
+          bio: cleanBio,
+          avatar_url: finalAvatarUrl,
+        },
+      }).catch(() => {});
     } else if (params.removeAvatar) {
       finalAvatarUrl = null;
       const { error: removeError } = await supabase
@@ -239,14 +283,41 @@ class SupabaseUserService {
           details: removeError.details,
           hint: removeError.hint,
         });
-        throw new Error('Não foi possível atualizar os seus dados.');
+        throw new Error(removeError.message || 'Não foi possível atualizar os seus dados.');
       }
+
+      try {
+        await supabase.storage.from('avatars').remove([
+          `${userId}/avatar.webp`,
+          `${userId}/avatar.jpg`,
+          `${userId}/avatar.png`,
+        ]);
+      } catch (_e) {}
+
+      // Sincronizar Auth User Metadata com avatar nulo
+      await supabase.auth.updateUser({
+        data: {
+          full_name: cleanName,
+          name: cleanName,
+          bio: cleanBio,
+          avatar_url: null,
+        },
+      }).catch(() => {});
+    } else {
+      // Sincronizar Auth User Metadata com novo nome e biografia
+      await supabase.auth.updateUser({
+        data: {
+          full_name: cleanName,
+          name: cleanName,
+          bio: cleanBio,
+        },
+      }).catch(() => {});
     }
 
     // 6. Buscar novamente o perfil no banco para confirmação
     const { data: refreshedProfile, error: fetchError } = await supabase
       .from('profiles')
-      .select('id, full_name, display_name, bio, avatar_url')
+      .select('*')
       .eq('id', userId)
       .maybeSingle();
 
@@ -260,7 +331,7 @@ class SupabaseUserService {
     }
 
     const confirmedName = refreshedProfile?.full_name || refreshedProfile?.display_name || cleanName;
-    const confirmedBio = refreshedProfile?.bio ?? cleanBio;
+    const confirmedBio = refreshedProfile?.bio !== undefined ? refreshedProfile.bio : cleanBio;
     const confirmedAvatar =
       finalAvatarUrl !== undefined
         ? finalAvatarUrl

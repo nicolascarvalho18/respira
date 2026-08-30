@@ -316,6 +316,9 @@ class SupabaseAuthService {
       authUser.email?.split('@')[0] ||
       'Usuário';
 
+    const defaultBio = authUser.user_metadata?.bio || '';
+    const defaultAvatar = authUser.user_metadata?.avatar_url || null;
+
     try {
       let { data: profile } = await supabase
         .from('profiles')
@@ -330,21 +333,24 @@ class SupabaseAuthService {
             id: authUser.id,
             full_name: defaultName,
             display_name: defaultName,
+            bio: defaultBio,
+            avatar_url: defaultAvatar,
             personalized_suggestions_consent: authUser.user_metadata?.personalized_suggestions_consent ?? false,
             terms_accepted_at: authUser.user_metadata?.terms_accepted_at || new Date().toISOString(),
             privacy_accepted_at: authUser.user_metadata?.privacy_accepted_at || new Date().toISOString(),
           })
           .select()
-          .single();
+          .maybeSingle();
 
         profile = newProfile;
       }
 
       return {
         id: authUser.id,
-        name: profile?.full_name || defaultName,
+        name: profile?.full_name || profile?.display_name || defaultName,
         email: authUser.email || '',
-        avatarUrl: profile?.avatar_url,
+        avatarUrl: profile?.avatar_url || defaultAvatar,
+        bio: profile?.bio !== undefined ? profile.bio : defaultBio,
         role: authUser.email?.includes('admin') ? 'admin' : 'user',
         isEmailVerified: true,
         createdAt: authUser.created_at,
@@ -373,6 +379,8 @@ class SupabaseAuthService {
         id: authUser.id,
         name: defaultName,
         email: authUser.email || '',
+        avatarUrl: defaultAvatar,
+        bio: defaultBio,
         role: 'user',
         isEmailVerified: true,
         createdAt: authUser.created_at,

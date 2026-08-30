@@ -205,6 +205,79 @@ describe('Upload e Persistência de Foto de Perfil (Supabase Storage & Profiles 
       expect(updateMock).toHaveBeenCalled();
     });
 
+    it('deve salvar apenas o nome sem alterar avatar', async () => {
+      jest.spyOn(supabase.auth, 'getUser').mockResolvedValue({
+        data: { user: mockUser as any },
+        error: null,
+      });
+
+      const upsertMock = jest.fn().mockResolvedValue({ error: null });
+      const selectMock = jest.fn().mockReturnValue({
+        eq: jest.fn().mockReturnValue({
+          maybeSingle: jest.fn().mockResolvedValue({
+            data: {
+              id: mockUserId,
+              full_name: 'Apenas Nome Alterado',
+              display_name: 'Apenas Nome Alterado',
+              bio: 'Bio Inalterada',
+              avatar_url: 'https://images.com/foto-antiga.webp',
+            },
+            error: null,
+          }),
+        }),
+      });
+
+      jest.spyOn(supabase, 'from').mockReturnValue({
+        upsert: upsertMock,
+        select: selectMock,
+      } as any);
+
+      const result = await supabaseUserService.saveProfileAndAvatar({
+        fullName: 'Apenas Nome Alterado',
+        bio: 'Bio Inalterada',
+      });
+
+      expect(result.name).toBe('Apenas Nome Alterado');
+      expect(result.bio).toBe('Bio Inalterada');
+      expect(result.avatarUrl).toBe('https://images.com/foto-antiga.webp');
+    });
+
+    it('deve salvar apenas a biografia sem alterar avatar', async () => {
+      jest.spyOn(supabase.auth, 'getUser').mockResolvedValue({
+        data: { user: mockUser as any },
+        error: null,
+      });
+
+      const upsertMock = jest.fn().mockResolvedValue({ error: null });
+      const selectMock = jest.fn().mockReturnValue({
+        eq: jest.fn().mockReturnValue({
+          maybeSingle: jest.fn().mockResolvedValue({
+            data: {
+              id: mockUserId,
+              full_name: 'Nome Existente',
+              display_name: 'Nome Existente',
+              bio: 'Nova Biografia Atualizada',
+              avatar_url: null,
+            },
+            error: null,
+          }),
+        }),
+      });
+
+      jest.spyOn(supabase, 'from').mockReturnValue({
+        upsert: upsertMock,
+        select: selectMock,
+      } as any);
+
+      const result = await supabaseUserService.saveProfileAndAvatar({
+        fullName: 'Nome Existente',
+        bio: 'Nova Biografia Atualizada',
+      });
+
+      expect(result.name).toBe('Nome Existente');
+      expect(result.bio).toBe('Nova Biografia Atualizada');
+    });
+
     it('deve lançar mensagem de erro específica quando a sessão expirar', async () => {
       jest.spyOn(supabase.auth, 'getUser').mockResolvedValue({
         data: { user: null },
@@ -240,7 +313,24 @@ describe('Upload e Persistência de Foto de Perfil (Supabase Storage & Profiles 
           bio: '',
           avatarFile: mockBlob,
         })
-      ).rejects.toThrow('Não foi possível enviar a imagem.');
+      ).rejects.toThrow('Bucket not found');
+    });
+  });
+
+  describe('6. Validação da Migration 20260830000001 (Schema & Storage RLS)', () => {
+    it('deve garantir as colunas full_name, bio, display_name e avatar_url e políticas RLS', () => {
+      const migrationPath = path.join(
+        __dirname,
+        '../../supabase/migrations/20260830000001_ensure_profiles_columns_and_storage_rls.sql'
+      );
+      expect(fs.existsSync(migrationPath)).toBe(true);
+
+      const sql = fs.readFileSync(migrationPath, 'utf-8');
+      expect(sql).toContain('alter table public.profiles add column if not exists full_name text;');
+      expect(sql).toContain("alter table public.profiles add column if not exists bio text default '';");
+      expect(sql).toContain('alter table public.profiles add column if not exists avatar_url text;');
+      expect(sql).toContain('(storage.foldername(name))[1] = (auth.uid())::text');
+      expect(sql).toContain('auth.uid() = id');
     });
   });
 });

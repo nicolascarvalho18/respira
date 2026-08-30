@@ -15,6 +15,7 @@ import { X, Camera, Trash2, Upload, AlertCircle } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/user/userService';
+import { supabaseUserService } from '../../services/user/supabaseUserService';
 import { useToast } from '../ui/Toast';
 import { processAvatarImage } from '../../utils/imageProcessor';
 
@@ -52,8 +53,22 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       setNameError(null);
       setBioError(null);
       setAvatarError(null);
+
+      // Re-consultar banco Supabase em background para garantir sincronismo
+      if (user.id) {
+        supabaseUserService.getProfile(user.id).then((freshProfile) => {
+          if (freshProfile) {
+            if (freshProfile.name) setName(freshProfile.name);
+            if (freshProfile.bio !== undefined) setBio(freshProfile.bio);
+            if (freshProfile.avatarUrl !== undefined) {
+              setSavedAvatarUrl(freshProfile.avatarUrl || null);
+              setAvatarPreviewUrl(freshProfile.avatarUrl || null);
+            }
+          }
+        }).catch(() => {});
+      }
     }
-  }, [visible, user]);
+  }, [visible, user?.id]);
 
   const initials = (name || user?.name || 'U')
     .trim()
