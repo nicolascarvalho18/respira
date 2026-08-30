@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -19,37 +19,98 @@ import {
   Flame,
   Radio,
   Wind,
+  Droplet,
+  Coffee,
+  Music,
 } from 'lucide-react-native';
 import { useSoundscapeStore } from '../../store/soundscapeStore';
+import { useMusicStore } from '../../store/musicStore';
 import { useTheme } from '../../hooks/useTheme';
 
 export const MiniFloatingPlayer: React.FC = () => {
   const { colors, isDark } = useTheme();
+  
+  // Soundscape store state
   const {
     currentSoundscape,
-    isPlaying,
-    isMiniPlayerVisible,
-    remainingSeconds,
-    volume,
-    togglePlayPause,
-    closeMiniPlayer,
-    setVolume,
+    isPlaying: isSoundPlaying,
+    isMiniPlayerVisible: isSoundMiniVisible,
+    remainingSeconds: soundRemainingSeconds,
+    volume: soundVolume,
+    togglePlayPause: toggleSoundPlayPause,
+    closeMiniPlayer: closeSoundMiniPlayer,
+    setVolume: setSoundVolume,
   } = useSoundscapeStore();
 
-  if (!isMiniPlayerVisible || !currentSoundscape) return null;
+  // Music store state
+  const {
+    currentTrack,
+    isPlaying: isMusicPlaying,
+    volume: musicVolume,
+    remainingTimerSeconds: musicRemainingSeconds,
+    togglePlayPause: toggleMusicPlayPause,
+    pauseTrack: pauseMusicTrack,
+    setVolume: setMusicVolume,
+  } = useMusicStore();
+
+  const isSoundActive = Boolean(isSoundMiniVisible && currentSoundscape);
+  const isMusicActive = Boolean(!isSoundActive && currentTrack);
+
+  if (!isSoundActive && !isMusicActive) return null;
+
+  const isPlaying = isSoundActive ? isSoundPlaying : isMusicPlaying;
+  const volume = isSoundActive ? soundVolume : musicVolume;
+  const remainingSeconds = isSoundActive ? soundRemainingSeconds : musicRemainingSeconds;
+
+  const title = isSoundActive ? currentSoundscape!.name : currentTrack!.title;
+  const subtitle = isSoundActive ? currentSoundscape!.subtitle : `${currentTrack!.artist} · ${currentTrack!.categoryLabel}`;
+  const accentColor = isSoundActive ? (currentSoundscape!.accentColor || '#2F7F7C') : '#2F7F7C';
+
+  const handleTogglePlay = () => {
+    if (isSoundActive) {
+      toggleSoundPlayPause();
+    } else {
+      toggleMusicPlayPause();
+    }
+  };
+
+  const handleToggleMute = () => {
+    if (isSoundActive) {
+      setSoundVolume(soundVolume > 0 ? 0 : 0.8);
+    } else {
+      setMusicVolume(musicVolume > 0 ? 0 : 0.8);
+    }
+  };
+
+  const handleClose = () => {
+    if (isSoundActive) {
+      closeSoundMiniPlayer();
+    } else {
+      pauseMusicTrack();
+      useMusicStore.setState({ currentTrack: null, isPlaying: false });
+    }
+  };
 
   const renderIcon = () => {
-    switch (currentSoundscape.icon) {
+    if (isMusicActive) {
+      return <Music size={16} color="#FFFFFF" />;
+    }
+
+    switch (currentSoundscape?.icon) {
       case 'cloud-rain':
         return <CloudRain size={16} color="#FFFFFF" />;
       case 'waves':
         return <Waves size={16} color="#FFFFFF" />;
+      case 'droplet':
+        return <Droplet size={16} color="#FFFFFF" />;
       case 'trees':
         return <Trees size={16} color="#FFFFFF" />;
       case 'flame':
         return <Flame size={16} color="#FFFFFF" />;
       case 'radio':
         return <Radio size={16} color="#FFFFFF" />;
+      case 'book':
+        return <Coffee size={16} color="#FFFFFF" />;
       case 'wind':
       default:
         return <Wind size={16} color="#FFFFFF" />;
@@ -77,7 +138,7 @@ export const MiniFloatingPlayer: React.FC = () => {
         <View
           style={[
             styles.iconCircle,
-            { backgroundColor: currentSoundscape.accentColor || '#2F7F7C' },
+            { backgroundColor: accentColor },
           ]}
         >
           {renderIcon()}
@@ -85,12 +146,12 @@ export const MiniFloatingPlayer: React.FC = () => {
 
         {/* Informações do Som & Temporizador */}
         <View style={styles.infoCol}>
-          <Text style={[styles.soundTitle, { color: '#173D3B' }]} numberOfLines={1}>
-            {currentSoundscape.name}
+          <Text style={[styles.soundTitle, { color: isDark ? colors.text : '#173D3B' }]} numberOfLines={1}>
+            {title}
           </Text>
           <View style={styles.subRow}>
-            <Text style={[styles.soundSubtitle, { color: '#667775' }]} numberOfLines={1}>
-              {currentSoundscape.subtitle}
+            <Text style={[styles.soundSubtitle, { color: isDark ? colors.textMuted : '#667775' }]} numberOfLines={1}>
+              {subtitle}
             </Text>
             {remainingSeconds !== null && (
               <View style={styles.timerBadge}>
@@ -103,7 +164,7 @@ export const MiniFloatingPlayer: React.FC = () => {
 
         {/* Controle de Volume */}
         <TouchableOpacity
-          onPress={() => setVolume(volume > 0 ? 0 : 0.7)}
+          onPress={handleToggleMute}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           accessibilityRole="button"
           accessibilityLabel="Ajustar volume"
@@ -118,7 +179,7 @@ export const MiniFloatingPlayer: React.FC = () => {
 
         {/* Botão Play / Pause */}
         <TouchableOpacity
-          onPress={togglePlayPause}
+          onPress={handleTogglePlay}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           accessibilityRole="button"
           accessibilityLabel={isPlaying ? 'Pausar som' : 'Reproduzir som'}
@@ -133,7 +194,7 @@ export const MiniFloatingPlayer: React.FC = () => {
 
         {/* Botão Fechar Miniplayer */}
         <TouchableOpacity
-          onPress={closeMiniPlayer}
+          onPress={handleClose}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           accessibilityRole="button"
           accessibilityLabel="Fechar reprodutor"

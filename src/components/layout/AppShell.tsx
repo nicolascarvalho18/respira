@@ -16,6 +16,7 @@ import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useAuth } from '../../hooks/useAuth';
 import { LoadingState } from '../ui/LoadingState';
 import { DesktopSidebar } from './DesktopSidebar';
+import { MiniFloatingPlayer } from '../soundscape/MiniFloatingPlayer';
 
 export interface AppShellProps {
   children: React.ReactNode;
@@ -156,6 +157,8 @@ export const AppShell: React.FC<AppShellProps> = ({
             </ScrollView>
           </View>
         )}
+        {/* Mini Floating Player Global */}
+        <MiniFloatingPlayer />
       </View>
     </ContainerComponent>
   );
