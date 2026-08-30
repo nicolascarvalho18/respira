@@ -200,6 +200,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     if (current.id) {
       try {
+        const metadataUpdate: Record<string, any> = {};
+        if (partial.name !== undefined) {
+          metadataUpdate.full_name = partial.name;
+          metadataUpdate.name = partial.name;
+          metadataUpdate.display_name = partial.name;
+        }
+        if (partial.bio !== undefined) {
+          metadataUpdate.bio = partial.bio;
+        }
+        if (partial.avatarUrl !== undefined) {
+          metadataUpdate.avatar_url = partial.avatarUrl;
+        }
+
+        if (Object.keys(metadataUpdate).length > 0) {
+          await supabase.auth.updateUser({ data: metadataUpdate }).catch(() => {});
+        }
+
         await supabase
           .from('profiles')
           .upsert(
@@ -212,7 +229,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               updated_at: new Date().toISOString(),
             },
             { onConflict: 'id' }
-          );
+          )
+          .catch(() => {});
       } catch (_e) {
         // Ignorado
       }

@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { X, Camera, Trash2, Upload, AlertCircle } from 'lucide-react-native';
+import { X, Trash2, Upload, AlertCircle } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuth } from '../../hooks/useAuth';
 import { userService } from '../../services/user/userService';
@@ -54,7 +54,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       setBioError(null);
       setAvatarError(null);
 
-      // Re-consultar banco Supabase em background para garantir sincronismo
+      // Re-consultar banco Supabase em background para sincronizar
       if (user.id) {
         supabaseUserService.getProfile(user.id).then((freshProfile) => {
           if (freshProfile) {
@@ -154,7 +154,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
         removeAvatar: isRemovingAvatar,
       });
 
-      // Atualizar o contexto de autenticação imediatamente com os dados do banco
+      // Atualizar o contexto de autenticação imediatamente com os dados salvos
       await updateUser({
         name: updatedUser.name,
         bio: updatedUser.bio,
@@ -293,7 +293,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                   setName(val);
                   if (nameError) setNameError(null);
                 }}
-                maxLength={80}
+                maxLength={60}
                 placeholder="Seu nome completo"
                 placeholderTextColor="#8F9B97"
                 style={[

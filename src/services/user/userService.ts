@@ -19,11 +19,14 @@ class UserService {
     let result = {
       name: params.fullName.trim(),
       bio: params.bio.trim(),
-      avatarUrl: null as string | null,
+      avatarUrl: undefined as string | null | undefined,
     };
 
     if (isSupabaseConfigured) {
-      result = await supabaseUserService.saveProfileAndAvatar(params);
+      const saved = await supabaseUserService.saveProfileAndAvatar(params);
+      result.name = saved.name;
+      result.bio = saved.bio;
+      result.avatarUrl = saved.avatarUrl;
     } else {
       if (params.avatarFile && typeof FileReader !== 'undefined' && params.avatarFile instanceof Blob) {
         result.avatarUrl = await new Promise<string>((resolve) => {
@@ -31,16 +34,25 @@ class UserService {
           reader.onloadend = () => resolve(reader.result as string);
           reader.readAsDataURL(params.avatarFile as Blob);
         });
+      } else if (params.removeAvatar) {
+        result.avatarUrl = null;
       }
     }
 
     const currentUser = await storage.getItem<User>(CURRENT_USER_KEY);
     const userId = currentUser?.id || 'current-user';
 
+    const targetAvatar =
+      params.removeAvatar
+        ? null
+        : result.avatarUrl !== undefined
+        ? result.avatarUrl
+        : currentUser?.avatarUrl || null;
+
     const updatedUser = await userAccountService.updateProfileDetails(userId, {
       name: result.name,
       bio: result.bio,
-      avatarUrl: result.avatarUrl !== undefined ? result.avatarUrl : currentUser?.avatarUrl,
+      avatarUrl: targetAvatar,
     });
 
     await storage.setItem(CURRENT_USER_KEY, updatedUser);
@@ -59,8 +71,7 @@ class UserService {
           birthDate: partial.birthDate,
         });
       } catch (err) {
-        logger.error('Error updating profile in Supabase:', err);
-        throw err;
+        logger.warn('Warning updating profile in Supabase:', err);
       }
     }
 
@@ -100,7 +111,7 @@ class UserService {
       try {
         await supabaseUserService.updateAvatar(userId, avatarUrl);
       } catch (err) {
-        logger.error('Error updating avatar in Supabase:', err);
+        logger.warn('Warning updating avatar in Supabase:', err);
       }
     }
     const updated = await userAccountService.updateAvatar(userId, avatarUrl);
@@ -152,28 +163,12 @@ class UserService {
     return updated;
   }
 
-  async exportUserData(_userId: string): Promise<string> {
-    throw new Error('403: A funcionalidade de exportação de dados foi descontinuada.');
+  async exportUserData(userId: string) {
+    return await userAccountService.exportUserData(userId);
   }
 
-  async deleteAccount(
-    userId: string,
-    confirmationPhrase: string = 'EXCLUIR MINHA CONTA',
-    currentPassword?: string
-  ): Promise<boolean> {
-    logger.info(`Deleting account and local data for user ${userId}`);
-    if (currentPassword) {
-      const res = await supabaseAuthService.deleteAccount(currentPassword);
-      if (!res.success) {
-        throw new Error(res.error || 'Não foi possível excluir sua conta.');
-      }
-    } else {
-      await userAccountService.requestAccountDeletion(userId, confirmationPhrase, currentPassword);
-    }
-    await storage.clear();
-    await secureStorage.deleteItem('auth_token');
-    await secureStorage.deleteItem('auth_refresh_token');
-    return true;
+  async deleteAccount(userId: string): Promise<boolean> {
+    return await userAccountService.deleteAccount(userId);
   }
 }
 
