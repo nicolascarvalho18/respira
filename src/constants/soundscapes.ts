@@ -19,7 +19,7 @@ export interface Soundscape {
     | 'waterfall'
     | 'forest_dawn'
     | 'forest_night'
-    | 'birds'
+    | 'thunder'
     | 'fire'
     | 'wind_trees'
     | 'white_noise'
@@ -35,8 +35,8 @@ export const SOUNDSCAPES: Soundscape[] = [
   {
     id: 'soundscape-rain',
     name: 'Chuva leve',
-    subtitle: 'Gotas calmas e reconfortantes',
-    description: 'Som contínuo e suave de chuva caindo na vegetação para relaxar o corpo e aliviar a mente.',
+    subtitle: 'Gotas suaves e tranquilas',
+    description: 'Som suave e contínuo de chuva caindo na vegetação para relaxar o corpo e aliviar a mente.',
     category: 'water',
     categoryLabel: 'Água',
     icon: 'cloud-rain',
@@ -50,8 +50,8 @@ export const SOUNDSCAPES: Soundscape[] = [
   {
     id: 'soundscape-rain-window',
     name: 'Chuva na janela',
-    subtitle: 'Gotículas batendo no vidro',
-    description: 'Gotas de água tocando o vidro da janela com sensação de acolhimento e proteção dentro de casa.',
+    subtitle: 'Gotas batendo no vidro',
+    description: 'Gotículas de água tocando o vidro da janela com sensação de acolhimento e proteção dentro de casa.',
     category: 'water',
     categoryLabel: 'Água',
     icon: 'cloud-rain',
@@ -65,8 +65,8 @@ export const SOUNDSCAPES: Soundscape[] = [
   {
     id: 'soundscape-rain-roof',
     name: 'Chuva no telhado',
-    subtitle: 'Ritmo compassado e acolhedor',
-    description: 'Ressoar contínuo da chuva sobre as telhas, ideal para descanso profundo e indução ao sono.',
+    subtitle: 'Chuva atingindo telhas',
+    description: 'Ressoar contínuo e compassado da chuva sobre as telhas, ideal para descanso profundo e indução ao sono.',
     category: 'water',
     categoryLabel: 'Água',
     icon: 'cloud-rain',
@@ -80,7 +80,7 @@ export const SOUNDSCAPES: Soundscape[] = [
   {
     id: 'soundscape-waves',
     name: 'Ondas do mar',
-    subtitle: 'Fluxo rítmico da maré na praia',
+    subtitle: 'Ondas chegando naturalmente à praia',
     description: 'Ondas serenas quebrando suavemente na areia para acalmar pensamentos agitados e sincronizar a respiração.',
     category: 'water',
     categoryLabel: 'Água',
@@ -95,7 +95,7 @@ export const SOUNDSCAPES: Soundscape[] = [
   {
     id: 'soundscape-stream',
     name: 'Riacho',
-    subtitle: 'Água corrente sobre pedras',
+    subtitle: 'Água corrente passando sobre pedras',
     description: 'Fluxo contínuo e fresco de água cristalina passando por pedras, ideal para leitura e presença.',
     category: 'water',
     categoryLabel: 'Água',
@@ -110,7 +110,7 @@ export const SOUNDSCAPES: Soundscape[] = [
   {
     id: 'soundscape-waterfall',
     name: 'Cachoeira distante',
-    subtitle: 'Queda d’água densa e constante',
+    subtitle: 'Queda-d’água contínua ao longe',
     description: 'Som envolvente e suave de uma cascata ao longe, mascarando ruídos da cidade com naturalidade.',
     category: 'water',
     categoryLabel: 'Água',
@@ -121,12 +121,12 @@ export const SOUNDSCAPES: Soundscape[] = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1432405972618-c60b0225b8f9?auto=format&fit=crop&w=600&q=80',
     generatorType: 'waterfall',
   },
-  // 7. Floresta ao amanhecer
+  // 7. Floresta
   {
     id: 'soundscape-forest-dawn',
-    name: 'Floresta ao amanhecer',
-    subtitle: 'Brisa e primeiros cantos da manhã',
-    description: 'Despertar calmo da natureza com brisa fresca entre as árvores e pequenos pássaros.',
+    name: 'Floresta',
+    subtitle: 'Folhas, pássaros e ambiente natural',
+    description: 'Ambiente natural discreto com brisa fresca entre as árvores, farfalhar de folhas e pequenos pássaros.',
     category: 'nature',
     categoryLabel: 'Natureza',
     icon: 'trees',
@@ -136,11 +136,11 @@ export const SOUNDSCAPES: Soundscape[] = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=600&q=80',
     generatorType: 'forest_dawn',
   },
-  // 8. Floresta à noite
+  // 8. Noite na floresta
   {
     id: 'soundscape-forest-night',
-    name: 'Floresta à noite',
-    subtitle: 'Grilos e tranquilidade noturna',
+    name: 'Noite na floresta',
+    subtitle: 'Grilos e sons noturnos suaves',
     description: 'Ambiente noturno da mata com sons suaves de grilos e folhagens para relaxar antes de dormir.',
     category: 'nature',
     categoryLabel: 'Natureza',
@@ -151,26 +151,11 @@ export const SOUNDSCAPES: Soundscape[] = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1511497584788-87676104235f?auto=format&fit=crop&w=600&q=80',
     generatorType: 'forest_night',
   },
-  // 9. Pássaros suaves
-  {
-    id: 'soundscape-birds',
-    name: 'Pássaros suaves',
-    subtitle: 'Cantos serenos da natureza',
-    description: 'Harmonia delicada de pássaros cantando em um jardim tranquilo, proporcionando leveza e bom humor.',
-    category: 'nature',
-    categoryLabel: 'Natureza',
-    icon: 'feather',
-    accentColor: '#5B8C5A',
-    bgGradient: ['#EDF6EC', '#D4EBD2'],
-    audioUrl: 'https://cdn.pixabay.com/download/audio/2021/08/04/audio_32b03657b9.mp3?filename=birds-morning-nature-7521.mp3',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1470240731273-7821a6eeb6bd?auto=format&fit=crop&w=600&q=80',
-    generatorType: 'birds',
-  },
-  // 10. Fogueira
+  // 9. Fogueira
   {
     id: 'soundscape-fire',
     name: 'Fogueira',
-    subtitle: 'Estalos acolhedores de lenha',
+    subtitle: 'Madeira queimando com pequenos estalos',
     description: 'Calor e crepitação suave de lenha queimando para momentos de desaceleração e aconchego.',
     category: 'ambient',
     categoryLabel: 'Ambiente',
@@ -181,11 +166,11 @@ export const SOUNDSCAPES: Soundscape[] = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1517824806704-9040b037703b?auto=format&fit=crop&w=600&q=80',
     generatorType: 'fire',
   },
-  // 11. Vento entre as árvores
+  // 10. Vento suave
   {
     id: 'soundscape-wind-trees',
-    name: 'Vento entre as árvores',
-    subtitle: 'Sussurro suave da brisa',
+    name: 'Vento suave',
+    subtitle: 'Corrente de ar leve e constante',
     description: 'Ar soprando gentilmente pelas copas das árvores, transmitindo sensação de vastidão e calma.',
     category: 'nature',
     categoryLabel: 'Natureza',
@@ -196,11 +181,56 @@ export const SOUNDSCAPES: Soundscape[] = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=600&q=80',
     generatorType: 'wind_trees',
   },
-  // 12. Ruído branco
+  // 11. Tempestade distante
+  {
+    id: 'soundscape-thunder',
+    name: 'Tempestade distante',
+    subtitle: 'Chuva forte com trovões distantes',
+    description: 'Chuva acolhedora com trovões abafados e lentos no horizonte, sem sobressaltos.',
+    category: 'water',
+    categoryLabel: 'Água',
+    icon: 'cloud-rain',
+    accentColor: '#475569',
+    bgGradient: ['#E2E8F0', '#CBD5E1'],
+    audioUrl: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_145d2f3473.mp3?filename=distant-thunder-storm-8123.mp3',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1508873696983-2df5293cb32f?auto=format&fit=crop&w=600&q=80',
+    generatorType: 'thunder',
+  },
+  // 12. Cafeteria
+  {
+    id: 'soundscape-library',
+    name: 'Cafeteria',
+    subtitle: 'Ambiente discreto de cafeteria',
+    description: 'Ambiente acolhedor e discreto de cafeteria com xícaras sutis e fundo suave, sem conversas compreensíveis.',
+    category: 'ambient',
+    categoryLabel: 'Ambiente',
+    icon: 'book',
+    accentColor: '#7A5B44',
+    bgGradient: ['#F2EDE8', '#E3D7CD'],
+    audioUrl: 'https://cdn.pixabay.com/download/audio/2022/04/27/audio_93818f9cf0.mp3?filename=quiet-cafe-ambience-4321.mp3',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=600&q=80',
+    generatorType: 'library',
+  },
+  // 13. Ventilador
+  {
+    id: 'soundscape-fan',
+    name: 'Ventilador',
+    subtitle: 'Ruído contínuo e uniforme de ventilador',
+    description: 'Giro rítmico e constante de hélice de ventilador no quarto, promovendo sono tranquilo e foco.',
+    category: 'ambient',
+    categoryLabel: 'Ambiente',
+    icon: 'wind',
+    accentColor: '#536E7B',
+    bgGradient: ['#E6ECEE', '#CDD9DD'],
+    audioUrl: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_7240c9f131.mp3?filename=bedroom-fan-sound-9871.mp3',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=600&q=80',
+    generatorType: 'fan',
+  },
+  // 14. Ruído branco
   {
     id: 'soundscape-white-noise',
     name: 'Ruído branco',
-    subtitle: 'Frequência uniforme e balanceada',
+    subtitle: 'Frequência uniforme e constante',
     description: 'Som estático contínuo que bloqueia distrações externas e favorece concentração profunda.',
     category: 'noise',
     categoryLabel: 'Ruídos',
@@ -211,26 +241,11 @@ export const SOUNDSCAPES: Soundscape[] = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80',
     generatorType: 'white_noise',
   },
-  // 13. Ruído marrom
-  {
-    id: 'soundscape-brown-noise',
-    name: 'Ruído marrom',
-    subtitle: 'Graves profundos e envolventes',
-    description: 'Frequências baixas e densas que acalmam a sobrecarga mental e auxiliam no sono profundo.',
-    category: 'noise',
-    categoryLabel: 'Ruídos',
-    icon: 'wind',
-    accentColor: '#C87A24',
-    bgGradient: ['#FBF1E6', '#F5DFCA'],
-    audioUrl: 'https://cdn.pixabay.com/download/audio/2022/11/06/audio_7314227f2c.mp3?filename=brown-noise-deep-sleep-2345.mp3',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80',
-    generatorType: 'brown_noise',
-  },
-  // 14. Ruído rosa
+  // 15. Ruído rosa
   {
     id: 'soundscape-pink-noise',
     name: 'Ruído rosa',
-    subtitle: 'Equilíbrio suave de agudos e graves',
+    subtitle: 'Frequência equilibrada e suave',
     description: 'Frequência mais aveludada que o ruído branco, simulando a cadência natural do vento e das folhas.',
     category: 'noise',
     categoryLabel: 'Ruídos',
@@ -241,34 +256,19 @@ export const SOUNDSCAPES: Soundscape[] = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=600&q=80',
     generatorType: 'pink_noise',
   },
-  // 15. Ventilador suave
+  // 16. Ruído marrom
   {
-    id: 'soundscape-fan',
-    name: 'Ventilador suave',
-    subtitle: 'Zumbido contínuo e mecânico',
-    description: 'Giro rítmico e constante de hélice de ventilador no quarto, promovendo sono tranquilo.',
-    category: 'ambient',
-    categoryLabel: 'Ambiente',
+    id: 'soundscape-brown-noise',
+    name: 'Ruído marrom',
+    subtitle: 'Frequência grave, profunda e constante',
+    description: 'Frequências baixas e densas que acalmam a sobrecarga mental e auxiliam no sono profundo.',
+    category: 'noise',
+    categoryLabel: 'Ruídos',
     icon: 'wind',
-    accentColor: '#536E7B',
-    bgGradient: ['#E6ECEE', '#CDD9DD'],
-    audioUrl: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_7240c9f131.mp3?filename=bedroom-fan-sound-9871.mp3',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=600&q=80',
-    generatorType: 'fan',
-  },
-  // 16. Biblioteca silenciosa
-  {
-    id: 'soundscape-library',
-    name: 'Biblioteca silenciosa',
-    subtitle: 'Murmúrio distante e virar de páginas',
-    description: 'Atmosfera calma de estudo com silêncio acolhedor e sons discretos de páginas e passos suaves.',
-    category: 'ambient',
-    categoryLabel: 'Ambiente',
-    icon: 'book',
-    accentColor: '#7A5B44',
-    bgGradient: ['#F2EDE8', '#E3D7CD'],
-    audioUrl: 'https://cdn.pixabay.com/download/audio/2022/04/27/audio_93818f9cf0.mp3?filename=quiet-library-ambience-4321.mp3',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=600&q=80',
-    generatorType: 'library',
+    accentColor: '#C87A24',
+    bgGradient: ['#FBF1E6', '#F5DFCA'],
+    audioUrl: 'https://cdn.pixabay.com/download/audio/2022/11/06/audio_7314227f2c.mp3?filename=brown-noise-deep-sleep-2345.mp3',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80',
+    generatorType: 'brown_noise',
   },
 ];

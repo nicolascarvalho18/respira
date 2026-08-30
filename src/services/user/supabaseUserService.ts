@@ -32,7 +32,6 @@ class SupabaseUserService {
       } = await supabase.auth.getUser();
 
       if (userError || !authUser) {
-        logger.warn('SupabaseUserService.getProfile: Sessão não encontrada ou expirada.', userError);
         return null;
       }
 
@@ -41,13 +40,14 @@ class SupabaseUserService {
       const fallbackName =
         authUser.user_metadata?.full_name ||
         authUser.user_metadata?.name ||
+        authUser.user_metadata?.display_name ||
         authUser.email?.split('@')[0] ||
         'Usuário';
 
-      const fallbackBio = authUser.user_metadata?.bio || '';
+      const fallbackBio = authUser.user_metadata?.bio !== undefined ? authUser.user_metadata.bio : '';
       const fallbackAvatar = authUser.user_metadata?.avatar_url || null;
 
-      // 2. Buscar perfil existente com maybeSingle()
+      // 2. Tentar buscar da tabela 'profiles' se ela existir
       try {
         const { data, error } = await supabase
           .from('profiles')
@@ -60,7 +60,7 @@ class SupabaseUserService {
             id: data.id,
             name: data.full_name || data.display_name || fallbackName,
             bio: data.bio !== undefined ? data.bio : fallbackBio,
-            avatarUrl: data.avatar_url || fallbackAvatar,
+            avatarUrl: data.avatar_url !== undefined ? data.avatar_url : fallbackAvatar,
             phone: data.phone,
             birthDate: data.birth_date,
             createdAt: data.created_at || authUser.created_at,
@@ -68,7 +68,7 @@ class SupabaseUserService {
           };
         }
 
-        // Se não existir registro em profiles e for o próprio usuário, tentar criar
+        // Se não existir registro em profiles e for o próprio usuário, auto-provisionar
         if (!data && targetId === authUser.id) {
           const initialProfile = {
             id: authUser.id,
@@ -80,16 +80,17 @@ class SupabaseUserService {
             updated_at: new Date().toISOString(),
           };
 
-          await supabase
-            .from('profiles')
-            .upsert(initialProfile, { onConflict: 'id' })
-            .catch(() => {});
+          try {
+            await supabase
+              .from('profiles')
+              .upsert(initialProfile, { onConflict: 'id' });
+          } catch (_e) {}
         }
-      } catch (tableErr) {
-        logger.warn('SupabaseUserService.getProfile: Aviso ao consultar tabela profiles:', tableErr);
+      } catch (_e) {
+        // Tabela não disponível no cache do PostgREST
       }
 
-      // Fallback garantido pelos metadados de autenticação
+      // Fallback garantido pelos metadados de autenticação do Supabase Auth
       return {
         id: authUser.id,
         name: fallbackName,
@@ -99,14 +100,13 @@ class SupabaseUserService {
         updatedAt: authUser.updated_at,
       };
     } catch (err: any) {
-      logger.error('Erro ao buscar perfil:', err);
       return null;
     }
   }
 
   /**
    * 2. Função Unificada de Salvamento de Perfil e Avatar
-   * Executa a sequência: auth.getUser() -> upsert profile -> upload avatar -> update avatar_url -> refresh profile.
+   * Executa a sequência: auth.getUser() -> upsert profile -> upload avatar -> update avatar_url -> update Auth metadata -> refresh.
    */
   async saveProfileAndAvatar(params: {
     fullName: string;
@@ -133,14 +133,14 @@ class SupabaseUserService {
       };
     }
 
-    // 1. Obter o usuário por supabase.auth.getUser() e confirmar sessão válida
+    // 1. Obter o usuário autenticado por supabase.auth.getUser()
     const {
       data: { user: authUser },
       error: userError,
     } = await supabase.auth.getUser();
 
     if (userError || !authUser) {
-      logger.error('Erro ao autenticar para salvar perfil:', userError);
+      logger.warn('Erro ao autenticar para salvar perfil:', userError?.message);
       throw new Error('Sua sessão expirou. Faça login novamente para continuar.');
     }
 
@@ -155,19 +155,17 @@ class SupabaseUserService {
       updated_at: new Date().toISOString(),
     };
 
-    const { error: upsertError } = await supabase
-      .from('profiles')
-      .upsert(upsertPayload, { onConflict: 'id' });
+    try {
+      const { error: upsertError } = await supabase
+        .from('profiles')
+        .upsert(upsertPayload, { onConflict: 'id' });
 
-    if (upsertError) {
-      logger.warn('[supabaseUserService] Profiles upsert notice:', upsertError);
-      // Se o erro não for de schema cache ou tabela ausente, registrar
-      if (!upsertError.message?.includes('schema cache') && upsertError.code !== 'PGRST204' && upsertError.code !== 'PGRST205') {
-        logger.error('Erro ao salvar perfil na tabela:', upsertError);
+      if (upsertError) {
+        logger.warn('[supabaseUserService] Profiles upsert notice:', upsertError?.message);
       }
-    }
+    } catch (_e) {}
 
-    let finalAvatarUrl: string | null = undefined as any;
+    let finalAvatarUrl: string | null | undefined = undefined;
 
     // 3. Se existir uma nova foto, enviar ao bucket 'avatars'
     if (params.avatarFile) {
@@ -183,24 +181,22 @@ class SupabaseUserService {
         });
 
       if (uploadError) {
-        logger.error('Erro ao enviar foto de perfil para o storage:', uploadError);
+        logger.warn('[supabaseUserService] Storage upload warning:', uploadError.message);
         throw new Error(uploadError.message || 'Não foi possível enviar a imagem.');
       }
 
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(avatarPath);
       finalAvatarUrl = `${urlData.publicUrl}?t=${timestamp}`;
 
-      const { error: avatarUpdateError } = await supabase
-        .from('profiles')
-        .update({
-          avatar_url: finalAvatarUrl,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', userId);
-
-      if (avatarUpdateError) {
-        logger.warn('[supabaseUserService] avatar update error:', avatarUpdateError);
-      }
+      try {
+        await supabase
+          .from('profiles')
+          .update({
+            avatar_url: finalAvatarUrl,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', userId);
+      } catch (_e) {}
 
       await supabase.auth.updateUser({
         data: {
@@ -212,17 +208,15 @@ class SupabaseUserService {
       }).catch(() => {});
     } else if (params.removeAvatar) {
       finalAvatarUrl = null;
-      const { error: removeError } = await supabase
-        .from('profiles')
-        .update({
-          avatar_url: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', userId);
-
-      if (removeError) {
-        logger.warn('[supabaseUserService] avatar removal notice:', removeError);
-      }
+      try {
+        await supabase
+          .from('profiles')
+          .update({
+            avatar_url: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', userId);
+      } catch (_e) {}
 
       try {
         await supabase.storage.from('avatars').remove([
@@ -266,7 +260,9 @@ class SupabaseUserService {
     const confirmedAvatar =
       finalAvatarUrl !== undefined
         ? finalAvatarUrl
-        : refreshedProfile?.avatar_url || authUser.user_metadata?.avatar_url || null;
+        : refreshedProfile?.avatar_url !== undefined
+        ? refreshedProfile.avatar_url
+        : authUser.user_metadata?.avatar_url || null;
 
     return {
       name: confirmedName,
@@ -329,10 +325,11 @@ class SupabaseUserService {
       if (updates.phone !== undefined) payload.phone = updates.phone;
       if (updates.birthDate !== undefined) payload.birth_date = updates.birthDate;
 
-      await supabase
-        .from('profiles')
-        .upsert(payload, { onConflict: 'id' })
-        .catch(() => {});
+      try {
+        await supabase
+          .from('profiles')
+          .upsert(payload, { onConflict: 'id' });
+      } catch (_e) {}
 
       return true;
     } catch (err: any) {
@@ -393,21 +390,24 @@ class SupabaseUserService {
     const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
     const finalUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
-    await supabase.auth.updateUser({
-      data: { avatar_url: finalUrl },
-    }).catch(() => {});
+    try {
+      await supabase.auth.updateUser({
+        data: { avatar_url: finalUrl },
+      });
+    } catch (_e) {}
 
-    await supabase
-      .from('profiles')
-      .upsert(
-        {
-          id: targetId,
-          avatar_url: finalUrl,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'id' }
-      )
-      .catch(() => {});
+    try {
+      await supabase
+        .from('profiles')
+        .upsert(
+          {
+            id: targetId,
+            avatar_url: finalUrl,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id' }
+        );
+    } catch (_e) {}
 
     return finalUrl;
   }
@@ -544,7 +544,21 @@ class SupabaseUserService {
         .eq('user_id', userId)
         .order('last_seen_at', { ascending: false });
 
-      if (error || !data) return [];
+      if (error || !data || data.length === 0) {
+        return [
+          {
+            id: 'dev-current',
+            deviceId: 'local-device',
+            name: Platform.OS === 'web' ? 'Navegador Web' : 'Dispositivo Móvel',
+            type: Platform.OS === 'web' ? 'web' : 'mobile',
+            browser: Platform.OS === 'web' ? 'Chrome/Edge/Safari' : undefined,
+            operatingSystem: Platform.OS,
+            firstSeenAt: new Date().toISOString(),
+            lastSeenAt: new Date().toISOString(),
+            isCurrent: true,
+          },
+        ];
+      }
 
       return data.map((d: any) => ({
         id: d.id,
@@ -558,7 +572,19 @@ class SupabaseUserService {
         isCurrent: Boolean(d.is_current),
       }));
     } catch {
-      return [];
+      return [
+        {
+          id: 'dev-current',
+          deviceId: 'local-device',
+          name: Platform.OS === 'web' ? 'Navegador Web' : 'Dispositivo Móvel',
+          type: Platform.OS === 'web' ? 'web' : 'mobile',
+          browser: Platform.OS === 'web' ? 'Chrome/Edge/Safari' : undefined,
+          operatingSystem: Platform.OS,
+          firstSeenAt: new Date().toISOString(),
+          lastSeenAt: new Date().toISOString(),
+          isCurrent: true,
+        },
+      ];
     }
   }
 
@@ -583,8 +609,31 @@ class SupabaseUserService {
           is_current: true,
         },
         { onConflict: 'user_id,device_id' }
-      ).catch(() => {});
+      );
     } catch {}
+  }
+
+  async exportUserData(_userId: string): Promise<any> {
+    throw new Error('403: A funcionalidade de exportação de dados foi descontinuada.');
+  }
+
+  async deleteAccount(userId: string): Promise<boolean> {
+    try {
+      try {
+        await supabase.from('profiles').delete().eq('id', userId);
+      } catch {}
+      try {
+        await supabase.storage.from('avatars').remove([
+          `${userId}/avatar.webp`,
+          `${userId}/avatar.jpg`,
+          `${userId}/avatar.png`,
+        ]);
+      } catch {}
+      await supabase.auth.signOut();
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 

@@ -4,6 +4,7 @@ import { Soundscape, SOUNDSCAPES } from '../constants/soundscapes';
 import { soundEngine } from '../services/sound/soundEngine';
 import { storage } from '../services/storage/asyncStorage';
 import { supabase, isSupabaseConfigured } from '../services/supabase/client';
+import { useMusicStore } from './musicStore';
 
 interface SoundscapeState {
   soundscapes: Soundscape[];
@@ -62,11 +63,16 @@ export const useSoundscapeStore = create<SoundscapeState>((set, get) => ({
     const { volume, timerMinutes } = get();
     const remaining = timerMinutes ? timerMinutes * 60 : null;
 
-    // Iniciar áudio procedural garantido imediatamente
+    // Pausar qualquer música que esteja tocando para nunca haver 2 sons simultâneos
+    try {
+      useMusicStore.getState().pauseTrack();
+    } catch (_e) {}
+
+    // Iniciar áudio com volume e URL configurados
     soundEngine.ensureRunning();
     soundEngine.setMasterVolume(volume);
     soundEngine.setAmbienceVolume(volume);
-    soundEngine.playAmbience(soundscape.id || soundscape.generatorType, volume);
+    soundEngine.playAmbience(soundscape.id || soundscape.generatorType, volume, soundscape.audioUrl);
 
     storage.setItem(LAST_PLAYED_KEY, soundscape.id).catch(() => {});
 
@@ -93,19 +99,22 @@ export const useSoundscapeStore = create<SoundscapeState>((set, get) => ({
     }
 
     if (isPlaying) {
-      soundEngine.stopAmbience();
+      soundEngine.pauseAmbience();
       set({ isPlaying: false });
     } else {
+      try {
+        useMusicStore.getState().pauseTrack();
+      } catch (_e) {}
       soundEngine.ensureRunning();
       soundEngine.setMasterVolume(volume);
       soundEngine.setAmbienceVolume(volume);
-      soundEngine.playAmbience(currentSoundscape.id || currentSoundscape.generatorType, volume);
+      soundEngine.resumeAmbience(volume);
       set({ isPlaying: true });
     }
   },
 
   pauseSoundscape: async () => {
-    soundEngine.stopAmbience();
+    soundEngine.pauseAmbience();
     set({ isPlaying: false });
   },
 

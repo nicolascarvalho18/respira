@@ -373,6 +373,10 @@ export class UserAccountService {
   /**
    * 6. Complete Data Export (Descontinuado)
    */
+  async exportUserData(_userId: string): Promise<any> {
+    throw new Error('403: A funcionalidade de exportação de dados foi descontinuada.');
+  }
+
   async exportUserDataPackage(_userId: string): Promise<string> {
     throw new Error('403: A funcionalidade de exportação de dados foi descontinuada.');
   }
@@ -380,6 +384,14 @@ export class UserAccountService {
   /**
    * 7. Two-Step Account Deletion
    */
+  async deleteAccount(
+    userId: string,
+    confirmationPhrase = 'EXCLUIR MINHA CONTA',
+    currentPassword?: string
+  ): Promise<{ success: boolean; message: string }> {
+    return await this.requestAccountDeletion(userId, confirmationPhrase, currentPassword);
+  }
+
   async requestAccountDeletion(
     userId: string,
     confirmationPhrase: string,

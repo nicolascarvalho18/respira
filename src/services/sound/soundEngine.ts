@@ -12,6 +12,8 @@ class SoundEngine {
   private ambienceLFO: any = null;
   private ambienceInterval: any = null;
   private currentAmbience: string = 'none';
+  private audioElement: any = null;
+  private isAmbienceStreaming: boolean = false;
 
   // Music state
   private musicGain: any = null;
@@ -26,7 +28,7 @@ class SoundEngine {
   private voiceEnabled: boolean = true;
 
   constructor() {
-    // Lazily initialized on first user interaction to satisfy browser autoplay policies
+    // Inicialização sob demanda para respeitar políticas de autoplay
   }
 
   public initContext(): any {
@@ -77,6 +79,10 @@ class SoundEngine {
       this.stopVoice();
     }
 
+    if (this.audioElement) {
+      this.audioElement.muted = muted;
+    }
+
     if (this.masterGain && this.audioContext) {
       try {
         const now = this.audioContext.currentTime;
@@ -97,6 +103,9 @@ class SoundEngine {
 
   public setMasterVolume(vol: number) {
     this.masterVolume = Math.max(0, Math.min(1, vol));
+    if (this.audioElement) {
+      this.audioElement.volume = this.masterVolume * this.ambienceVolume;
+    }
     if (!this.isMuted && this.masterGain && this.audioContext) {
       try {
         const now = this.audioContext.currentTime;
@@ -112,6 +121,9 @@ class SoundEngine {
 
   public setAmbienceVolume(vol: number) {
     this.ambienceVolume = Math.max(0, Math.min(1, vol));
+    if (this.audioElement) {
+      this.audioElement.volume = this.masterVolume * this.ambienceVolume;
+    }
     if (this.ambienceGain && this.audioContext) {
       try {
         const now = this.audioContext.currentTime;
@@ -246,9 +258,9 @@ class SoundEngine {
     }
   }
 
-  // --- SÍNTESE DE 16 PAISAGENS SONORAS PROCEDURAIS EXCLUSIVAS ---
+  // --- REPRODUÇÃO DE PAISAGENS SONORAS COM DUAL-ENGINE (HTML5 STREAM + SÍNTESE PROCEDURAL) ---
 
-  public playAmbience(soundId: string, volume: number = 0.8) {
+  public playAmbience(soundId: string, volume: number = 0.8, audioUrl?: string) {
     this.stopAmbience();
 
     if (soundId === 'none' || this.isMuted) {
@@ -256,56 +268,142 @@ class SoundEngine {
       return;
     }
 
+    this.currentAmbience = soundId;
+    this.ambienceVolume = volume;
+
+    // 1. Tentar carregar elemento de áudio nativo/HTML5 se estiver no navegador
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && audioUrl) {
+      try {
+        if (!this.audioElement) {
+          this.audioElement = new window.Audio();
+        }
+        this.audioElement.src = audioUrl;
+        this.audioElement.loop = true;
+        this.audioElement.volume = this.masterVolume * this.ambienceVolume;
+        this.audioElement.muted = this.isMuted;
+
+        const playPromise = this.audioElement.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              this.isAmbienceStreaming = true;
+            })
+            .catch((_err: any) => {
+              // Fallback para sintetizador Web Audio se o carregamento falhar ou for bloqueado
+              this.playProceduralAmbience(soundId, volume);
+            });
+          return;
+        }
+      } catch (_e) {
+        // Fallback procedural
+      }
+    }
+
+    // 2. Procedural Web Audio Synthesis garantido
+    this.playProceduralAmbience(soundId, volume);
+  }
+
+  public pauseAmbience() {
+    if (this.audioElement) {
+      try {
+        this.audioElement.pause();
+      } catch (_e) {}
+    }
+    this.stopProceduralAmbience();
+  }
+
+  public resumeAmbience(volume?: number) {
+    const vol = volume !== undefined ? volume : this.ambienceVolume;
+    if (this.audioElement && this.currentAmbience !== 'none') {
+      try {
+        this.audioElement.volume = this.masterVolume * vol;
+        this.audioElement.play().catch(() => {
+          this.playProceduralAmbience(this.currentAmbience, vol);
+        });
+        return;
+      } catch (_e) {}
+    }
+
+    if (this.currentAmbience !== 'none') {
+      this.playProceduralAmbience(this.currentAmbience, vol);
+    }
+  }
+
+  private playProceduralAmbience(soundId: string, volume: number = 0.8) {
     this.ensureRunning();
     if (!this.audioContext || !this.masterGain) return;
 
     try {
-      this.currentAmbience = soundId;
-      this.ambienceVolume = volume;
-
       const sampleRate = this.audioContext.sampleRate || 44100;
-      const bufferSize = sampleRate * 3; // 3 segundos de loop suave
+      const bufferSize = sampleRate * 4; // 4 segundos de loop contínuo
       const buffer = this.audioContext.createBuffer(1, bufferSize, sampleRate);
       const data = buffer.getChannelData(0);
 
       const type = soundId.toLowerCase();
 
-      // Gerador de ruído acústico calibrado por tipo de ambiente
+      // Geradores acústicos dedicados para cada um dos 16 sons
       let b0 = 0, b1 = 0, b2 = 0;
       for (let i = 0; i < bufferSize; i++) {
         const white = Math.random() * 2 - 1;
 
         if (type.includes('brown')) {
-          // Ruído Marrom puro (1/f^2)
+          // 16. Ruído Marrom (1/f^2 - Graves profundos)
           b0 = (b0 + 0.02 * white) / 1.02;
           data[i] = b0 * 3.5;
         } else if (type.includes('pink')) {
-          // Ruído Rosa balanceado (1/f)
+          // 15. Ruído Rosa (1/f - Equilíbrio suave)
           b0 = 0.99886 * b0 + white * 0.0555179;
           b1 = 0.99332 * b1 + white * 0.0750759;
           b2 = 0.96900 * b2 + white * 0.1538520;
           data[i] = (b0 + b1 + b2 + white * 0.5362) * 0.15;
         } else if (type.includes('white')) {
-          // Ruído Branco
+          // 14. Ruído Branco (Uniforme)
           data[i] = white * 0.18;
-        } else if (type.includes('rain') || type.includes('waterfall') || type.includes('stream')) {
-          // Chuva e Água
-          b0 = 0.95 * b0 + white * 0.09;
-          b1 = 0.88 * b1 + white * 0.15;
-          data[i] = (b0 + b1) * 0.45;
-        } else if (type.includes('waves')) {
-          // Ondas
+        } else if (type.includes('rain-window') || type.includes('window')) {
+          // 2. Chuva na janela (Gotículas batendo no vidro)
+          const glassDrop = Math.random() < 0.008 ? (Math.random() - 0.5) * 1.5 : 0;
+          b0 = 0.94 * b0 + white * 0.08;
+          data[i] = b0 * 0.4 + glassDrop;
+        } else if (type.includes('rain-roof') || type.includes('roof')) {
+          // 3. Chuva no telhado (Ressoar contínuo)
+          const roofTap = Math.random() < 0.015 ? (Math.random() - 0.5) * 0.8 : 0;
+          b0 = 0.96 * b0 + white * 0.07;
+          data[i] = b0 * 0.5 + roofTap;
+        } else if (type.includes('thunder') || type.includes('tempestade')) {
+          // 11. Tempestade distante (Chuva forte e trovão)
+          b0 = 0.96 * b0 + white * 0.12;
+          data[i] = b0 * 0.6;
+        } else if (type.includes('waves') || type.includes('mar')) {
+          // 4. Ondas do mar
           b0 = 0.985 * b0 + white * 0.05;
           data[i] = b0 * 1.8;
-        } else if (type.includes('fire')) {
-          // Fogueira com estalos
-          const crackle = Math.random() < 0.003 ? (Math.random() - 0.5) * 2.8 : 0;
+        } else if (type.includes('stream') || type.includes('riacho')) {
+          // 5. Riacho (Água corrente nas pedras)
+          const trickle = Math.random() < 0.02 ? (Math.random() - 0.5) * 0.6 : 0;
+          b0 = 0.93 * b0 + white * 0.09;
+          data[i] = b0 * 0.45 + trickle;
+        } else if (type.includes('waterfall') || type.includes('cachoeira')) {
+          // 6. Cachoeira distante
+          b0 = 0.97 * b0 + white * 0.1;
+          data[i] = b0 * 0.8;
+        } else if (type.includes('fire') || type.includes('fogueira')) {
+          // 9. Fogueira (Madeira com estalos)
+          const crackle = Math.random() < 0.004 ? (Math.random() - 0.5) * 3.2 : 0;
           b0 = 0.97 * b0 + white * 0.06;
-          data[i] = b0 * 0.75 + crackle;
+          data[i] = b0 * 0.7 + crackle;
+        } else if (type.includes('fan') || type.includes('ventilador')) {
+          // 13. Ventilador (Motor contínuo)
+          b0 = 0.98 * b0 + white * 0.05;
+          data[i] = b0 * 0.5;
+        } else if (type.includes('cafe') || type.includes('library') || type.includes('cafeteria')) {
+          // 12. Cafeteria / Biblioteca
+          const clink = Math.random() < 0.002 ? (Math.random() - 0.5) * 1.2 : 0;
+          b0 = 0.95 * b0 + white * 0.05;
+          data[i] = b0 * 0.35 + clink;
         } else {
-          // Vento, Floresta, Ventilador, Biblioteca
+          // 1. Chuva leve / 7. Floresta / 8. Noite / 10. Vento
           b0 = 0.95 * b0 + white * 0.08;
-          data[i] = b0 * 0.55;
+          data[i] = b0 * 0.5;
         }
       }
 
@@ -313,38 +411,44 @@ class SoundEngine {
       noiseNode.buffer = buffer;
       noiseNode.loop = true;
 
-      // Filtro de frequência dedicado
+      // Filtro e equalização dedicados para cada som
       const filter = this.audioContext.createBiquadFilter();
       if (type.includes('rain-window') || type.includes('window')) {
         filter.type = 'bandpass';
-        filter.frequency.value = 1400;
-        filter.Q.value = 1.5;
+        filter.frequency.value = 1450;
+        filter.Q.value = 1.4;
       } else if (type.includes('rain-roof') || type.includes('roof')) {
         filter.type = 'lowpass';
-        filter.frequency.value = 500;
-      } else if (type.includes('rain')) {
+        filter.frequency.value = 460;
+      } else if (type.includes('thunder') || type.includes('tempestade')) {
+        filter.type = 'lowpass';
+        filter.frequency.value = 520;
+      } else if (type.includes('rain') || type.includes('chuva')) {
         filter.type = 'bandpass';
         filter.frequency.value = 950;
         filter.Q.value = 1.0;
-      } else if (type.includes('waves')) {
+      } else if (type.includes('waves') || type.includes('mar')) {
         filter.type = 'lowpass';
         filter.frequency.value = 450;
-      } else if (type.includes('stream')) {
+      } else if (type.includes('stream') || type.includes('riacho')) {
         filter.type = 'bandpass';
-        filter.frequency.value = 1200;
-        filter.Q.value = 0.8;
-      } else if (type.includes('waterfall')) {
+        filter.frequency.value = 1250;
+        filter.Q.value = 0.9;
+      } else if (type.includes('waterfall') || type.includes('cachoeira')) {
         filter.type = 'lowpass';
         filter.frequency.value = 650;
-      } else if (type.includes('fire')) {
+      } else if (type.includes('fire') || type.includes('fogueira')) {
         filter.type = 'lowpass';
         filter.frequency.value = 550;
-      } else if (type.includes('fan')) {
+      } else if (type.includes('fan') || type.includes('ventilador')) {
         filter.type = 'lowpass';
-        filter.frequency.value = 350;
-      } else if (type.includes('library')) {
+        filter.frequency.value = 320;
+      } else if (type.includes('cafe') || type.includes('library') || type.includes('cafeteria')) {
         filter.type = 'lowpass';
-        filter.frequency.value = 400;
+        filter.frequency.value = 420;
+      } else if (type.includes('wind') || type.includes('vento')) {
+        filter.type = 'lowpass';
+        filter.frequency.value = 600;
       } else {
         filter.type = 'lowpass';
         filter.frequency.value = 750;
@@ -361,8 +465,8 @@ class SoundEngine {
       noiseNode.start(now);
       this.ambienceSource = noiseNode;
 
-      // Se for Ondas do Mar: modular maré com LFO
-      if (type.includes('waves')) {
+      // 4. Ondas do Mar: modular maré com oscilador LFO
+      if (type.includes('waves') || type.includes('mar')) {
         const lfo = this.audioContext.createOscillator();
         const lfoGain = this.audioContext.createGain();
         lfo.type = 'sine';
@@ -375,8 +479,8 @@ class SoundEngine {
         this.ambienceLFO = lfo;
       }
 
-      // Se for Floresta ou Pássaros: adicionar cantos de pássaros sutis periódicos
-      if (type.includes('forest') || type.includes('bird')) {
+      // 7. Floresta: cantos periódicos de pássaros
+      if (type.includes('forest-dawn') || (type.includes('floresta') && !type.includes('night') && !type.includes('noite'))) {
         this.ambienceInterval = setInterval(() => {
           if (!this.ambienceGain || !this.audioContext) return;
           try {
@@ -399,14 +503,61 @@ class SoundEngine {
             osc.start(t);
             osc.stop(t + 0.3);
           } catch (_e) {}
-        }, 3200);
+        }, 3400);
+      }
+
+      // 8. Noite na Floresta: osciladores harmônicos de grilos
+      if (type.includes('forest-night') || type.includes('noite')) {
+        this.ambienceInterval = setInterval(() => {
+          if (!this.ambienceGain || !this.audioContext) return;
+          try {
+            const t = this.audioContext.currentTime;
+            const osc = this.audioContext.createOscillator();
+            const g = this.audioContext.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(4600, t);
+
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.linearRampToValueAtTime(0.04, t + 0.04);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+
+            osc.connect(g);
+            g.connect(this.ambienceGain);
+            osc.start(t);
+            osc.stop(t + 0.2);
+          } catch (_e) {}
+        }, 800);
+      }
+
+      // 11. Tempestade distante: trovão abafado e suave a cada intervalo
+      if (type.includes('thunder') || type.includes('tempestade')) {
+        this.ambienceInterval = setInterval(() => {
+          if (!this.ambienceGain || !this.audioContext) return;
+          try {
+            const t = this.audioContext.currentTime;
+            const osc = this.audioContext.createOscillator();
+            const g = this.audioContext.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(65, t);
+            osc.frequency.exponentialRampToValueAtTime(35, t + 2.5);
+
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.linearRampToValueAtTime(0.12, t + 0.4);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + 3.0);
+
+            osc.connect(g);
+            g.connect(this.ambienceGain);
+            osc.start(t);
+            osc.stop(t + 3.2);
+          } catch (_e) {}
+        }, 12000);
       }
     } catch (e) {
-      console.warn('[SoundEngine] Play ambience warning:', e);
+      console.warn('[SoundEngine] Play procedural ambience warning:', e);
     }
   }
 
-  public stopAmbience() {
+  private stopProceduralAmbience() {
     if (this.ambienceInterval) {
       clearInterval(this.ambienceInterval);
       this.ambienceInterval = null;
@@ -425,10 +576,21 @@ class SoundEngine {
         this.ambienceSource = null;
       } catch (_e) {}
     }
+  }
+
+  public stopAmbience() {
+    this.stopProceduralAmbience();
+    if (this.audioElement) {
+      try {
+        this.audioElement.pause();
+        this.audioElement.currentTime = 0;
+      } catch (_e) {}
+    }
+    this.isAmbienceStreaming = false;
     this.currentAmbience = 'none';
   }
 
-  // --- SÍNTESE DE 12 COMPOSIÇÕES MUSICAIS INSTRUMENTAIS TRANQUILAS ---
+  // --- SÍNTESE DE COMPOSIÇÕES MUSICAIS INSTRUMENTAIS TRANQUILAS ---
 
   public playMusic(trackId: string, volume: number = 0.8) {
     this.stopMusic();
@@ -469,7 +631,6 @@ class SoundEngine {
         try {
           const t = this.audioContext.currentTime;
 
-          // Nota 1
           const osc1 = this.audioContext.createOscillator();
           const osc1H = this.audioContext.createOscillator();
           const g1 = this.audioContext.createGain();
@@ -493,7 +654,6 @@ class SoundEngine {
           osc1.stop(t + 3.3);
           osc1H.stop(t + 3.3);
 
-          // Nota 2 (harmonia suave)
           const osc2 = this.audioContext.createOscillator();
           const g2 = this.audioContext.createGain();
 
@@ -512,10 +672,8 @@ class SoundEngine {
         } catch (_e) {}
       };
 
-      // Tocar primeiro acorde imediatamente
       playPianoChord(notes[0], notes[2]);
 
-      // Tocar progressão melódica suave a cada 2.2 segundos
       this.musicInterval = setInterval(() => {
         if (!this.isMusicPlaying) return;
         const n1 = notes[noteStep % notes.length];

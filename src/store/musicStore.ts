@@ -59,6 +59,11 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   playTrack: (track: MusicTrack) => {
     const { volume } = get();
 
+    // Pausar qualquer som ambiente ativo para evitar reprodução simultânea
+    try {
+      soundEngine.stopAmbience();
+    } catch (_e) {}
+
     // Iniciar áudio procedural garantido imediatamente
     soundEngine.ensureRunning();
     soundEngine.setMasterVolume(volume);

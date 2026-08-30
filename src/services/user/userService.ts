@@ -39,15 +39,25 @@ class UserService {
       }
     }
 
-    const currentUser = await storage.getItem<User>(CURRENT_USER_KEY);
-    const userId = currentUser?.id || 'current-user';
+    let userId = 'current-user';
+    if (isSupabaseConfigured) {
+      try {
+        const { data: { user } } = await supabaseUserService.getProfile().then(p => ({ data: { user: p } })).catch(() => ({ data: { user: null } }));
+        if (user?.id) userId = user.id;
+      } catch (_e) {}
+    }
+
+    if (userId === 'current-user') {
+      const currentUser = await storage.getItem<User>(CURRENT_USER_KEY);
+      if (currentUser?.id) userId = currentUser.id;
+    }
 
     const targetAvatar =
       params.removeAvatar
         ? null
         : result.avatarUrl !== undefined
         ? result.avatarUrl
-        : currentUser?.avatarUrl || null;
+        : null;
 
     const updatedUser = await userAccountService.updateProfileDetails(userId, {
       name: result.name,
@@ -164,11 +174,22 @@ class UserService {
   }
 
   async exportUserData(userId: string) {
+    if (isSupabaseConfigured) {
+      return await supabaseUserService.exportUserData(userId);
+    }
     return await userAccountService.exportUserData(userId);
   }
 
-  async deleteAccount(userId: string): Promise<boolean> {
-    return await userAccountService.deleteAccount(userId);
+  async deleteAccount(
+    userId: string,
+    confirmationPhrase = 'EXCLUIR MINHA CONTA',
+    password?: string
+  ): Promise<boolean> {
+    if (isSupabaseConfigured) {
+      return await supabaseUserService.deleteAccount(userId);
+    }
+    const result = await userAccountService.deleteAccount(userId, confirmationPhrase, password);
+    return result.success;
   }
 }
 

@@ -214,23 +214,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
 
         if (Object.keys(metadataUpdate).length > 0) {
-          await supabase.auth.updateUser({ data: metadataUpdate }).catch(() => {});
+          try {
+            await supabase.auth.updateUser({ data: metadataUpdate });
+          } catch (_e) {}
         }
 
-        await supabase
-          .from('profiles')
-          .upsert(
-            {
-              id: current.id,
-              full_name: partial.name !== undefined ? partial.name : current.name,
-              display_name: partial.name !== undefined ? partial.name : current.name,
-              bio: partial.bio !== undefined ? partial.bio : current.bio,
-              avatar_url: partial.avatarUrl !== undefined ? partial.avatarUrl : current.avatarUrl,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'id' }
-          )
-          .catch(() => {});
+        try {
+          await supabase
+            .from('profiles')
+            .upsert(
+              {
+                id: current.id,
+                full_name: partial.name !== undefined ? partial.name : current.name,
+                display_name: partial.name !== undefined ? partial.name : current.name,
+                bio: partial.bio !== undefined ? partial.bio : current.bio,
+                avatar_url: partial.avatarUrl !== undefined ? partial.avatarUrl : current.avatarUrl,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: 'id' }
+            );
+        } catch (_e) {}
       } catch (_e) {
         // Ignorado
       }
