@@ -34,7 +34,7 @@ class MoodService {
             .order('created_at', { ascending: false });
 
           if (error) {
-            console.error('[Supabase mood_entries SELECT Error]:', error);
+            logger.warn('[Supabase mood_entries SELECT Warning]:', error.message);
           } else if (dbMoods) {
             const mappedRecords: MoodRecord[] = dbMoods.map((m) => ({
               id: m.id,
@@ -53,8 +53,8 @@ class MoodService {
             return mappedRecords;
           }
         }
-      } catch (err) {
-        console.error('[Supabase fetchMoods Error]:', err);
+      } catch (err: any) {
+        logger.warn('[Supabase fetchMoods Warning]:', err?.message);
       }
     }
 
@@ -148,16 +148,14 @@ class MoodService {
             console.error('[Supabase mood_entries INSERT Error]:', error);
             throw new Error(`Erro ao salvar no banco de dados: ${error.message}`);
           }
+          logger.warn('[Supabase mood_entries INSERT Warning]:', error.message);
         } else if (data) {
           newRecord.id = data.id;
           newRecord.createdAt = data.created_at;
           newRecord.userId = data.user_id;
         }
       } catch (err: any) {
-        if (!err.message?.includes('schema cache') && !err.message?.includes('not find') && !err.message?.includes('relation')) {
-          console.error('[Supabase createRecord Error]:', err);
-          throw err;
-        }
+        logger.warn('[Supabase createRecord Warning]:', err?.message);
       }
     }
 
@@ -169,8 +167,10 @@ class MoodService {
     if (targetUserId) {
       const storageKey = this.getStorageKey(targetUserId);
       const existing = (await storage.getItem<MoodRecord[]>(storageKey)) || [];
-      const updated = [newRecord, ...existing.filter((r) => r.id !== newRecord.id)];
-      await storage.setItem(storageKey, updated);
+      await storage.setItem(storageKey, [
+        newRecord,
+        ...existing.filter((r) => r.id !== newRecord.id),
+      ]);
     }
 
     // Atualizar no storage global para compatibilidade de testes
@@ -203,10 +203,10 @@ class MoodService {
 
         const { error } = await supabase.from('mood_entries').update(payload).eq('id', id);
         if (error) {
-          console.error('[Supabase mood_entries UPDATE Error]:', error);
+          logger.warn('[Supabase mood_entries UPDATE Warning]:', error.message);
         }
-      } catch (err) {
-        console.error('[Supabase updateRecord Error]:', err);
+      } catch (err: any) {
+        logger.warn('[Supabase updateRecord Warning]:', err?.message);
       }
     }
 
@@ -257,10 +257,10 @@ class MoodService {
       try {
         const { error } = await supabase.from('mood_entries').delete().eq('id', id);
         if (error) {
-          console.error('[Supabase mood_entries DELETE Error]:', error);
+          logger.warn('[Supabase mood_entries DELETE Warning]:', error.message);
         }
-      } catch (err) {
-        console.error('[Supabase deleteRecord Error]:', err);
+      } catch (err: any) {
+        logger.warn('[Supabase deleteRecord Warning]:', err?.message);
       }
     }
 

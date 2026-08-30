@@ -146,7 +146,11 @@ export default function ProfileScreen() {
         avatarFile: file || null,
         removeAvatar: isRemoving,
       });
-      await updateUser({ avatarUrl: updatedUser.avatarUrl });
+      await updateUser({
+        name: updatedUser.name,
+        bio: updatedUser.bio,
+        avatarUrl: updatedUser.avatarUrl,
+      });
       showToast({ message: updatedUser.avatarUrl ? 'Foto salva com sucesso' : 'Foto removida', type: 'success' });
     } catch (err: any) {
       console.error('Erro ao salvar perfil:', {
