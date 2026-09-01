@@ -165,7 +165,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       setAvatarPreviewUrl(updatedUser.avatarUrl || null);
       setSelectedAvatarFile(null);
 
-      showToast({ message: 'Perfil salvo com sucesso', type: 'success' });
+      showToast({ message: 'Perfil atualizado com sucesso.', type: 'success' });
       onClose();
     } catch (err: any) {
       console.error('Erro ao salvar perfil:', {
@@ -174,7 +174,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
         details: err?.details,
         hint: err?.hint,
       });
-      const specificMessage = err?.message || 'Não foi possível atualizar os seus dados.';
+      const specificMessage = 'Não foi possível atualizar seu perfil. Tente novamente.';
       setAvatarError(specificMessage);
       showToast({ message: specificMessage, type: 'error' });
     } finally {

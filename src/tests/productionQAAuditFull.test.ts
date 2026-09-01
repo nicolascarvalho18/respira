@@ -33,7 +33,7 @@ describe('Auditoria Completa de Qualidade (Testes & QA) — Pontos Críticos e B
         expect(s.icon).toBeDefined();
       });
 
-      expect(MUSIC_TRACKS.length).toBe(12);
+      expect(MUSIC_TRACKS.length).toBe(24);
       MUSIC_TRACKS.forEach((m) => {
         expect(m.id).toBeDefined();
         expect(m.title).toBeDefined();

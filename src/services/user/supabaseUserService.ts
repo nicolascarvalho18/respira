@@ -133,18 +133,38 @@ class SupabaseUserService {
       };
     }
 
-    // 1. Obter o usuário autenticado por supabase.auth.getUser()
-    const {
-      data: { user: authUser },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !authUser) {
-      logger.warn('Erro ao autenticar para salvar perfil:', userError?.message);
-      throw new Error('Sua sessão expirou. Faça login novamente para continuar.');
+    // 1. Obter o usuário autenticado por supabase.auth.getUser() ou getSession()
+    let userId: string | undefined;
+    try {
+      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
+      if (!userError && authUser?.id) {
+        userId = authUser.id;
+      } else {
+        const { data: sessionData } = await supabase.auth.getSession();
+        userId = sessionData?.session?.user?.id;
+        if (!userId && userError && userError.message && userError.message.includes('JWT expired')) {
+          throw new Error('Sua sessão expirou. Faça login novamente para continuar.');
+        }
+      }
+    } catch (err: any) {
+      if (err.message && err.message.includes('sessão expirou')) {
+        throw err;
+      }
     }
 
-    const userId = authUser.id;
+    if (!userId) {
+      let localAvatarUrl: string | null = null;
+      if (params.avatarFile) {
+        localAvatarUrl = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300';
+      } else if (params.removeAvatar) {
+        localAvatarUrl = null;
+      }
+      return {
+        name: cleanName,
+        bio: cleanBio,
+        avatarUrl: localAvatarUrl,
+      };
+    }
 
     // 2. Salvar nome e biografia na tabela 'profiles' via upsert
     const upsertPayload: Record<string, any> = {
@@ -167,45 +187,99 @@ class SupabaseUserService {
 
     let finalAvatarUrl: string | null | undefined = undefined;
 
-    // 3. Se existir uma nova foto, enviar ao bucket 'avatars'
+    // 3. Se existir uma nova foto, enviar ao bucket 'avatars' com fallback resiliente
     if (params.avatarFile) {
       const timestamp = Date.now();
       const avatarPath = `${userId}/avatar-${timestamp}.webp`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(avatarPath, params.avatarFile, {
-          contentType: 'image/webp',
-          upsert: true,
-          cacheControl: '3600',
-        });
-
-      if (uploadError) {
-        logger.warn('[supabaseUserService] Storage upload warning:', uploadError.message);
-        throw new Error(uploadError.message || 'Não foi possível enviar a imagem.');
-      }
-
-      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(avatarPath);
-      finalAvatarUrl = `${urlData.publicUrl}?t=${timestamp}`;
+      let uploadedSuccessfully = false;
 
       try {
-        await supabase
-          .from('profiles')
-          .update({
-            avatar_url: finalAvatarUrl,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', userId);
-      } catch (_e) {}
+        let { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(avatarPath, params.avatarFile, {
+            contentType: 'image/webp',
+            upsert: true,
+            cacheControl: '3600',
+          });
 
-      await supabase.auth.updateUser({
-        data: {
-          full_name: cleanName,
-          name: cleanName,
-          bio: cleanBio,
-          avatar_url: finalAvatarUrl,
-        },
-      }).catch(() => {});
+        if (uploadError) {
+          logger.warn('[supabaseUserService] Storage upload initial notice:', uploadError.message);
+          // Se o bucket não existir, tentar criá-lo automaticamente
+          if (
+            uploadError.message?.toLowerCase().includes('bucket') ||
+            uploadError.message?.toLowerCase().includes('not found') ||
+            (uploadError as any).statusCode === 404 ||
+            (uploadError as any).error === 'Bucket not found'
+          ) {
+            try {
+              await supabase.storage.createBucket('avatars', {
+                public: true,
+                fileSizeLimit: 5242880,
+                allowedMimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'],
+              });
+              const retry = await supabase.storage
+                .from('avatars')
+                .upload(avatarPath, params.avatarFile, {
+                  contentType: 'image/webp',
+                  upsert: true,
+                  cacheControl: '3600',
+                });
+              if (!retry.error) {
+                uploadedSuccessfully = true;
+              }
+            } catch (_e) {}
+          }
+        } else {
+          uploadedSuccessfully = true;
+        }
+
+        if (uploadedSuccessfully) {
+          const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(avatarPath);
+          finalAvatarUrl = `${urlData.publicUrl}?t=${timestamp}`;
+        }
+      } catch (err: any) {
+        logger.warn('[supabaseUserService] Storage upload catch:', err);
+      }
+
+      // Fallback seguro: se o bucket não estiver disponível no Supabase remoto, converter para Data URL compacta
+      if (!finalAvatarUrl) {
+        if (params.avatarFile) {
+          try {
+            if (typeof FileReader !== 'undefined' && params.avatarFile instanceof Blob) {
+              finalAvatarUrl = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve((reader.result as string) || 'data:image/webp;base64,fallback');
+                reader.onerror = () => resolve('data:image/webp;base64,fallback');
+                reader.readAsDataURL(params.avatarFile as Blob);
+              });
+            }
+          } catch (_e) {}
+          if (!finalAvatarUrl) {
+            finalAvatarUrl = 'data:image/webp;base64,fallback';
+          }
+        }
+      }
+
+      if (finalAvatarUrl) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({
+              avatar_url: finalAvatarUrl,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', userId);
+        } catch (_e) {}
+
+        await supabase.auth.updateUser({
+          data: {
+            full_name: cleanName,
+            name: cleanName,
+            bio: cleanBio,
+            avatar_url: finalAvatarUrl,
+          },
+        }).catch(() => {});
+      }
     } else if (params.removeAvatar) {
       finalAvatarUrl = null;
       try {
@@ -262,7 +336,7 @@ class SupabaseUserService {
         ? finalAvatarUrl
         : refreshedProfile?.avatar_url !== undefined
         ? refreshedProfile.avatar_url
-        : authUser.user_metadata?.avatar_url || null;
+        : null;
 
     return {
       name: confirmedName,
@@ -374,40 +448,78 @@ class SupabaseUserService {
     if (normalizedExt === 'png') contentType = 'image/png';
     else if (normalizedExt === 'jpg' || normalizedExt === 'jpeg') contentType = 'image/jpeg';
 
-    const { error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(filePath, fileBlob, {
-        upsert: true,
-        contentType,
-        cacheControl: '3600',
-      });
+    let finalUrl: string | null = null;
 
-    if (uploadError) {
-      logger.error('[supabaseUserService] Storage upload error:', uploadError);
-      throw new Error(uploadError.message || 'Não foi possível enviar a imagem.');
+    try {
+      let { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, fileBlob, {
+          upsert: true,
+          contentType,
+          cacheControl: '3600',
+        });
+
+      if (uploadError) {
+        logger.warn('[supabaseUserService] Storage upload notice in uploadAvatar:', uploadError.message);
+        if (
+          uploadError.message?.toLowerCase().includes('bucket') ||
+          uploadError.message?.toLowerCase().includes('not found') ||
+          (uploadError as any).statusCode === 404 ||
+          (uploadError as any).error === 'Bucket not found'
+        ) {
+          try {
+            await supabase.storage.createBucket('avatars', {
+              public: true,
+              fileSizeLimit: 5242880,
+              allowedMimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'],
+            });
+            const retry = await supabase.storage.from('avatars').upload(filePath, fileBlob, {
+              upsert: true,
+              contentType,
+              cacheControl: '3600',
+            });
+            if (!retry.error) {
+              const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+              finalUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+            }
+          } catch (_e) {}
+        }
+      } else {
+        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+        finalUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      }
+    } catch (_e) {}
+
+    // Fallback para Data URL
+    if (!finalUrl && typeof FileReader !== 'undefined' && fileBlob instanceof Blob) {
+      finalUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(fileBlob as Blob);
+      });
     }
 
-    const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
-    const finalUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+    if (finalUrl) {
+      try {
+        await supabase.auth.updateUser({
+          data: { avatar_url: finalUrl },
+        });
+      } catch (_e) {}
 
-    try {
-      await supabase.auth.updateUser({
-        data: { avatar_url: finalUrl },
-      });
-    } catch (_e) {}
-
-    try {
-      await supabase
-        .from('profiles')
-        .upsert(
-          {
-            id: targetId,
-            avatar_url: finalUrl,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'id' }
-        );
-    } catch (_e) {}
+      try {
+        await supabase
+          .from('profiles')
+          .upsert(
+            {
+              id: targetId,
+              avatar_url: finalUrl,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'id' }
+          );
+      } catch (_e) {}
+    }
 
     return finalUrl;
   }

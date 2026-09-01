@@ -95,7 +95,7 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error('[AvatarPickerModal Error]:', err);
-      setErrorMessage(err.message || 'Não foi possível salvar a foto. Verifique sua conexão e tente novamente.');
+      setErrorMessage('Não foi possível atualizar seu perfil. Tente novamente.');
     } finally {
       setIsSaving(false);
     }

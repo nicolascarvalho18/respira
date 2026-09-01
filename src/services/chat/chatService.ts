@@ -18,46 +18,60 @@ export interface ConversationItem {
 }
 
 class ChatService {
+  private async getEffectiveUserId(userId?: string): Promise<string | undefined> {
+    if (userId) return userId;
+    if (isSupabaseConfigured) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) return user.id;
+      } catch (_e) {}
+    }
+    return undefined;
+  }
+
+  private getStorageKey(userId?: string): string {
+    return userId ? `${CHAT_STORAGE_KEY}_${userId}` : CHAT_STORAGE_KEY;
+  }
+
   /**
    * Obtém as mensagens da conversa atual.
    */
-  async getMessages(conversationId?: string): Promise<ChatMessage[]> {
+  async getMessages(conversationId?: string, userId?: string): Promise<ChatMessage[]> {
     const isTemporary = await this.isTemporaryMode();
     if (isTemporary) {
       return INITIAL_CHAT_MESSAGES;
     }
 
+    const effectiveUserId = await this.getEffectiveUserId(userId);
+
     // 1. Tentar buscar do Supabase se houver conversa e banco configurado
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && effectiveUserId) {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          let targetConvId = conversationId;
-          if (!targetConvId) {
-            targetConvId = (await storage.getItem<string>(ACTIVE_CONVERSATION_KEY)) || undefined;
-          }
+        let targetConvId = conversationId;
+        if (!targetConvId) {
+          targetConvId = (await storage.getItem<string>(`${ACTIVE_CONVERSATION_KEY}_${effectiveUserId}`)) || undefined;
+        }
 
-          if (targetConvId) {
-            const { data: dbMessages, error } = await supabase
-              .from('messages')
-              .select('*')
-              .eq('conversation_id', targetConvId)
-              .order('created_at', { ascending: true });
+        if (targetConvId) {
+          const { data: dbMessages, error } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('conversation_id', targetConvId)
+            .order('created_at', { ascending: true });
 
-            if (!error && dbMessages && dbMessages.length > 0) {
-              return dbMessages.map((m: any) => ({
-                id: m.id,
-                sessionId: m.conversation_id,
-                sender: m.role === 'assistant' ? 'assistant' : m.role === 'system' ? 'system' : 'user',
-                text: m.content,
-                timestamp: m.created_at,
-                actionText: m.action_text,
-                actionType: m.action_type,
-                actionPayload: m.action_payload,
-                isEmergencyAlert: m.is_emergency_alert,
-                feedback: m.feedback,
-              }));
-            }
+          if (!error && dbMessages && dbMessages.length > 0) {
+            return dbMessages.map((m: any) => ({
+              id: m.id,
+              sessionId: m.conversation_id,
+              sender: m.role === 'assistant' ? 'assistant' : m.role === 'system' ? 'system' : 'user',
+              text: m.content,
+              timestamp: m.created_at,
+              actionText: m.action_text,
+              actionType: m.action_type,
+              actionPayload: m.action_payload,
+              isEmergencyAlert: m.is_emergency_alert,
+              feedback: m.feedback,
+            }));
           }
         }
       } catch (_e) {
@@ -65,7 +79,8 @@ class ChatService {
       }
     }
 
-    const stored = await storage.getItem<ChatMessage[]>(CHAT_STORAGE_KEY);
+    const key = this.getStorageKey(effectiveUserId);
+    const stored = await storage.getItem<ChatMessage[]>(key);
     if (!stored || stored.length === 0) {
       return INITIAL_CHAT_MESSAGES;
     }
@@ -75,30 +90,31 @@ class ChatService {
   /**
    * Salva histórico de mensagens localmente e no Supabase.
    */
-  async saveMessages(messages: ChatMessage[], conversationId?: string): Promise<void> {
+  async saveMessages(messages: ChatMessage[], conversationId?: string, userId?: string): Promise<void> {
     const isTemporary = await this.isTemporaryMode();
     if (!isTemporary) {
-      await storage.setItem(CHAT_STORAGE_KEY, messages);
+      const effectiveUserId = await this.getEffectiveUserId(userId);
+      const key = this.getStorageKey(effectiveUserId);
+      await storage.setItem(key, messages);
     }
   }
 
   /**
    * Limpa todo o histórico da conversa atual.
    */
-  async clearHistory(conversationId?: string): Promise<void> {
-    await storage.setItem(CHAT_STORAGE_KEY, INITIAL_CHAT_MESSAGES);
+  async clearHistory(conversationId?: string, userId?: string): Promise<void> {
+    const effectiveUserId = await this.getEffectiveUserId(userId);
+    const key = this.getStorageKey(effectiveUserId);
+    await storage.setItem(key, INITIAL_CHAT_MESSAGES);
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && effectiveUserId) {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          let targetConvId = conversationId;
-          if (!targetConvId) {
-            targetConvId = (await storage.getItem<string>(ACTIVE_CONVERSATION_KEY)) || undefined;
-          }
-          if (targetConvId) {
-            await supabase.from('messages').delete().eq('conversation_id', targetConvId);
-          }
+        let targetConvId = conversationId;
+        if (!targetConvId) {
+          targetConvId = (await storage.getItem<string>(`${ACTIVE_CONVERSATION_KEY}_${effectiveUserId}`)) || undefined;
+        }
+        if (targetConvId) {
+          await supabase.from('messages').delete().eq('conversation_id', targetConvId);
         }
       } catch (_e) {
         // Ignora erro

@@ -20,7 +20,7 @@ export default function TabLayout() {
     }
   }, [isLoading, isAuthenticated, user, router]);
 
-  if (isLoading || !isAuthenticated || !user) {
+  if (!user && isLoading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }]}>
         <LoadingState message="Acessando seu espaço..." />

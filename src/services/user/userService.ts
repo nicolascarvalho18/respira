@@ -191,6 +191,10 @@ class UserService {
     const result = await userAccountService.deleteAccount(userId, confirmationPhrase, password);
     return result.success;
   }
+
+  async getUserById(userId: string): Promise<User | null> {
+    return await userAccountService.getUserById(userId);
+  }
 }
 
 export const userService = new UserService();

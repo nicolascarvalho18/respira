@@ -24,13 +24,13 @@ interface ContentState {
   error: string | null;
 
   // Actions
-  fetchArticles: () => Promise<void>;
+  fetchArticles: (userId?: string) => Promise<void>;
   setSelectedCategory: (categoryId: string) => void;
   setSearchQuery: (query: string) => void;
   setSelectedFilter: (filter: ArticleFilterOption) => void;
   clearFilters: () => void;
   loadMoreArticles: () => void;
-  toggleFavorite: (articleId: string) => Promise<boolean>;
+  toggleFavorite: (articleId: string, userId?: string) => Promise<{ isFavorite: boolean; message: string }>;
   updateProgress: (articleId: string, progress: number) => Promise<void>;
   getFilteredArticles: () => Article[];
   getVisibleArticles: () => Article[];
@@ -46,11 +46,11 @@ export const useContentStore = create<ContentState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  fetchArticles: async () => {
+  fetchArticles: async (userId?: string) => {
     try {
       set({ isLoading: true, error: null });
       const [articles, categories] = await Promise.all([
-        contentService.getArticles(),
+        contentService.getArticles(userId),
         contentService.getCategories(),
       ]);
       set({ articles, categories, isLoading: false });
@@ -82,13 +82,33 @@ export const useContentStore = create<ContentState>((set, get) => ({
     set({ pageLimit: nextLimit });
   },
 
-  toggleFavorite: async (articleId) => {
-    const isFav = await contentService.toggleFavorite(articleId);
-    const updated = get().articles.map((a) =>
-      a.id === articleId ? { ...a, isFavorite: isFav } : a
-    );
-    set({ articles: updated });
-    return isFav;
+  toggleFavorite: async (articleId, userId) => {
+    const prevArticles = get().articles;
+    const currentArticle = prevArticles.find((a) => a.id === articleId);
+    const optimisticIsFavorite = !(currentArticle?.isFavorite ?? false);
+
+    // 1. Atualização otimista imediata na interface
+    set({
+      articles: prevArticles.map((a) =>
+        a.id === articleId ? { ...a, isFavorite: optimisticIsFavorite } : a
+      ),
+    });
+
+    try {
+      // 2. Persistência real no banco
+      const result = await contentService.toggleFavorite(articleId, userId);
+      // 3. Confirmação com o estado confirmado pelo banco
+      set({
+        articles: get().articles.map((a) =>
+          a.id === articleId ? { ...a, isFavorite: result.isFavorite } : a
+        ),
+      });
+      return result;
+    } catch (error) {
+      // 4. Rollback para o estado anterior em caso de erro
+      set({ articles: prevArticles });
+      throw error;
+    }
   },
 
   updateProgress: async (articleId, progress) => {

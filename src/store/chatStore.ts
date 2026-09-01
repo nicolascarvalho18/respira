@@ -11,11 +11,12 @@ interface ChatState {
   currentAbortController: AbortController | null;
 
   // Actions
-  fetchMessages: () => Promise<void>;
-  sendMessage: (text: string) => Promise<void>;
+  fetchMessages: (userId?: string) => Promise<void>;
+  sendMessage: (text: string, userId?: string) => Promise<void>;
   regenerateResponse: () => Promise<void>;
   stopGeneration: () => void;
-  clearHistory: () => Promise<void>;
+  clearHistory: (userId?: string) => Promise<void>;
+  resetChat: () => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -26,10 +27,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   error: null,
   currentAbortController: null,
 
-  fetchMessages: async () => {
+  fetchMessages: async (userId?: string) => {
     try {
       set({ isLoading: true, error: null });
-      const messages = await chatService.getMessages();
+      const messages = await chatService.getMessages(undefined, userId);
       set({ messages, isLoading: false });
     } catch (err: any) {
       set({ isLoading: false, error: err.message || 'Erro ao carregar mensagens' });
@@ -160,13 +161,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
   },
 
-  clearHistory: async () => {
+  clearHistory: async (userId?: string) => {
     try {
-      await chatService.clearHistory();
-      const initial = await chatService.getMessages();
+      await chatService.clearHistory(undefined, userId);
+      const initial = await chatService.getMessages(undefined, userId);
       set({ messages: initial, error: null });
     } catch (err: any) {
       set({ error: err.message || 'Erro ao limpar histórico' });
     }
+  },
+
+  resetChat: () => {
+    const controller = get().currentAbortController;
+    if (controller) {
+      controller.abort();
+    }
+    set({
+      messages: [],
+      isTyping: false,
+      isStreaming: false,
+      isLoading: false,
+      error: null,
+      currentAbortController: null,
+    });
   },
 }));

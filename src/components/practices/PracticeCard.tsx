@@ -18,7 +18,7 @@ export interface PracticeCardProps {
   progress?: UserPracticeProgress;
   variant?: 'horizontal' | 'vertical' | 'list';
   onPress: () => void;
-  onToggleFavorite: (id: string) => void;
+  onToggleFavorite: (id: string) => Promise<any> | void;
   style?: ViewStyle;
 }
 

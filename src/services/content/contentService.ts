@@ -3,14 +3,26 @@ import { MOCK_ARTICLES, ARTICLE_CATEGORIES } from '../../mocks/contents.mock';
 import { storage } from '../storage/asyncStorage';
 import { apiClient, isMockMode } from '../api/apiClient';
 import { supabase, isSupabaseConfigured } from '../supabase/client';
+import { favoriteService } from '../favorite/favoriteService';
 import { logger } from '../../utils/logger';
 
 const ARTICLES_STORAGE_KEY = 'respira_articles';
-const FAVORITES_STORAGE_KEY = 'respira_favorite_articles';
 const PROGRESS_STORAGE_KEY = 'respira_articles_progress';
 
 class ContentService {
-  async getArticles(): Promise<Article[]> {
+  async getArticles(userId?: string): Promise<Article[]> {
+    let effectiveUserId = userId;
+    if (!effectiveUserId && isSupabaseConfigured) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        effectiveUserId = user?.id;
+      } catch (_e) {}
+    }
+
+    const favorites = effectiveUserId
+      ? await favoriteService.getFavorites(effectiveUserId, 'article')
+      : [];
+
     if (isSupabaseConfigured) {
       try {
         const { data: dbArticles, error } = await supabase
@@ -19,19 +31,17 @@ class ContentService {
           .order('id', { ascending: true });
 
         if (!error && dbArticles && dbArticles.length > 0) {
-          const { data: { user } } = await supabase.auth.getUser();
-          const progressMap: Record<string, { isFavorite: boolean; progress: number }> = {};
+          const progressMap: Record<string, { progress: number }> = {};
 
-          if (user) {
+          if (effectiveUserId) {
             const { data: userProgress } = await supabase
               .from('article_progress')
-              .select('article_id, is_favorite, progress')
-              .eq('user_id', user.id);
+              .select('article_id, progress')
+              .eq('user_id', effectiveUserId);
 
             if (userProgress) {
               userProgress.forEach((p) => {
                 progressMap[p.article_id] = {
-                  isFavorite: Boolean(p.is_favorite),
                   progress: p.progress || 0,
                 };
               });
@@ -56,7 +66,7 @@ class ContentService {
             publishedAt: a.published_at,
             updatedAt: a.updated_at,
             status: a.status || 'published',
-            isFavorite: progressMap[a.id]?.isFavorite ?? false,
+            isFavorite: favorites.includes(a.id),
             readProgress: progressMap[a.id]?.progress ?? 0,
           }));
         }
@@ -75,23 +85,24 @@ class ContentService {
       await storage.setItem(ARTICLES_STORAGE_KEY, articles);
     }
 
-    const favorites = (await storage.getItem<string[]>(FAVORITES_STORAGE_KEY)) || [];
-    const progressMap = (await storage.getItem<Record<string, number>>(PROGRESS_STORAGE_KEY)) || {};
+    const userSuffix = effectiveUserId ? `_${effectiveUserId}` : '';
+    const progressKey = `${PROGRESS_STORAGE_KEY}${userSuffix}`;
+    const progressMap = (await storage.getItem<Record<string, number>>(progressKey)) || {};
 
     return articles.map((a) => ({
       ...a,
       isFavorite: favorites.includes(a.id),
-      readProgress: progressMap[a.id] ?? a.readProgress ?? 0,
+      readProgress: progressMap[a.id] ?? 0,
     }));
   }
 
-  async getArticleById(id: string): Promise<Article | null> {
-    const articles = await this.getArticles();
+  async getArticleById(id: string, userId?: string): Promise<Article | null> {
+    const articles = await this.getArticles(userId);
     return articles.find((a) => a.id === id || a.slug === id) || null;
   }
 
-  async getArticleBySlug(slug: string): Promise<Article | null> {
-    const articles = await this.getArticles();
+  async getArticleBySlug(slug: string, userId?: string): Promise<Article | null> {
+    const articles = await this.getArticles(userId);
     return articles.find((a) => a.slug === slug || a.id === slug) || null;
   }
 
@@ -99,62 +110,42 @@ class ContentService {
     return ARTICLE_CATEGORIES;
   }
 
-  async toggleFavorite(articleId: string): Promise<boolean> {
-    const favorites = (await storage.getItem<string[]>(FAVORITES_STORAGE_KEY)) || [];
-    let updated: string[];
-
-    if (favorites.includes(articleId)) {
-      updated = favorites.filter((id) => id !== articleId);
-    } else {
-      updated = [...favorites, articleId];
-    }
-
-    await storage.setItem(FAVORITES_STORAGE_KEY, updated);
-
-    if (isSupabaseConfigured) {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await supabase.from('article_progress').upsert(
-            {
-              user_id: user.id,
-              article_id: articleId,
-              is_favorite: updated.includes(articleId),
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'user_id,article_id' }
-          );
-        }
-      } catch (err) {
-        logger.warn('Error syncing favorite to Supabase:', err);
-      }
-    }
-
-    return updated.includes(articleId);
+  async toggleFavorite(
+    articleId: string,
+    userId?: string
+  ): Promise<{ isFavorite: boolean; message: string }> {
+    return favoriteService.toggleFavorite(articleId, 'article', userId);
   }
 
-  async updateReadProgress(articleId: string, progress: number): Promise<void> {
-    const progressMap = (await storage.getItem<Record<string, number>>(PROGRESS_STORAGE_KEY)) || {};
-    const cleanProg = Math.min(100, Math.max(0, progress));
-    progressMap[articleId] = cleanProg;
-    await storage.setItem(PROGRESS_STORAGE_KEY, progressMap);
-
-    if (isSupabaseConfigured) {
+  async updateReadProgress(articleId: string, progress: number, userId?: string): Promise<void> {
+    let effectiveUserId = userId;
+    if (!effectiveUserId && isSupabaseConfigured) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await supabase.from('article_progress').upsert(
-            {
-              user_id: user.id,
-              article_id: articleId,
-              progress: cleanProg,
-              is_read: cleanProg >= 90,
-              last_read_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'user_id,article_id' }
-          );
-        }
+        effectiveUserId = user?.id;
+      } catch (_e) {}
+    }
+
+    const userSuffix = effectiveUserId ? `_${effectiveUserId}` : '';
+    const progressKey = `${PROGRESS_STORAGE_KEY}${userSuffix}`;
+    const progressMap = (await storage.getItem<Record<string, number>>(progressKey)) || {};
+    const cleanProg = Math.min(100, Math.max(0, progress));
+    progressMap[articleId] = cleanProg;
+    await storage.setItem(progressKey, progressMap);
+
+    if (isSupabaseConfigured && effectiveUserId) {
+      try {
+        await supabase.from('article_progress').upsert(
+          {
+            user_id: effectiveUserId,
+            article_id: articleId,
+            progress: cleanProg,
+            is_read: cleanProg >= 90,
+            last_read_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,article_id' }
+        );
       } catch (err) {
         logger.warn('Error syncing article progress to Supabase:', err);
       }

@@ -4,6 +4,7 @@ import { Soundscape, SOUNDSCAPES } from '../constants/soundscapes';
 import { soundEngine } from '../services/sound/soundEngine';
 import { storage } from '../services/storage/asyncStorage';
 import { supabase, isSupabaseConfigured } from '../services/supabase/client';
+import { favoriteService } from '../services/favorite/favoriteService';
 import { useMusicStore } from './musicStore';
 
 interface SoundscapeState {
@@ -31,7 +32,7 @@ interface SoundscapeState {
   setSecondarySoundscape: (soundscape: Soundscape | null) => void;
   setSecondaryVolume: (vol: number) => void;
   setTimer: (minutes: number | null) => void;
-  toggleFavoriteSound: (id: string, userId?: string) => Promise<void>;
+  toggleFavoriteSound: (id: string, userId?: string) => Promise<{ isFavorite: boolean; message: string; }>;
   closeMiniPlayer: () => Promise<void>;
   tickTimer: () => void;
   loadSavedPreferences: (userId?: string) => Promise<void>;
@@ -154,26 +155,11 @@ export const useSoundscapeStore = create<SoundscapeState>((set, get) => ({
   },
 
   toggleFavoriteSound: async (id: string, userId?: string) => {
-    const { favoriteIds } = get();
-    const isFav = favoriteIds.includes(id);
-    const updated = isFav ? favoriteIds.filter((f) => f !== id) : [...favoriteIds, id];
-    set({ favoriteIds: updated });
-    await storage.setItem(FAVORITES_STORAGE_KEY, updated);
-
-    if (userId && isSupabaseConfigured) {
-      try {
-        await supabase.from('user_favorites').upsert(
-          {
-            user_id: userId,
-            item_id: id,
-            item_type: 'soundscape',
-            is_active: !isFav,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'user_id,item_id,item_type' }
-        );
-      } catch (_e) {}
-    }
+    const effectiveUserId = userId || 'local-user';
+    const result = await favoriteService.toggleFavorite(id, 'soundscape', effectiveUserId);
+    const favoriteIds = await favoriteService.getFavorites(effectiveUserId, 'soundscape');
+    set({ favoriteIds });
+    return result;
   },
 
   closeMiniPlayer: async () => {
@@ -202,26 +188,11 @@ export const useSoundscapeStore = create<SoundscapeState>((set, get) => ({
 
   loadSavedPreferences: async (userId?: string) => {
     try {
-      const cachedFavs = await storage.getItem<string[]>(FAVORITES_STORAGE_KEY);
-      if (cachedFavs) {
-        set({ favoriteIds: cachedFavs });
-      }
-
-      if (userId && isSupabaseConfigured) {
-        try {
-          const { data } = await supabase
-            .from('user_favorites')
-            .select('item_id')
-            .eq('user_id', userId)
-            .eq('item_type', 'soundscape')
-            .eq('is_active', true);
-
-          if (data && data.length > 0) {
-            const dbFavs = data.map((d: any) => d.item_id);
-            const combined = Array.from(new Set([...(cachedFavs || []), ...dbFavs]));
-            set({ favoriteIds: combined });
-          }
-        } catch (_e) {}
+      if (userId) {
+        const favoriteIds = await favoriteService.getFavorites(userId, 'soundscape');
+        set({ favoriteIds });
+      } else {
+        set({ favoriteIds: [] });
       }
     } catch {}
   },

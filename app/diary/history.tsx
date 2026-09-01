@@ -409,11 +409,13 @@ export default function DiaryHistoryScreen() {
                                   </TouchableOpacity>
 
                                   <TouchableOpacity
-                                    onPress={() => router.push('/(tabs)/practices')}
-                                    style={styles.exOpenBtn}
+                                    onPress={() => router.push(`/practices/player/${ex.practiceId || 'practice-breathing-478'}` as any)}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`Iniciar exercício ${ex.title}`}
+                                    style={[styles.exOpenBtn, { backgroundColor: '#2F7F7C' }]}
                                   >
-                                    <Play size={11} color="#2F7F7C" fill="#2F7F7C" />
-                                    <Text style={styles.exOpenBtnText}>Abrir</Text>
+                                    <Play size={11} color="#FFFFFF" fill="#FFFFFF" />
+                                    <Text style={[styles.exOpenBtnText, { color: '#FFFFFF', fontWeight: '700' }]}>Iniciar exercício</Text>
                                   </TouchableOpacity>
                                 </View>
                               );
@@ -646,16 +648,16 @@ const styles = StyleSheet.create({
   exOpenBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#E7F3EF',
-    borderRadius: 6,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#2F7F7C',
+    borderRadius: 8,
   },
   exOpenBtnText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '700',
-    color: '#2F7F7C',
+    color: '#FFFFFF',
   },
   notesBox: {
     padding: 10,

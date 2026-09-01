@@ -51,7 +51,7 @@ export const AppShell: React.FC<AppShellProps> = ({
     }
   }, [requireAuth, isLoading, isAuthenticated, user, router]);
 
-  if (requireAuth && (isLoading || !isAuthenticated || !user)) {
+  if (requireAuth && !user && isLoading) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
         <LoadingState message="Acessando seu espaço..." />

@@ -49,6 +49,7 @@ export default function RootLayout() {
           --text-muted: #8F9B97;
           --icon-default: #8F9B97;
           --placeholder: #8F9B97;
+          --bg-main: #F7F8F5;
         }
         [data-theme="dark"] {
           --text-primary: #FFFFFF;
@@ -56,16 +57,10 @@ export default function RootLayout() {
           --text-muted: #E2E8F0;
           --icon-default: #E2E8F0;
           --placeholder: #CBD5E1;
+          --bg-main: #121918;
         }
-        [data-theme="dark"] body,
-        [data-theme="dark"] h1,
-        [data-theme="dark"] h2,
-        [data-theme="dark"] h3,
-        [data-theme="dark"] h4,
-        [data-theme="dark"] p,
-        [data-theme="dark"] span,
-        [data-theme="dark"] label {
-          color: var(--text-primary);
+        body {
+          background-color: var(--bg-main);
         }
       `;
     }

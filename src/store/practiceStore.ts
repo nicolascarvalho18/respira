@@ -8,7 +8,16 @@ import {
 } from '../types';
 import { practiceService } from '../services/practice/practiceService';
 
-export type DurationFilter = 'all' | 'up_to_5' | '5_to_10' | '10_to_20' | 'more_than_20';
+export type DurationFilter =
+  | 'all'
+  | '1_min'
+  | '5_min'
+  | '10_min'
+  | '15_min'
+  | 'up_to_5'
+  | '5_to_10'
+  | '10_to_20'
+  | 'more_than_20';
 export type LevelFilter = 'all' | 'Iniciante' | 'Intermediário' | 'Avançado';
 export type FormatFilter = 'all' | PracticeFormat;
 export type ObjectiveFilter = 'all' | PracticeObjective;
@@ -28,7 +37,7 @@ interface PracticeState {
   error: string | null;
 
   // Actions
-  fetchPractices: () => Promise<void>;
+  fetchPractices: (userId?: string) => Promise<void>;
   fetchUserProgress: (userId: string) => Promise<void>;
   setSelectedCategory: (category: PracticeCategory | 'all' | 'favorites') => void;
   setSelectedDuration: (duration: DurationFilter) => void;
@@ -38,7 +47,7 @@ interface PracticeState {
   setSearchQuery: (query: string) => void;
   resetFilters: () => void;
   setActivePractice: (practice: Practice | null) => void;
-  toggleFavorite: (practiceId: string) => Promise<void>;
+  toggleFavorite: (practiceId: string, userId?: string) => Promise<{ isFavorite: boolean; message: string; }>;
   toggleOfflineDownload: (practiceId: string) => Promise<boolean>;
   recordCompletion: (practiceId: string) => Promise<void>;
   saveProgress: (
@@ -83,10 +92,10 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  fetchPractices: async () => {
+  fetchPractices: async (userId?: string) => {
     try {
       set({ isLoading: true, error: null });
-      const practices = await practiceService.getPractices();
+      const practices = await practiceService.getPractices(userId);
       set({ practices, isLoading: false });
     } catch (err: any) {
       set({ isLoading: false, error: err.message || 'Erro ao carregar práticas' });
@@ -121,12 +130,30 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
 
   setActivePractice: (practice) => set({ activePractice: practice }),
 
-  toggleFavorite: async (practiceId) => {
-    const isFav = await practiceService.toggleFavorite(practiceId);
-    const updated = get().practices.map((p) =>
-      p.id === practiceId ? { ...p, isFavorite: isFav } : p
-    );
-    set({ practices: updated });
+  toggleFavorite: async (practiceId: string, userId?: string) => {
+    const prevPractices = get().practices;
+    const currentP = prevPractices.find((p) => p.id === practiceId);
+    const optimisticIsFavorite = !(currentP?.isFavorite ?? false);
+
+    // Atualização otimista imediata
+    set({
+      practices: prevPractices.map((p) =>
+        p.id === practiceId ? { ...p, isFavorite: optimisticIsFavorite } : p
+      ),
+    });
+
+    try {
+      const result = await practiceService.toggleFavorite(practiceId, userId);
+      set({
+        practices: get().practices.map((p) =>
+          p.id === practiceId ? { ...p, isFavorite: result.isFavorite } : p
+        ),
+      });
+      return result;
+    } catch (err) {
+      set({ practices: prevPractices });
+      throw err;
+    }
   },
 
   toggleOfflineDownload: async (practiceId) => {
@@ -225,6 +252,10 @@ export const usePracticeStore = create<PracticeState>((set, get) => ({
       }
 
       // 2. Duração
+      if (selectedDuration === '1_min' && p.durationMinutes !== 1) return false;
+      if (selectedDuration === '5_min' && p.durationMinutes !== 5) return false;
+      if (selectedDuration === '10_min' && p.durationMinutes !== 10) return false;
+      if (selectedDuration === '15_min' && p.durationMinutes !== 15) return false;
       if (selectedDuration === 'up_to_5' && p.durationMinutes > 5) return false;
       if (selectedDuration === '5_to_10' && (p.durationMinutes < 5 || p.durationMinutes > 10)) return false;
       if (selectedDuration === '10_to_20' && (p.durationMinutes < 10 || p.durationMinutes > 20)) return false;

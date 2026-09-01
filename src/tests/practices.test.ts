@@ -9,12 +9,12 @@ describe('Practices Service and Catalog Tests', () => {
 
   it('should toggle practice favorite status', async () => {
     const practiceId = 'practice-breathing-478';
-    const isFavorite = await practiceService.toggleFavorite(practiceId);
-    expect(typeof isFavorite).toBe('boolean');
+    const res = await practiceService.toggleFavorite(practiceId);
+    expect(typeof res.isFavorite).toBe('boolean');
 
     const updatedList = await practiceService.getPractices();
     const target = updatedList.find((p) => p.id === practiceId);
-    expect(target?.isFavorite).toBe(isFavorite);
+    expect(target?.isFavorite).toBe(res.isFavorite);
   });
 
   it('should record practice completion and increment completion counter', async () => {

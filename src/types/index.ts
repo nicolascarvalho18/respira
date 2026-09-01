@@ -248,6 +248,35 @@ export interface ConsentItem {
   documentUrl: string;
 }
 
+// ==========================================
+// DAILY EXERCISES ROUTINE TYPES
+// ==========================================
+export type DailyExerciseType = 'breathing' | 'mindfulness' | 'mood_checkin';
+export type DailyExerciseStatus = 'not_started' | 'in_progress' | 'completed';
+export type DailyExerciseDifficulty = 'Suave' | 'Leve' | 'Moderado';
+
+export interface DailyExercise {
+  id: string;
+  type: DailyExerciseType;
+  title: string;
+  description: string;
+  durationMinutes: number;
+  durationLabel: string;
+  difficulty: DailyExerciseDifficulty;
+  status: DailyExerciseStatus;
+  actionUrl: string;
+  targetPracticeId?: string;
+  completedAt?: string;
+}
+
+export interface DailyRoutineState {
+  routineDate: string; // YYYY-MM-DD
+  exercises: DailyExercise[];
+  completedCount: number;
+  totalCount: number;
+  isAllCompleted: boolean;
+}
+
 export interface SecurityEvent {
   id: string;
   eventType: 'login' | 'logout' | 'password_change' | 'email_change_request' | 'session_revoked' | 'data_exported';
@@ -354,4 +383,54 @@ export interface HelplineInfo {
     number: string;
     description: string;
   }[];
+}
+
+// ==========================================
+// AUDIO CATALOG & SOUND MIXER TYPES
+// ==========================================
+export type RepeatMode = 'off' | 'all' | 'one';
+
+export interface AudioCatalogItem {
+  id: string;
+  type: 'music' | 'soundscape';
+  title: string;
+  artistOrAuthor: string;
+  category: string;
+  durationSeconds: number;
+  description: string;
+  audioUrl?: string;
+  thumbnailUrl: string;
+  accentColor?: string;
+  isFeatured: boolean;
+  status: 'published' | 'draft' | 'archived';
+  displayOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SoundMixLayer {
+  soundId: string;
+  name: string;
+  volume: number; // 0 a 1 (0% a 100%)
+  audioUrl?: string;
+  icon?: string;
+}
+
+export interface SoundMixPreset {
+  id: string;
+  userId: string;
+  name: string; // Ex: "Dormir", "Estudar", "Relaxar"
+  layers: SoundMixLayer[];
+  masterVolume: number;
+  isFavorite?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SoundMixState {
+  activeLayers: SoundMixLayer[];
+  masterVolume: number;
+  isPlaying: boolean;
+  currentPresetName?: string;
+  savedPresets: SoundMixPreset[];
 }

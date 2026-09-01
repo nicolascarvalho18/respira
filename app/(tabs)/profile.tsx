@@ -151,7 +151,7 @@ export default function ProfileScreen() {
         bio: updatedUser.bio,
         avatarUrl: updatedUser.avatarUrl,
       });
-      showToast({ message: updatedUser.avatarUrl ? 'Foto salva com sucesso' : 'Foto removida', type: 'success' });
+      showToast({ message: 'Perfil atualizado com sucesso.', type: 'success' });
     } catch (err: any) {
       console.error('Erro ao salvar perfil:', {
         message: err?.message,
@@ -159,7 +159,7 @@ export default function ProfileScreen() {
         details: err?.details,
         hint: err?.hint,
       });
-      showToast({ message: err.message || 'Não foi possível enviar a imagem.', type: 'error' });
+      showToast({ message: 'Não foi possível atualizar seu perfil. Tente novamente.', type: 'error' });
       throw err;
     }
   };

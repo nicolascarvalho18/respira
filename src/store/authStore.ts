@@ -4,7 +4,15 @@ import { supabaseAuthService, LogoutScope } from '../services/auth/supabaseAuthS
 import { supabaseUserService } from '../services/user/supabaseUserService';
 import { supabase } from '../services/supabase/client';
 import { useMoodStore } from './moodStore';
+import { usePracticeStore } from './practiceStore';
+import { useContentStore } from './contentStore';
+import { useSoundscapeStore } from './soundscapeStore';
+import { useMusicStore } from './musicStore';
+import { useDailyRoutineStore } from './dailyRoutineStore';
+import { useSoundMixerStore } from './soundMixerStore';
+import { useChatStore } from './chatStore';
 import { moodService } from '../services/mood/moodService';
+import { favoriteService } from '../services/favorite/favoriteService';
 import { authService, LoginCredentials, RegisterData } from '../services/auth/authService';
 
 interface AuthState {
@@ -23,6 +31,7 @@ interface AuthState {
   setOnboardingCompleted: (completed: boolean) => Promise<void>;
   updateUser: (partial: Partial<User>) => Promise<void>;
   clearError: () => void;
+  deleteAccount: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -37,39 +46,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      // 1. Escutar alterações de autenticação em tempo real no Supabase Auth
-      supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-          if (session?.user) {
-            const currentUser = await supabaseAuthService.getCurrentUser();
-            if (currentUser) {
-              set({
-                user: currentUser,
-                session,
-                isAuthenticated: true,
-                isLoading: false,
-              });
-              return;
-            }
-          }
-        }
-
-        if (event === 'SIGNED_OUT') {
-          set({
-            user: null,
-            session: null,
-            isAuthenticated: false,
-            isLoading: false,
-          });
-        }
-      });
-
-      // 2. Verificar sessão persistida atual
-      const { user, session } = await supabaseAuthService.getCurrentSession();
       const onboardingCompleted = await authService.isOnboardingCompleted();
+      const { user, session } = await supabaseAuthService.getCurrentSession();
 
-      if (user && session) {
-        await supabaseUserService.syncCurrentDevice(user.id);
+      if (user) {
         set({
           user,
           session,
@@ -77,6 +57,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isOnboardingCompleted: true,
           isLoading: false,
         });
+
+        // Inicializa todos os dados vinculados à conta do usuário autenticado
+        useMoodStore.getState().fetchRecords(user.id);
+        usePracticeStore.getState().fetchPractices(user.id);
+        usePracticeStore.getState().fetchUserProgress(user.id);
+        useContentStore.getState().fetchArticles(user.id);
+        useSoundscapeStore.getState().loadSavedPreferences(user.id);
+        useMusicStore.getState().loadSavedPreferences(user.id);
+        useSoundMixerStore.getState().loadPresets(user.id);
+        useDailyRoutineStore.getState().fetchDailyRoutine(user.id);
+        useChatStore.getState().fetchMessages(user.id);
       } else {
         set({
           user: null,
@@ -117,7 +108,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: null,
       });
 
+      // Carregar dados 100% isolados para a conta conectada
       useMoodStore.getState().fetchRecords(res.user.id);
+      usePracticeStore.getState().fetchPractices(res.user.id);
+      usePracticeStore.getState().fetchUserProgress(res.user.id);
+      useContentStore.getState().fetchArticles(res.user.id);
+      useSoundscapeStore.getState().loadSavedPreferences(res.user.id);
+      useMusicStore.getState().loadSavedPreferences(res.user.id);
+      useSoundMixerStore.getState().loadPresets(res.user.id);
+      useDailyRoutineStore.getState().fetchDailyRoutine(res.user.id);
+      useChatStore.getState().fetchMessages(res.user.id);
     } catch (err: any) {
       set({ isLoading: false, error: err.message || 'Erro ao realizar login' });
       throw err;
@@ -148,7 +148,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
 
       await supabaseUserService.syncCurrentDevice(res.user.id);
+      // Carregar dados limpos e isolados para a nova conta
       useMoodStore.getState().fetchRecords(res.user.id);
+      usePracticeStore.getState().fetchPractices(res.user.id);
+      usePracticeStore.getState().fetchUserProgress(res.user.id);
+      useContentStore.getState().fetchArticles(res.user.id);
+      useSoundscapeStore.getState().loadSavedPreferences(res.user.id);
+      useMusicStore.getState().loadSavedPreferences(res.user.id);
+      useSoundMixerStore.getState().loadPresets(res.user.id);
+      useDailyRoutineStore.getState().fetchDailyRoutine(res.user.id);
+      useChatStore.getState().fetchMessages(res.user.id);
     } catch (err: any) {
       set({ isLoading: false, error: err.message || 'Erro ao criar conta' });
       throw err;
@@ -160,10 +169,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const currentUser = get().user;
       set({ isLoading: true });
 
-      // Limpar cache de dados em memória
+      // Parar reprodução ativa de áudio
+      useMusicStore.getState().stopTrack();
+      useSoundscapeStore.getState().stopSoundscape();
+      useSoundMixerStore.getState().stopMix();
+
+      // Limpar cache de dados em memória e isolamento entre contas
       useMoodStore.getState().clearRecords();
+      useDailyRoutineStore.getState().resetRoutine();
+      usePracticeStore.getState().fetchPractices(undefined);
+      usePracticeStore.setState({ userProgress: {} });
+      useContentStore.getState().fetchArticles(undefined);
+      useSoundscapeStore.getState().loadSavedPreferences(undefined);
+      useMusicStore.getState().loadSavedPreferences(undefined);
+      useSoundMixerStore.getState().loadPresets(undefined);
+      useChatStore.getState().resetChat();
+
       if (currentUser?.id) {
         await moodService.clearUserCache(currentUser.id);
+        await favoriteService.clearUserCache(currentUser.id);
       }
 
       await supabaseAuthService.signOut(scope);
@@ -241,4 +265,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  deleteAccount: async () => {
+    try {
+      const currentUser = get().user;
+      set({ isLoading: true });
+
+      if (currentUser?.id) {
+        await moodService.clearUserCache(currentUser.id);
+        await favoriteService.clearUserCache(currentUser.id);
+      }
+
+      await get().logout();
+    } catch (err: any) {
+      set({ isLoading: false, error: err.message || 'Erro ao excluir conta' });
+      throw err;
+    }
+  },
 }));

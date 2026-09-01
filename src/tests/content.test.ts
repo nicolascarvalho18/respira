@@ -19,12 +19,12 @@ describe('Content and Articles Service Tests', () => {
 
   it('should toggle favorite status on articles', async () => {
     const targetId = 'art-ansiedade-1';
-    const isFavorite = await contentService.toggleFavorite(targetId);
-    expect(typeof isFavorite).toBe('boolean');
+    const res = await contentService.toggleFavorite(targetId);
+    expect(typeof res.isFavorite).toBe('boolean');
 
     const list = await contentService.getArticles();
     const updated = list.find((a) => a.id === targetId);
-    expect(updated?.isFavorite).toBe(isFavorite);
+    expect(updated?.isFavorite).toBe(res.isFavorite);
   });
 
   it('should persist reading progress', async () => {

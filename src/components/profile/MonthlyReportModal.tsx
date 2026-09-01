@@ -82,6 +82,18 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
     }
   }, [visible, user?.id]);
 
+  useEffect(() => {
+    if (visible && Platform.OS === 'web' && typeof window !== 'undefined') {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          onClose();
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [visible, onClose]);
+
   if (!visible || !user) return null;
 
   const hasAnyOptionSelected =

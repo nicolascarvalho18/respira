@@ -783,7 +783,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   chatWrapperDesktop: {
-    maxWidth: 860,
+    maxWidth: 1040,
+    width: '100%',
     alignSelf: 'center',
     borderRadius: 20,
     marginVertical: 12,

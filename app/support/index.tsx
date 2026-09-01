@@ -307,7 +307,7 @@ export default function SupportScreen() {
       <ConfirmationModal
         visible={!!externalUrlToOpen}
         title="Abrir site externo?"
-        message="Você está prestes a sair do Respira e abrir uma página externa. Deseja continuar?"
+        message="Você está prestes a sair do Respira e acessar um site externo. Deseja continuar?"
         confirmTitle="Continuar"
         cancelTitle="Cancelar"
         onConfirm={handleExternalLinkConfirm}

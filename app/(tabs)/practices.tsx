@@ -31,6 +31,10 @@ import {
   Compass,
   CheckCircle2,
   VolumeX,
+  Shuffle,
+  Repeat,
+  Sliders,
+  ChevronRight,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
 import { PracticeCard } from '../../src/components/practices/PracticeCard';
@@ -42,6 +46,7 @@ import {
 } from '../../src/store/practiceStore';
 import { useSoundscapeStore } from '../../src/store/soundscapeStore';
 import { useMusicStore } from '../../src/store/musicStore';
+import { useSoundMixerStore } from '../../src/store/soundMixerStore';
 import { useAuth } from '../../src/hooks/useAuth';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
@@ -125,9 +130,13 @@ export default function PracticesScreen() {
     positionSeconds: musicPosition,
     durationSeconds: musicDuration,
     volume: musicVolume,
+    isShuffle: isMusicShuffle,
+    isRepeat: isMusicRepeat,
     timerMinutes: musicTimerMinutes,
     remainingTimerSeconds: musicRemainingSeconds,
     favoriteTrackIds,
+    recentlyPlayedTrackIds,
+    savedPositions,
     searchQuery: musicSearchQuery,
     selectedCategory: musicCategory,
     setSearchQuery: setMusicSearchQuery,
@@ -135,10 +144,13 @@ export default function PracticesScreen() {
     playTrack,
     togglePlayPause: toggleMusicPlayPause,
     pauseTrack: pauseMusicTrack,
+    stopTrack: stopMusicTrack,
     nextTrack,
     prevTrack,
     seekTo: seekMusic,
     setVolume: setMusicVolume,
+    toggleShuffle: toggleMusicShuffle,
+    toggleRepeat: toggleMusicRepeat,
     setTimer: setMusicTimer,
     toggleFavorite: toggleMusicFavorite,
     loadSavedPreferences: loadMusicPreferences,
@@ -150,11 +162,50 @@ export default function PracticesScreen() {
   const [showMusicPlayerModal, setShowMusicPlayerModal] = useState(false);
 
   useEffect(() => {
-    fetchPractices();
+    fetchPractices(userId);
     fetchUserProgress(userId);
     loadSoundPreferences(userId);
     loadMusicPreferences(userId);
   }, [userId]);
+
+  const handleTogglePracticeFavorite = async (practiceId: string) => {
+    if (!userId) {
+      showToast({ message: 'Entre na sua conta para salvar favoritos.', type: 'info' });
+      return;
+    }
+    const prat = practices.find((p) => p.id === practiceId);
+    const res = await togglePracticeFavorite(practiceId, userId);
+    showToast({
+      message: res?.message || (prat?.isFavorite ? 'Removido dos favoritos' : 'Adicionado aos favoritos'),
+      type: 'info',
+    });
+  };
+
+  const handleToggleSoundFavorite = async (soundId: string) => {
+    if (!userId) {
+      showToast({ message: 'Entre na sua conta para salvar favoritos.', type: 'info' });
+      return;
+    }
+    const isFav = favoriteSoundIds.includes(soundId);
+    const res = await toggleFavoriteSound(soundId, userId);
+    showToast({
+      message: res?.message || (isFav ? 'Removido dos favoritos' : 'Adicionado aos favoritos'),
+      type: 'info',
+    });
+  };
+
+  const handleToggleMusicFavorite = async (trackId: string) => {
+    if (!userId) {
+      showToast({ message: 'Entre na sua conta para salvar favoritos.', type: 'info' });
+      return;
+    }
+    const isFav = favoriteTrackIds.includes(trackId);
+    const res = await toggleMusicFavorite(trackId, userId);
+    showToast({
+      message: res?.message || (isFav ? 'Removido dos favoritos' : 'Adicionado aos favoritos'),
+      type: 'info',
+    });
+  };
 
   // =========================================================================
   // CATEGORIAS DAS 3 ABAS
@@ -183,11 +234,10 @@ export default function PracticesScreen() {
     { id: 'all', label: 'Todas' },
     { id: 'relax', label: 'Relaxar' },
     { id: 'sleep', label: 'Dormir' },
-    { id: 'study', label: 'Estudar' },
     { id: 'meditate', label: 'Meditar' },
-    { id: 'decelerate', label: 'Desacelerar' },
-    { id: 'pause', label: 'Pausa' },
-    { id: 'favorites', label: 'Favoritas' },
+    { id: 'study', label: 'Estudar' },
+    { id: 'favorites', label: 'Minhas favoritas' },
+    { id: 'recent', label: 'Ouvidas recentemente' },
   ];
 
   // Listas filtradas
@@ -217,25 +267,31 @@ export default function PracticesScreen() {
   }, [soundscapes, soundCategory, favoriteSoundIds, soundSearchQuery]);
 
   const filteredMusicList = useMemo(() => {
-    return musicTracks.filter((m) => {
-      if (musicCategory === 'favorites') {
-        if (!favoriteTrackIds.includes(m.id)) return false;
-      } else if (musicCategory !== 'all' && m.category !== musicCategory) {
-        return false;
-      }
+    let list = musicTracks;
 
-      if (musicSearchQuery.trim()) {
-        const q = musicSearchQuery.toLowerCase().trim();
+    if (musicCategory === 'favorites') {
+      list = list.filter((m) => favoriteTrackIds.includes(m.id));
+    } else if (musicCategory === 'recent') {
+      list = recentlyPlayedTrackIds
+        .map((id) => musicTracks.find((m) => m.id === id))
+        .filter(Boolean) as MusicTrack[];
+    } else if (musicCategory !== 'all') {
+      list = list.filter((m) => m.category === musicCategory);
+    }
+
+    if (musicSearchQuery.trim()) {
+      const q = musicSearchQuery.toLowerCase().trim();
+      list = list.filter((m) => {
         const matchesTitle = m.title.toLowerCase().includes(q);
         const matchesArtist = m.artist.toLowerCase().includes(q);
         const matchesDesc = m.description.toLowerCase().includes(q);
         const matchesCat = m.categoryLabel.toLowerCase().includes(q);
-        if (!matchesTitle && !matchesArtist && !matchesDesc && !matchesCat) return false;
-      }
+        return matchesTitle || matchesArtist || matchesDesc || matchesCat;
+      });
+    }
 
-      return true;
-    });
-  }, [musicTracks, musicCategory, favoriteTrackIds, musicSearchQuery]);
+    return list;
+  }, [musicTracks, musicCategory, favoriteTrackIds, recentlyPlayedTrackIds, musicSearchQuery]);
 
   const formatTimer = (seconds: number | null) => {
     if (seconds === null) return '--:--';
@@ -256,7 +312,7 @@ export default function PracticesScreen() {
 
   const handleSelectMusic = (track: MusicTrack) => {
     playTrack(track);
-    setShowMusicPlayerModal(true);
+    useMusicStore.getState().setFullScreenPlayerOpen(true);
     showToast({
       message: `Reproduzindo: ${track.title}`,
       type: 'info',
@@ -511,7 +567,7 @@ export default function PracticesScreen() {
                       progress={prog}
                       variant="horizontal"
                       onPress={() => router.push(`/practices/player/${prat.id}` as any)}
-                      onToggleFavorite={() => togglePracticeFavorite(prat.id)}
+                      onToggleFavorite={() => handleTogglePracticeFavorite(prat.id)}
                     />
                   );
                 })}
@@ -590,6 +646,35 @@ export default function PracticesScreen() {
               })}
             </ScrollView>
 
+            {/* Banner do Misturador de Sons Ambientes */}
+            <TouchableOpacity
+              onPress={() => useSoundMixerStore.getState().setMixerModalOpen(true)}
+              style={[
+                styles.openMixerBanner,
+                {
+                  backgroundColor: isDark ? '#1C3833' : '#EDF7F5',
+                  borderColor: isDark ? '#2D5950' : '#BFE3DC',
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Abrir misturador de sons ambientes"
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                <View style={styles.mixerBannerIconCircle}>
+                  <Sliders size={18} color="#247B74" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.mixerBannerTitle, { color: isDark ? '#FFFFFF' : '#17332F' }]}>
+                    Misturador de Sons Ambientes
+                  </Text>
+                  <Text style={[styles.mixerBannerDesc, { color: isDark ? '#A3D0C7' : '#47635D' }]}>
+                    Combine até 3 sons (ex: Chuva + Vento + Fogueira) e salve suas misturas
+                  </Text>
+                </View>
+              </View>
+              <ChevronRight size={20} color="#247B74" />
+            </TouchableOpacity>
+
             {/* Contador de Sons */}
             <View style={styles.resultsHeaderRow}>
               <Text style={[styles.resultsCountText, { color: isDark ? colors.textMuted : '#68736F' }]}>
@@ -649,7 +734,7 @@ export default function PracticesScreen() {
                           <TouchableOpacity
                             onPress={(e) => {
                               e.stopPropagation();
-                              toggleFavoriteSound(sound.id, userId);
+                              handleToggleSoundFavorite(sound.id);
                             }}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
@@ -718,7 +803,7 @@ export default function PracticesScreen() {
                 <TextInput
                   value={musicSearchQuery}
                   onChangeText={setMusicSearchQuery}
-                  placeholder="Buscar faixa de piano, violão ou ambiente..."
+                  placeholder="Buscar por título, categoria, piano, violão..."
                   placeholderTextColor={isDark ? colors.textMuted : '#8F9B97'}
                   style={[styles.searchInput, { color: isDark ? colors.text : '#1F2927' }]}
                 />
@@ -767,6 +852,50 @@ export default function PracticesScreen() {
               })}
             </ScrollView>
 
+            {/* Seção "Continuar Ouvindo" quando houver faixa recente */}
+            {recentlyPlayedTrackIds.length > 0 && !musicSearchQuery.trim() && musicCategory === 'all' && (
+              (() => {
+                const lastTrack = musicTracks.find((m) => m.id === recentlyPlayedTrackIds[0]);
+                if (!lastTrack) return null;
+                const savedPos = savedPositions[lastTrack.id] || 0;
+                const isCurrent = currentTrack?.id === lastTrack.id;
+                const isPlaying = isCurrent && isMusicPlaying;
+
+                return (
+                  <View style={[styles.continueListeningCard, { backgroundColor: isDark ? colors.surfaceSecondary : '#F0F7F5', borderColor: isDark ? colors.border : '#D5EBE6' }]}>
+                    <View style={styles.continueListeningHeader}>
+                      <Clock size={15} color="#247B74" style={{ marginRight: 6 }} />
+                      <Text style={[styles.continueListeningLabel, { color: '#247B74' }]}>Continuar ouvindo</Text>
+                    </View>
+                    <View style={styles.continueListeningRow}>
+                      <Image source={{ uri: lastTrack.thumbnailUrl }} style={styles.continueListeningCover} resizeMode="cover" />
+                      <View style={{ flex: 1, marginLeft: 10, justifyContent: 'center' }}>
+                        <Text style={[styles.continueListeningTitle, { color: isDark ? colors.text : '#1F2927' }]} numberOfLines={1}>
+                          {lastTrack.title}
+                        </Text>
+                        <Text style={[styles.continueListeningSub, { color: isDark ? colors.textMuted : '#68736F' }]}>
+                          {lastTrack.artist} · {formatTimer(savedPos)} / {formatTimer(lastTrack.durationSeconds)}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (isPlaying) {
+                            pauseMusicTrack();
+                          } else {
+                            playTrack(lastTrack, savedPos);
+                            setShowMusicPlayerModal(true);
+                          }
+                        }}
+                        style={styles.continueListeningPlayBtn}
+                      >
+                        {isPlaying ? <Pause size={16} color="#FFFFFF" /> : <Play size={16} color="#FFFFFF" style={{ marginLeft: 2 }} />}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })()
+            )}
+
             {/* Contador de Músicas */}
             <View style={styles.resultsHeaderRow}>
               <Text style={[styles.resultsCountText, { color: isDark ? colors.textMuted : '#68736F' }]}>
@@ -791,6 +920,9 @@ export default function PracticesScreen() {
                   const isCurrent = currentTrack?.id === track.id;
                   const isPlaying = isCurrent && isMusicPlaying;
                   const isFav = favoriteTrackIds.includes(track.id);
+                  const min = Math.floor(track.durationSeconds / 60);
+                  const sec = track.durationSeconds % 60;
+                  const durationFmt = `${min}:${sec < 10 ? '0' : ''}${sec}`;
 
                   return (
                     <TouchableOpacity
@@ -826,7 +958,7 @@ export default function PracticesScreen() {
                           <TouchableOpacity
                             onPress={(e) => {
                               e.stopPropagation();
-                              toggleMusicFavorite(track.id, userId);
+                              handleToggleMusicFavorite(track.id);
                             }}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                           >
@@ -842,7 +974,7 @@ export default function PracticesScreen() {
                           style={[styles.audioCardSubtitle, { color: isDark ? colors.textMuted : '#68736F' }]}
                           numberOfLines={1}
                         >
-                          {track.artist} · {track.durationMinutes} min
+                          {track.artist} · {durationFmt}
                         </Text>
 
                         <View style={styles.audioCardFooter}>
@@ -1007,6 +1139,10 @@ export default function PracticesScreen() {
                 <View style={styles.filterOptionsGrid}>
                   {[
                     { id: 'all', label: 'Qualquer duração' },
+                    { id: '1_min', label: '1 minuto' },
+                    { id: '5_min', label: '5 minutos' },
+                    { id: '10_min', label: '10 minutos' },
+                    { id: '15_min', label: '15 minutos' },
                     { id: 'up_to_5', label: 'Até 5 minutos' },
                     { id: '5_to_10', label: '5 a 10 minutos' },
                     { id: '10_to_20', label: '10 a 20 minutos' },
@@ -1349,9 +1485,19 @@ export default function PracticesScreen() {
                     {currentTrack.artist} · {currentTrack.categoryLabel}
                   </Text>
 
-                  {/* Barra de Progresso com Minutagem */}
+                  {/* Barra de Progresso Interativa com Minutagem */}
                   <View style={styles.progressSection}>
-                    <View style={styles.progressTrack}>
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={(e) => {
+                        const nativeEvent = e.nativeEvent as any;
+                        const clickX = nativeEvent.locationX ?? nativeEvent.offsetX ?? 0;
+                        const targetWidth = (nativeEvent.target && nativeEvent.target.offsetWidth) ? nativeEvent.target.offsetWidth : 280;
+                        const pct = Math.max(0, Math.min(1, clickX / targetWidth));
+                        seekMusic(Math.round(pct * (musicDuration || 300)));
+                      }}
+                      style={styles.progressTrack}
+                    >
                       <View
                         style={[
                           styles.progressFill,
@@ -1360,7 +1506,7 @@ export default function PracticesScreen() {
                           },
                         ]}
                       />
-                    </View>
+                    </TouchableOpacity>
                     <View style={styles.progressTimeRow}>
                       <Text style={[styles.progressTimeText, { color: isDark ? colors.textMuted : '#68736F' }]}>
                         {formatTimer(musicPosition)}
@@ -1371,13 +1517,21 @@ export default function PracticesScreen() {
                     </View>
                   </View>
 
-                  {/* Controles: Anterior, Play/Pause, Próxima */}
+                  {/* Controles Principais: Aleatório, Anterior, Play/Pause, Próxima, Repetir, Favoritar */}
                   <View style={styles.musicControlsRow}>
-                    <TouchableOpacity onPress={prevTrack} style={styles.musicSideCtrlBtn}>
+                    <TouchableOpacity
+                      onPress={toggleMusicShuffle}
+                      style={[styles.musicAuxCtrlBtn, isMusicShuffle && { backgroundColor: isDark ? '#1C3833' : '#EDF7F5' }]}
+                      accessibilityLabel="Reprodução aleatória"
+                    >
+                      <Shuffle size={18} color={isMusicShuffle ? '#247B74' : isDark ? colors.textMuted : '#8F9B97'} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress={prevTrack} style={styles.musicSideCtrlBtn} accessibilityLabel="Música anterior">
                       <SkipBack size={22} color={isDark ? colors.text : '#1F2927'} />
                     </TouchableOpacity>
 
-                    <TouchableOpacity onPress={toggleMusicPlayPause} style={styles.playerMainPlayBtn}>
+                    <TouchableOpacity onPress={toggleMusicPlayPause} style={styles.playerMainPlayBtn} accessibilityLabel="Reproduzir ou pausar">
                       {isMusicPlaying ? (
                         <Pause size={24} color="#FFFFFF" />
                       ) : (
@@ -1385,8 +1539,28 @@ export default function PracticesScreen() {
                       )}
                     </TouchableOpacity>
 
-                    <TouchableOpacity onPress={nextTrack} style={styles.musicSideCtrlBtn}>
+                    <TouchableOpacity onPress={nextTrack} style={styles.musicSideCtrlBtn} accessibilityLabel="Próxima música">
                       <SkipForward size={22} color={isDark ? colors.text : '#1F2927'} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={toggleMusicRepeat}
+                      style={[styles.musicAuxCtrlBtn, isMusicRepeat && { backgroundColor: isDark ? '#1C3833' : '#EDF7F5' }]}
+                      accessibilityLabel="Repetir música"
+                    >
+                      <Repeat size={18} color={isMusicRepeat ? '#247B74' : isDark ? colors.textMuted : '#8F9B97'} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => handleToggleMusicFavorite(currentTrack.id)}
+                      style={styles.musicAuxCtrlBtn}
+                      accessibilityLabel="Favoritar música"
+                    >
+                      <Bookmark
+                        size={18}
+                        color={favoriteTrackIds.includes(currentTrack.id) ? '#247B74' : isDark ? colors.textMuted : '#8F9B97'}
+                        fill={favoriteTrackIds.includes(currentTrack.id) ? '#247B74' : 'transparent'}
+                      />
                     </TouchableOpacity>
                   </View>
 
@@ -1494,6 +1668,14 @@ export default function PracticesScreen() {
                       ))}
                     </View>
                   </View>
+
+                  {/* Nota de Licença e Autoria */}
+                  <View style={[styles.licenseNoteCard, { backgroundColor: isDark ? '#182624' : '#F3F8F6' }]}>
+                    <Sparkles size={14} color="#247B74" style={{ marginRight: 6 }} />
+                    <Text style={[styles.licenseNoteText, { color: isDark ? colors.textMuted : '#5F736E' }]}>
+                      Faixa instrumental licenciada e de livre utilização para relaxamento, sono, estudo e foco.
+                    </Text>
+                  </View>
                 </ScrollView>
               </View>
             </View>
@@ -1529,87 +1711,115 @@ const styles = StyleSheet.create({
   pageSubtitle: {
     fontSize: 15,
     lineHeight: 20,
-    marginBottom: 14,
   },
-  mainTabsContainer: {
+  tabSwitcherContainer: {
     flexDirection: 'row',
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 4,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    gap: 8,
   },
-  mainTabBtn: {
+  tabSwitcherBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
   },
-  mainTabBtnActive: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  mainTabBtnText: {
-    fontSize: 14.5,
+  tabSwitcherText: {
+    fontSize: 13.5,
+    fontWeight: '600',
   },
   tabContent: {
     paddingHorizontal: 16,
+    width: '100%',
   },
   searchRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
     marginBottom: 12,
   },
   searchBar: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    height: 46,
     borderRadius: 10,
     borderWidth: 1,
     paddingHorizontal: 12,
+    paddingVertical: 9,
+    gap: 8,
   },
   searchInput: {
     flex: 1,
-    marginLeft: 8,
     fontSize: 14,
+    padding: 0,
   },
-  filterIconBtn: {
-    width: 46,
-    height: 46,
+  filterBtn: {
+    width: 42,
+    height: 42,
     borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  activeFilterBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#247B74',
+  },
   categoryPillsScroll: {
     gap: 8,
-    paddingBottom: 10,
+    paddingBottom: 12,
   },
   categoryPill: {
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1,
   },
   categoryPillText: {
-    fontSize: 13.5,
+    fontSize: 13,
   },
   resultsHeaderRow: {
-    marginVertical: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    marginTop: 4,
   },
   resultsCountText: {
     fontSize: 13,
     fontWeight: '500',
   },
-  practicesGrid: {
-    marginTop: 4,
+  clearFiltersText: {
+    fontSize: 13,
+    color: '#247B74',
+    fontWeight: '600',
+  },
+  emptyBlock: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 20,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   audioCardsGrid: {
-    marginTop: 4,
     gap: 12,
   },
   audioCard: {
@@ -1617,44 +1827,43 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     overflow: 'hidden',
-    minHeight: 88,
+    alignItems: 'center',
   },
   audioCardCover: {
-    width: 100,
-    height: '100%',
-    minHeight: 88,
-    backgroundColor: '#ECEFEE',
+    width: 88,
+    height: 88,
   },
   audioCardContent: {
     flex: 1,
-    padding: 12,
-    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    justifyContent: 'space-between',
   },
   audioCardTopRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 2,
+    alignItems: 'flex-start',
+    gap: 6,
   },
   audioCardTitle: {
     fontSize: 15,
     fontWeight: '600',
     flex: 1,
-    marginRight: 8,
   },
   audioCardSubtitle: {
     fontSize: 13,
+    marginTop: 2,
     marginBottom: 8,
   },
   audioCardFooter: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   badgeTag: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   badgeTagText: {
     fontSize: 11.5,
@@ -1711,78 +1920,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 8,
   },
-  loadingBlock: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-  },
-  emptyBlock: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-  },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    marginTop: 12,
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  emptyActionBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#247B74',
-  },
-  emptyActionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: Platform.OS === 'web' ? 'center' : 'flex-end',
-    alignItems: 'center',
-    padding: Platform.OS === 'web' ? 16 : 0,
-  },
-  modalSheet: {
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    borderRadius: Platform.OS === 'web' ? 16 : undefined,
-    maxWidth: 540,
-    width: '100%',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 20,
-    maxHeight: '88%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-    width: '100%',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
   filterGroupTitle: {
     fontSize: 14.5,
     fontWeight: '600',
     marginBottom: 8,
+    marginTop: 12,
   },
   filterOptionsGrid: {
     flexDirection: 'row',
@@ -1828,17 +1970,41 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '600',
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    padding: 20,
+    width: '100%',
+    maxWidth: 600,
+    alignSelf: 'center',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    width: '100%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
   playerModalCover: {
     width: 140,
     height: 140,
     borderRadius: 16,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   playerModalTitle: {
     fontSize: 19,
     fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 4,
   },
   playerModalSubtitle: {
     fontSize: 14,
@@ -1921,9 +2087,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   playerMainPlayBtn: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     backgroundColor: '#247B74',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1932,7 +2098,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 4,
-    marginBottom: 10,
   },
   progressSection: {
     width: '95%',
@@ -1940,11 +2105,12 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     width: '100%',
-    height: 6,
+    height: 8,
     backgroundColor: '#DFE4E1',
-    borderRadius: 3,
+    borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 6,
+    cursor: 'pointer' as any,
   },
   progressFill: {
     height: '100%',
@@ -1961,14 +2127,169 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 24,
+    gap: 12,
     marginBottom: 16,
+    width: '100%',
   },
   musicSideCtrlBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  musicAuxCtrlBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  continueListeningCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 14,
+  },
+  continueListeningHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  continueListeningLabel: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  continueListeningRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  continueListeningCover: {
+    width: 46,
+    height: 46,
+    borderRadius: 8,
+  },
+  continueListeningTitle: {
+    fontSize: 14.5,
+    fontWeight: '700',
+  },
+  continueListeningSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  continueListeningPlayBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#247B74',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  licenseNoteCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 4,
+    marginBottom: 10,
+    width: '100%',
+  },
+  licenseNoteText: {
+    fontSize: 11.5,
+    flex: 1,
+    lineHeight: 16,
+  },
+  openMixerBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 14,
+  },
+  mixerBannerIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  mixerBannerTitle: {
+    fontSize: 14.5,
+    fontWeight: '700',
+  },
+  mixerBannerDesc: {
+    fontSize: 12,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  loadingBlock: {
+    paddingVertical: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  loadingText: {
+    fontSize: 13,
+  },
+  emptyActionBtn: {
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#247B74',
+  },
+  emptyActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  practicesGrid: {
+    gap: 12,
+  },
+  mainTabsContainer: {
+    flexDirection: 'row',
+    padding: 4,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 4,
+    marginTop: 12,
+  },
+  mainTabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  mainTabBtnActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  mainTabBtnText: {
+    fontSize: 13,
+  },
+  filterIconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
 });

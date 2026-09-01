@@ -77,18 +77,59 @@ class SoundEngine {
     this.isMuted = muted;
     if (muted) {
       this.stopVoice();
-    }
-
-    if (this.audioElement) {
-      this.audioElement.muted = muted;
-    }
-
-    if (this.masterGain && this.audioContext) {
-      try {
-        const now = this.audioContext.currentTime;
-        this.masterGain.gain.cancelScheduledValues(now);
-        this.masterGain.gain.setValueAtTime(muted ? 0 : this.masterVolume, now);
-      } catch (_e) {}
+      if (this.audioElement) {
+        this.audioElement.muted = true;
+      }
+      if (this.musicAudioElement) {
+        this.musicAudioElement.muted = true;
+      }
+      this.mixedSlots.forEach((slot) => {
+        if (slot.audioElement) {
+          slot.audioElement.muted = true;
+        }
+        if (slot.gainNode && this.audioContext) {
+          try {
+            slot.gainNode.gain.cancelScheduledValues(this.audioContext.currentTime);
+            slot.gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+          } catch (_e) {}
+        }
+      });
+      if (this.masterGain && this.audioContext) {
+        try {
+          const now = this.audioContext.currentTime;
+          this.masterGain.gain.cancelScheduledValues(now);
+          this.masterGain.gain.setValueAtTime(0, now);
+        } catch (_e) {}
+      }
+    } else {
+      if (this.audioElement) {
+        this.audioElement.muted = false;
+        this.audioElement.volume = this.masterVolume * this.ambienceVolume;
+      }
+      if (this.musicAudioElement) {
+        this.musicAudioElement.muted = false;
+        this.musicAudioElement.volume = this.masterVolume * this.musicVolume;
+      }
+      this.mixedSlots.forEach((slot) => {
+        if (slot.audioElement) {
+          slot.audioElement.muted = false;
+          slot.audioElement.volume = Math.max(0, Math.min(1, slot.volume * this.masterVolume));
+        }
+        if (slot.gainNode && this.audioContext) {
+          try {
+            const now = this.audioContext.currentTime;
+            slot.gainNode.gain.cancelScheduledValues(now);
+            slot.gainNode.gain.setValueAtTime(Math.max(0, Math.min(1, slot.volume * this.masterVolume)), now);
+          } catch (_e) {}
+        }
+      });
+      if (this.masterGain && this.audioContext) {
+        try {
+          const now = this.audioContext.currentTime;
+          this.masterGain.gain.cancelScheduledValues(now);
+          this.masterGain.gain.setValueAtTime(this.masterVolume, now);
+        } catch (_e) {}
+      }
     }
   }
 
@@ -105,6 +146,9 @@ class SoundEngine {
     this.masterVolume = Math.max(0, Math.min(1, vol));
     if (this.audioElement) {
       this.audioElement.volume = this.masterVolume * this.ambienceVolume;
+    }
+    if (this.musicAudioElement) {
+      this.musicAudioElement.volume = this.masterVolume * this.musicVolume;
     }
     if (!this.isMuted && this.masterGain && this.audioContext) {
       try {
@@ -135,6 +179,9 @@ class SoundEngine {
 
   public setMusicVolume(vol: number) {
     this.musicVolume = Math.max(0, Math.min(1, vol));
+    if (this.musicAudioElement) {
+      this.musicAudioElement.volume = this.masterVolume * this.musicVolume;
+    }
     if (this.musicGain && this.audioContext) {
       try {
         const now = this.audioContext.currentTime;
@@ -164,6 +211,7 @@ class SoundEngine {
   public stopAll() {
     this.stopAmbience();
     this.stopMusic();
+    this.stopMixedAmbiences();
     this.stopVoice();
   }
 
@@ -590,40 +638,124 @@ class SoundEngine {
     this.currentAmbience = 'none';
   }
 
-  // --- SÍNTESE DE COMPOSIÇÕES MUSICAIS INSTRUMENTAIS TRANQUILAS ---
+  private musicAudioElement: HTMLAudioElement | null = null;
+  private isMusicStreaming = false;
 
-  public playMusic(trackId: string, volume: number = 0.8) {
+  public playMusic(trackId: string, volume: number = 0.8, audioUrl?: string) {
     this.stopMusic();
+    this.currentMusicId = trackId;
+    this.musicVolume = volume;
+    this.isMusicPlaying = true;
+
+    // 1. Tentar elemento de áudio nativo/HTML5 se estiver no navegador
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && audioUrl) {
+      try {
+        if (!this.musicAudioElement) {
+          this.musicAudioElement = new window.Audio();
+        }
+        this.musicAudioElement.src = audioUrl;
+        this.musicAudioElement.loop = true;
+        this.musicAudioElement.volume = this.masterVolume * this.musicVolume;
+        this.musicAudioElement.muted = this.isMuted;
+
+        const playPromise = this.musicAudioElement.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              this.isMusicStreaming = true;
+            })
+            .catch((_err: any) => {
+              // Fallback para sintetizador Web Audio se o carregamento falhar
+              this.playProceduralMusic(trackId, volume);
+            });
+          return;
+        }
+      } catch (_e) {
+        // Fallback procedural
+      }
+    }
+
+    this.playProceduralMusic(trackId, volume);
+  }
+
+  public pauseMusic() {
+    this.isMusicPlaying = false;
+    if (this.musicAudioElement) {
+      try {
+        this.musicAudioElement.pause();
+      } catch (_e) {}
+    }
+    this.stopProceduralMusic();
+  }
+
+  public resumeMusic(volume?: number) {
+    const vol = volume !== undefined ? volume : this.musicVolume;
+    this.musicVolume = vol;
+    this.isMusicPlaying = true;
+
+    if (this.musicAudioElement && this.currentMusicId !== 'none') {
+      try {
+        this.musicAudioElement.volume = this.masterVolume * vol;
+        this.musicAudioElement.play().catch(() => {
+          this.playProceduralMusic(this.currentMusicId, vol);
+        });
+        return;
+      } catch (_e) {}
+    }
+
+    if (this.currentMusicId !== 'none') {
+      this.playProceduralMusic(this.currentMusicId, vol);
+    }
+  }
+
+  public seekMusic(seconds: number) {
+    if (this.musicAudioElement) {
+      try {
+        this.musicAudioElement.currentTime = seconds;
+      } catch (_e) {}
+    }
+  }
+
+  private playProceduralMusic(trackId: string, volume: number = 0.8) {
     this.ensureRunning();
     if (!this.audioContext || !this.masterGain) return;
 
     try {
-      this.isMusicPlaying = true;
-      this.currentMusicId = trackId;
-      this.musicVolume = volume;
-
+      this.stopProceduralMusic();
       this.musicGain = this.audioContext.createGain();
       const now = this.audioContext.currentTime;
       this.musicGain.gain.setValueAtTime(this.musicVolume, now);
       this.musicGain.connect(this.masterGain);
 
-      // Escalas harmônicas e notas exclusivas por faixa
+      // Escalas harmônicas e notas exclusivas para cada uma das 24 faixas
       const scales: Record<string, number[]> = {
-        'music-piano-dawn': [174.61, 220.0, 261.63, 329.63, 392.0, 523.25], // F Major Lyrical
-        'music-quiet-night': [146.83, 174.61, 220.0, 261.63, 293.66, 349.23], // D Minor Ambient
-        'music-serene-path': [130.81, 164.81, 196.0, 246.94, 261.63, 329.63], // C Major Serene
-        'music-breath-pause': [196.0, 246.94, 293.66, 369.99, 392.0, 493.88], // G Major Breathe
-        'music-morning-light': [220.0, 277.18, 329.63, 415.3, 440.0, 554.37], // A Major Morning
-        'music-deep-reflection': [138.59, 164.81, 207.65, 246.94, 277.18, 329.63], // C# Minor Reflect
-        'music-mental-silence': [116.54, 146.83, 174.61, 220.0, 233.08, 293.66], // Bb Major Silence
-        'music-crystal-clarity': [164.81, 207.65, 246.94, 311.13, 329.63, 415.3], // E Major Crystal
-        'music-night-rest': [103.83, 130.81, 155.56, 196.0, 207.65, 261.63], // Ab Major Lullaby
-        'music-deep-peace': [132.0, 264.0, 396.0, 528.0, 660.0], // 528Hz Solfeggio Peace
-        'music-gentle-breeze': [108.0, 216.0, 324.0, 432.0, 540.0], // 432Hz Healing Breeze
-        'music-star-lullaby': [155.56, 196.0, 233.08, 293.66, 311.13, 392.0], // Eb Major Stars
+        'music-caminho-sereno': [130.81, 164.81, 196.0, 246.94, 261.63, 329.63], // C Major Serene
+        'music-pausa-para-respirar': [196.0, 246.94, 293.66, 369.99, 392.0, 493.88], // G Major Breathe
+        'music-jardim-silencioso': [174.61, 220.0, 261.63, 329.63, 392.0, 440.0], // F Major Garden
+        'music-brisa-tranquila': [108.0, 216.0, 324.0, 432.0, 540.0], // 432Hz Healing Breeze
+        'music-horizonte-calmo': [220.0, 277.18, 329.63, 415.3, 440.0, 554.37], // A Major Horizon
+        'music-tarde-de-paz': [146.83, 185.0, 220.0, 277.18, 293.66, 369.99], // D Major Afternoon
+        'music-noite-tranquila': [146.83, 174.61, 220.0, 261.63, 293.66, 349.23], // D Minor Ambient
+        'music-ceu-noturno': [155.56, 196.0, 233.08, 293.66, 311.13, 392.0], // Eb Major Stars
+        'music-sono-profundo': [103.83, 130.81, 155.56, 196.0, 207.65, 261.63], // Ab Major Lullaby
+        'music-luz-da-lua': [138.59, 164.81, 207.65, 246.94, 277.18, 329.63], // C# Minor Moonlight
+        'music-silencio-da-madrugada': [116.54, 146.83, 174.61, 220.0, 233.08, 293.66], // Bb Major Midnight
+        'music-nuvens-lentas': [132.0, 264.0, 396.0, 528.0, 660.0], // 528Hz Solfeggio Clouds
+        'music-piano-ao-amanhecer': [174.61, 220.0, 261.63, 329.63, 392.0, 523.25], // F Major Dawn
+        'music-presenca': [164.81, 207.65, 246.94, 311.13, 329.63, 415.3], // E Major Zen
+        'music-instante-de-calma': [196.0, 233.08, 261.63, 293.66, 349.23, 392.0], // G Minor Harp
+        'music-respiracao-consciente': [110.0, 220.0, 330.0, 440.0, 550.0], // 110Hz Base Breathing
+        'music-equilibrio-interior': [123.47, 164.81, 185.0, 246.94, 329.63, 370.0], // B Minor Balance
+        'music-som-do-presente': [196.0, 246.94, 293.66, 392.0, 493.88, 587.33], // G Major Chimes
+        'music-foco-leve': [130.81, 155.56, 196.0, 233.08, 261.63, 311.13], // C Minor Lo-Fi
+        'music-concentracao-serena': [146.83, 174.61, 220.0, 261.63, 329.63, 440.0], // D Minor Focus
+        'music-piano-para-estudar': [174.61, 220.0, 261.63, 329.63, 349.23, 440.0], // F Major Study
+        'music-fluxo-continuo': [164.81, 196.0, 246.94, 293.66, 329.63, 392.0], // E Minor Flow
+        'music-mente-organizada': [196.0, 220.0, 261.63, 293.66, 392.0, 440.0], // G Pentatonic Mind
+        'music-leitura-tranquila': [130.81, 164.81, 196.0, 220.0, 261.63, 329.63], // C Major Reading
       };
 
-      const notes = scales[trackId] || scales['music-piano-dawn'];
+      const notes = scales[trackId] || scales['music-caminho-sereno'];
       let noteStep = 0;
 
       const playPianoChord = (freq1: number, freq2: number) => {
@@ -642,7 +774,7 @@ class SoundEngine {
           osc1H.frequency.setValueAtTime(freq1 * 2, t);
 
           g1.gain.setValueAtTime(0.001, t);
-          g1.gain.linearRampToValueAtTime(0.25, t + 0.04);
+          g1.gain.linearRampToValueAtTime(0.22, t + 0.04);
           g1.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
 
           osc1.connect(g1);
@@ -661,7 +793,7 @@ class SoundEngine {
           osc2.frequency.setValueAtTime(freq2, t);
 
           g2.gain.setValueAtTime(0.001, t);
-          g2.gain.linearRampToValueAtTime(0.18, t + 0.06);
+          g2.gain.linearRampToValueAtTime(0.16, t + 0.06);
           g2.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
 
           osc2.connect(g2);
@@ -682,13 +814,11 @@ class SoundEngine {
         noteStep = (noteStep + 1) % notes.length;
       }, 2200);
     } catch (e) {
-      console.warn('[SoundEngine] Play music warning:', e);
+      console.warn('[SoundEngine] Play procedural music warning:', e);
     }
   }
 
-  public stopMusic() {
-    this.isMusicPlaying = false;
-    this.currentMusicId = 'none';
+  private stopProceduralMusic() {
     if (this.musicInterval) {
       clearInterval(this.musicInterval);
       this.musicInterval = null;
@@ -708,8 +838,134 @@ class SoundEngine {
     }
   }
 
+  public stopMusic() {
+    this.isMusicPlaying = false;
+    this.currentMusicId = 'none';
+    this.isMusicStreaming = false;
+    this.stopProceduralMusic();
+    if (this.musicAudioElement) {
+      try {
+        this.musicAudioElement.pause();
+        this.musicAudioElement.currentTime = 0;
+      } catch (_e) {}
+    }
+  }
+
+  // --- SISTEMA DE MISTURADOR DE SONS (MULTI-SOUND AMBIENCE MIXER - ATÉ 3 SONS SIMULTÂNEOS) ---
+  private mixedSlots: Array<{
+    id: string;
+    volume: number;
+    audioElement: any;
+    gainNode: any;
+    interval: any;
+  }> = [];
+
+  public playMixedAmbiences(
+    layers: Array<{ soundId: string; volume: number; audioUrl?: string }>,
+    masterMixVolume: number = 0.8
+  ) {
+    this.stopMixedAmbiences();
+    this.ensureRunning();
+
+    const validLayers = layers.filter((l) => l.soundId && l.soundId !== 'none').slice(0, 3);
+    if (validLayers.length === 0) return;
+
+    this.mixedSlots = validLayers.map((layer) => {
+      const slot = {
+        id: layer.soundId,
+        volume: layer.volume,
+        audioElement: null as any,
+        gainNode: null as any,
+        interval: null as any,
+      };
+
+      const finalVol = Math.max(0, Math.min(1, layer.volume * masterMixVolume * this.masterVolume));
+
+      // 1. Tentar elemento de áudio nativo se disponível
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && layer.audioUrl) {
+        try {
+          const audio = new window.Audio();
+          audio.src = layer.audioUrl;
+          audio.loop = true;
+          audio.volume = this.isMuted ? 0 : finalVol;
+          audio.muted = this.isMuted;
+          audio.play().catch(() => {});
+          slot.audioElement = audio;
+        } catch (_e) {}
+      }
+
+      // 2. Procedural Web Audio fallback
+      if (this.audioContext && this.masterGain && !slot.audioElement) {
+        try {
+          const g = this.audioContext.createGain();
+          g.gain.setValueAtTime(this.isMuted ? 0 : finalVol, this.audioContext.currentTime);
+          g.connect(this.masterGain);
+          slot.gainNode = g;
+        } catch (_e) {}
+      }
+
+      return slot;
+    });
+  }
+
+  public setMixedLayerVolume(soundId: string, volume: number, masterMixVolume: number = 0.8) {
+    const slot = this.mixedSlots.find((s) => s.id === soundId);
+    if (!slot) return;
+
+    slot.volume = volume;
+    const finalVol = Math.max(0, Math.min(1, volume * masterMixVolume * this.masterVolume));
+
+    if (slot.audioElement) {
+      try {
+        slot.audioElement.volume = this.isMuted ? 0 : finalVol;
+      } catch (_e) {}
+    }
+
+    if (slot.gainNode && this.audioContext) {
+      try {
+        slot.gainNode.gain.setValueAtTime(this.isMuted ? 0 : finalVol, this.audioContext.currentTime);
+      } catch (_e) {}
+    }
+  }
+
+  public setMixedMasterVolume(masterMixVolume: number) {
+    this.mixedSlots.forEach((slot) => {
+      const finalVol = Math.max(0, Math.min(1, slot.volume * masterMixVolume * this.masterVolume));
+      if (slot.audioElement) {
+        try {
+          slot.audioElement.volume = this.isMuted ? 0 : finalVol;
+        } catch (_e) {}
+      }
+      if (slot.gainNode && this.audioContext) {
+        try {
+          slot.gainNode.gain.setValueAtTime(this.isMuted ? 0 : finalVol, this.audioContext.currentTime);
+        } catch (_e) {}
+      }
+    });
+  }
+
+  public stopMixedAmbiences() {
+    this.mixedSlots.forEach((slot) => {
+      if (slot.audioElement) {
+        try {
+          slot.audioElement.pause();
+          slot.audioElement.currentTime = 0;
+        } catch (_e) {}
+      }
+      if (slot.interval) {
+        clearInterval(slot.interval);
+      }
+      if (slot.gainNode) {
+        try {
+          slot.gainNode.disconnect();
+        } catch (_e) {}
+      }
+    });
+    this.mixedSlots = [];
+  }
+
   public playCalmMusic(volume: number = 0.8) {
-    this.playMusic('music-piano-dawn', volume);
+    this.playMusic('music-caminho-sereno', volume);
   }
 
   public stopCalmMusic() {

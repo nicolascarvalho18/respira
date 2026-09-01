@@ -45,9 +45,14 @@ describe('Nova Biblioteca de Práticas Guiadas em Vídeo e Áudio', () => {
   });
 
   describe('2. Filtros e Seletores da Biblioteca', () => {
-    it('deve filtrar práticas por categoria', async () => {
+    beforeEach(async () => {
       const store = usePracticeStore.getState();
       await store.fetchPractices();
+      store.resetFilters();
+    });
+
+    it('deve filtrar práticas por categoria', async () => {
+      const store = usePracticeStore.getState();
 
       store.setSelectedCategory('breathing');
       const filtered = store.getFilteredPractices();
@@ -75,9 +80,10 @@ describe('Nova Biblioteca de Práticas Guiadas em Vídeo e Áudio', () => {
       filtered.forEach((p) => expect(p.format).toBe('video'));
     });
 
-    it('deve buscar práticas por termo de pesquisa sem diferenciar maiúsculas/minúsculas', () => {
+    it('deve buscar práticas por termo de pesquisa sem diferenciar maiúsculas/minúsculas', async () => {
       const store = usePracticeStore.getState();
-      store.setSelectedFormat('all');
+      await store.fetchPractices();
+      store.resetFilters();
       store.setSearchQuery('4-7-8');
 
       const filtered = store.getFilteredPractices();

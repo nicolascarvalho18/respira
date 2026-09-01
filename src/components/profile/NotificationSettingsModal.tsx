@@ -89,6 +89,18 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
     }
   }, [visible, user?.id]);
 
+  useEffect(() => {
+    if (visible && Platform.OS === 'web' && typeof window !== 'undefined') {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          onClose();
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [visible, onClose]);
+
   if (!visible) return null;
 
   const toggleDay = (dayId: number) => {
@@ -306,19 +318,25 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                             key={hour}
                             onPress={() => setConfig((prev) => ({ ...prev, reminderTime: hour }))}
                             accessibilityRole="button"
-                            accessibilityLabel={`Horário: ${hour}`}
+                            accessibilityState={{ selected: isSelected }}
+                            accessibilityLabel={`Horário: ${hour} ${isSelected ? '(selecionado)' : ''}`}
                             style={[
                               styles.timePill,
                               isSelected && {
                                 backgroundColor: accentColor,
-                                borderColor: accentColor,
+                                borderColor: isDark ? '#7FE0D6' : '#147D78',
+                                borderWidth: 2,
                               },
                               !isSelected && {
                                 backgroundColor: isDark ? '#172033' : '#FFFFFF',
-                                borderColor: cardBorder,
+                                borderColor: isDark ? '#334155' : cardBorder,
+                                borderWidth: 1,
                               },
                             ]}
                           >
+                            {isSelected && (
+                              <Check size={12} color="#FFFFFF" strokeWidth={2.5} style={{ marginRight: 4 }} />
+                            )}
                             <Text
                               style={[
                                 styles.timePillText,

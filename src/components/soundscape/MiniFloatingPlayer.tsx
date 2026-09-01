@@ -1,10 +1,11 @@
-import React from 'react';
+﻿import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Platform,
+  Image,
 } from 'react-native';
 import {
   Play,
@@ -22,14 +23,20 @@ import {
   Droplet,
   Coffee,
   Music,
+  SkipForward,
+  Sliders,
+  Maximize2,
 } from 'lucide-react-native';
 import { useSoundscapeStore } from '../../store/soundscapeStore';
 import { useMusicStore } from '../../store/musicStore';
+import { useSoundMixerStore } from '../../store/soundMixerStore';
 import { useTheme } from '../../hooks/useTheme';
+import { FullScreenAudioPlayer } from './FullScreenAudioPlayer';
+import { SoundMixerModal } from './SoundMixerModal';
 
 export const MiniFloatingPlayer: React.FC = () => {
   const { colors, isDark } = useTheme();
-  
+
   // Soundscape store state
   const {
     currentSoundscape,
@@ -48,26 +55,71 @@ export const MiniFloatingPlayer: React.FC = () => {
     isPlaying: isMusicPlaying,
     volume: musicVolume,
     remainingTimerSeconds: musicRemainingSeconds,
+    isFullScreenPlayerOpen,
     togglePlayPause: toggleMusicPlayPause,
     pauseTrack: pauseMusicTrack,
+    nextTrack: nextMusicTrack,
     setVolume: setMusicVolume,
+    setFullScreenPlayerOpen,
   } = useMusicStore();
 
-  const isSoundActive = Boolean(isSoundMiniVisible && currentSoundscape);
-  const isMusicActive = Boolean(!isSoundActive && currentTrack);
+  // Sound Mixer state
+  const {
+    isPlaying: isMixPlaying,
+    activeLayers,
+    activePresetName,
+    isMixerModalOpen,
+    togglePlayPause: toggleMixPlayPause,
+    stopMix,
+    setMixerModalOpen,
+  } = useSoundMixerStore();
 
-  if (!isSoundActive && !isMusicActive) return null;
+  const isMixActive = Boolean(isMixPlaying && activeLayers.length > 0);
+  const isSoundActive = Boolean(!isMixActive && isSoundMiniVisible && currentSoundscape);
+  const isMusicActive = Boolean(!isMixActive && !isSoundActive && currentTrack);
 
-  const isPlaying = isSoundActive ? isSoundPlaying : isMusicPlaying;
+  if (!isMixActive && !isSoundActive && !isMusicActive) {
+    return (
+      <>
+        <FullScreenAudioPlayer
+          visible={isFullScreenPlayerOpen}
+          onClose={() => setFullScreenPlayerOpen(false)}
+        />
+        <SoundMixerModal
+          visible={isMixerModalOpen}
+          onClose={() => setMixerModalOpen(false)}
+        />
+      </>
+    );
+  }
+
+  const isPlaying = isMixActive
+    ? isMixPlaying
+    : isSoundActive
+    ? isSoundPlaying
+    : isMusicPlaying;
+
   const volume = isSoundActive ? soundVolume : musicVolume;
   const remainingSeconds = isSoundActive ? soundRemainingSeconds : musicRemainingSeconds;
 
-  const title = isSoundActive ? currentSoundscape!.name : currentTrack!.title;
-  const subtitle = isSoundActive ? currentSoundscape!.subtitle : `${currentTrack!.artist} · ${currentTrack!.categoryLabel}`;
-  const accentColor = isSoundActive ? (currentSoundscape!.accentColor || '#2F7F7C') : '#2F7F7C';
+  const title = isMixActive
+    ? activePresetName || `Mistura (${activeLayers.length} sons)`
+    : isSoundActive
+    ? currentSoundscape!.name
+    : currentTrack!.title;
+
+  const subtitle = isMixActive
+    ? activeLayers.map((l) => l.name).join(' + ')
+    : isSoundActive
+    ? currentSoundscape!.subtitle
+    : `${currentTrack!.artist} · ${currentTrack!.categoryLabel}`;
+
+  const accentColor = '#247B74';
 
   const handleTogglePlay = () => {
-    if (isSoundActive) {
+    if (isMixActive) {
+      toggleMixPlayPause();
+    } else if (isSoundActive) {
       toggleSoundPlayPause();
     } else {
       toggleMusicPlayPause();
@@ -77,13 +129,15 @@ export const MiniFloatingPlayer: React.FC = () => {
   const handleToggleMute = () => {
     if (isSoundActive) {
       setSoundVolume(soundVolume > 0 ? 0 : 0.8);
-    } else {
+    } else if (isMusicActive) {
       setMusicVolume(musicVolume > 0 ? 0 : 0.8);
     }
   };
 
   const handleClose = () => {
-    if (isSoundActive) {
+    if (isMixActive) {
+      stopMix();
+    } else if (isSoundActive) {
       closeSoundMiniPlayer();
     } else {
       pauseMusicTrack();
@@ -91,29 +145,13 @@ export const MiniFloatingPlayer: React.FC = () => {
     }
   };
 
-  const renderIcon = () => {
-    if (isMusicActive) {
-      return <Music size={16} color="#FFFFFF" />;
-    }
-
-    switch (currentSoundscape?.icon) {
-      case 'cloud-rain':
-        return <CloudRain size={16} color="#FFFFFF" />;
-      case 'waves':
-        return <Waves size={16} color="#FFFFFF" />;
-      case 'droplet':
-        return <Droplet size={16} color="#FFFFFF" />;
-      case 'trees':
-        return <Trees size={16} color="#FFFFFF" />;
-      case 'flame':
-        return <Flame size={16} color="#FFFFFF" />;
-      case 'radio':
-        return <Radio size={16} color="#FFFFFF" />;
-      case 'book':
-        return <Coffee size={16} color="#FFFFFF" />;
-      case 'wind':
-      default:
-        return <Wind size={16} color="#FFFFFF" />;
+  const handleOpenPlayer = () => {
+    if (isMixActive) {
+      setMixerModalOpen(true);
+    } else if (isMusicActive) {
+      setFullScreenPlayerOpen(true);
+    } else if (isSoundActive) {
+      // Abre modal de som
     }
   };
 
@@ -124,86 +162,116 @@ export const MiniFloatingPlayer: React.FC = () => {
   };
 
   return (
-    <View style={styles.floatingContainer} pointerEvents="box-none">
-      <View
-        style={[
-          styles.playerBar,
-          {
-            backgroundColor: isDark ? colors.surface : '#FFFFFF',
-            borderColor: isDark ? colors.border : '#DCE5E2',
-          },
-        ]}
-      >
-        {/* Ícone com cor de destaque */}
-        <View
+    <>
+      <View style={styles.floatingContainer} pointerEvents="box-none">
+        <TouchableOpacity
+          activeOpacity={0.92}
+          onPress={handleOpenPlayer}
           style={[
-            styles.iconCircle,
-            { backgroundColor: accentColor },
+            styles.playerBar,
+            {
+              backgroundColor: isDark ? colors.surface : '#FFFFFF',
+              borderColor: isDark ? colors.border : '#DCE5E2',
+            },
           ]}
         >
-          {renderIcon()}
-        </View>
+          {/* Miniatura ou Ícone */}
+          {isMusicActive && currentTrack?.thumbnailUrl ? (
+            <Image
+              source={{ uri: currentTrack.thumbnailUrl }}
+              style={styles.thumbImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.iconCircle, { backgroundColor: accentColor }]}>
+              {isMixActive ? (
+                <Sliders size={16} color="#FFFFFF" />
+              ) : isMusicActive ? (
+                <Music size={16} color="#FFFFFF" />
+              ) : (
+                <CloudRain size={16} color="#FFFFFF" />
+              )}
+            </View>
+          )}
 
-        {/* Informações do Som & Temporizador */}
-        <View style={styles.infoCol}>
-          <Text style={[styles.soundTitle, { color: isDark ? colors.text : '#173D3B' }]} numberOfLines={1}>
-            {title}
-          </Text>
-          <View style={styles.subRow}>
-            <Text style={[styles.soundSubtitle, { color: isDark ? colors.textMuted : '#667775' }]} numberOfLines={1}>
-              {subtitle}
+          {/* Informações do Som / Música */}
+          <View style={styles.infoCol}>
+            <Text style={[styles.soundTitle, { color: isDark ? colors.text : '#173D3B' }]} numberOfLines={1}>
+              {title}
             </Text>
-            {remainingSeconds !== null && (
-              <View style={styles.timerBadge}>
-                <Clock size={10} color="#2F7F7C" style={{ marginRight: 3 }} />
-                <Text style={styles.timerText}>{formatTimer(remainingSeconds)}</Text>
-              </View>
-            )}
+            <View style={styles.subRow}>
+              <Text style={[styles.soundSubtitle, { color: isDark ? colors.textMuted : '#667775' }]} numberOfLines={1}>
+                {subtitle}
+              </Text>
+              {remainingSeconds !== null && remainingSeconds > 0 && (
+                <View style={styles.timerBadge}>
+                  <Clock size={10} color="#247B74" style={{ marginRight: 3 }} />
+                  <Text style={styles.timerText}>{formatTimer(remainingSeconds)}</Text>
+                </View>
+              )}
+            </View>
           </View>
-        </View>
 
-        {/* Controle de Volume */}
-        <TouchableOpacity
-          onPress={handleToggleMute}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="Ajustar volume"
-          style={styles.actionBtn}
-        >
-          {volume === 0 ? (
-            <VolumeX size={18} color="#8C9E9B" />
-          ) : (
-            <Volume2 size={18} color="#2F7F7C" />
+          {/* Botão Avançar se for Música */}
+          {isMusicActive && (
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                nextMusicTrack();
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Próxima música"
+              style={styles.actionBtn}
+            >
+              <SkipForward size={18} color={isDark ? colors.text : '#1F2927'} />
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
 
-        {/* Botão Play / Pause */}
-        <TouchableOpacity
-          onPress={handleTogglePlay}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel={isPlaying ? 'Pausar som' : 'Reproduzir som'}
-          style={[styles.playBtn, { backgroundColor: '#2F7F7C' }]}
-        >
-          {isPlaying ? (
-            <Pause size={14} color="#FFFFFF" fill="#FFFFFF" />
-          ) : (
-            <Play size={14} color="#FFFFFF" fill="#FFFFFF" style={{ marginLeft: 2 }} />
-          )}
-        </TouchableOpacity>
+          {/* Botão Play / Pause */}
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              handleTogglePlay();
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={isPlaying ? 'Pausar reprodução' : 'Iniciar reprodução'}
+            style={[styles.playBtn, { backgroundColor: '#247B74' }]}
+          >
+            {isPlaying ? (
+              <Pause size={14} color="#FFFFFF" fill="#FFFFFF" />
+            ) : (
+              <Play size={14} color="#FFFFFF" fill="#FFFFFF" style={{ marginLeft: 2 }} />
+            )}
+          </TouchableOpacity>
 
-        {/* Botão Fechar Miniplayer */}
-        <TouchableOpacity
-          onPress={handleClose}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="Fechar reprodutor"
-          style={styles.closeBtn}
-        >
-          <X size={16} color="#8C9E9B" />
+          {/* Botão Fechar Miniplayer */}
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              handleClose();
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Fechar reprodutor"
+            style={styles.closeBtn}
+          >
+            <X size={16} color="#8C9E9B" />
+          </TouchableOpacity>
         </TouchableOpacity>
       </View>
-    </View>
+
+      {/* Modais Globais de Reprodução */}
+      <FullScreenAudioPlayer
+        visible={isFullScreenPlayerOpen}
+        onClose={() => setFullScreenPlayerOpen(false)}
+      />
+      <SoundMixerModal
+        visible={isMixerModalOpen}
+        onClose={() => setMixerModalOpen(false)}
+      />
+    </>
   );
 };
 
@@ -218,32 +286,38 @@ const styles = StyleSheet.create({
   },
   playerBar: {
     width: '100%',
-    maxWidth: 500,
+    maxWidth: 540,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 9,
     borderRadius: 16,
     borderWidth: 1,
     shadowColor: '#173D3B',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.14,
     shadowRadius: 10,
-    elevation: 6,
+    elevation: 7,
     gap: 10,
   },
+  thumbImage: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+  },
   iconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   infoCol: {
     flex: 1,
+    minWidth: 0,
   },
   soundTitle: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '700',
     letterSpacing: -0.2,
   },
@@ -251,10 +325,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 1,
+    marginTop: 2,
   },
   soundSubtitle: {
-    fontSize: 11,
+    fontSize: 11.5,
     flexShrink: 1,
   },
   timerBadge: {
@@ -268,19 +342,19 @@ const styles = StyleSheet.create({
   timerText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#2F7F7C',
+    color: '#247B74',
   },
   actionBtn: {
-    padding: 4,
+    padding: 6,
   },
   playBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeBtn: {
-    padding: 4,
+    padding: 6,
   },
 });

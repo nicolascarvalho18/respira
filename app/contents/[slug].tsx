@@ -23,6 +23,7 @@ import { LoadingState } from '../../src/components/ui/LoadingState';
 import { useToast } from '../../src/components/ui/Toast';
 import { useContentStore } from '../../src/store/contentStore';
 import { useTheme } from '../../src/hooks/useTheme';
+import { useAuth } from '../../src/hooks/useAuth';
 import { SafeMarkdown } from '../../src/components/ui/SafeMarkdown';
 import { Article } from '../../src/types';
 import { normalizeText } from '../../src/data/articles';
@@ -32,6 +33,7 @@ import { ArticleFooter } from '../../src/components/content/ArticleFooter';
 export default function ArticleDetailSlugScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
+  const { user } = useAuth();
   const { colors, isDark } = useTheme();
   const { articles, toggleFavorite, updateProgress } = useContentStore();
   const { showToast } = useToast();
@@ -256,7 +258,18 @@ export default function ArticleDetailSlugScreen() {
 
               {/* Favoritar */}
               <TouchableOpacity
-                onPress={() => toggleFavorite(article.id)}
+                onPress={async () => {
+                  if (!user?.id) {
+                    showToast({ message: 'Entre na sua conta para salvar favoritos.', type: 'info' });
+                    return;
+                  }
+                  const res = await toggleFavorite(article.id, user.id);
+                  setArticle((prev) => (prev ? { ...prev, isFavorite: res.isFavorite } : null));
+                  showToast({
+                    message: res?.message || 'Favorito atualizado',
+                    type: 'info',
+                  });
+                }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityRole="button"
                 accessibilityState={{ selected: !!article.isFavorite }}

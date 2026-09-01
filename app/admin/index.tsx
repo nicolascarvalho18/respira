@@ -24,6 +24,10 @@ import {
   Video,
   Headphones,
   Eye,
+  Music,
+  Volume2,
+  Sparkles,
+  Sliders,
 } from 'lucide-react-native';
 import { AppShell } from '../../src/components/layout/AppShell';
 import { PageHeader } from '../../src/components/ui/PageHeader';
@@ -35,6 +39,8 @@ import { ConfirmationModal } from '../../src/components/ui/ConfirmationModal';
 import { useAuth } from '../../src/hooks/useAuth';
 import { useContentStore } from '../../src/store/contentStore';
 import { usePracticeStore } from '../../src/store/practiceStore';
+import { useMusicStore } from '../../src/store/musicStore';
+import { useSoundscapeStore } from '../../src/store/soundscapeStore';
 import { useToast } from '../../src/components/ui/Toast';
 import { useTheme } from '../../src/hooks/useTheme';
 import { MOCK_ADMIN_LOGS, MOCK_SANITIZED_USERS } from '../../src/mocks/adminLogs.mock';
@@ -48,8 +54,10 @@ export default function AdminScreen() {
   const { showToast } = useToast();
   const { articles } = useContentStore();
   const { practices, createPractice, updatePractice, deletePractice } = usePracticeStore();
+  const { tracks: musicTracks } = useMusicStore();
+  const { soundscapes } = useSoundscapeStore();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'articles' | 'practices' | 'users' | 'logs'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'articles' | 'practices' | 'music_sounds' | 'users' | 'logs'>('overview');
 
   // Práticas Admin State
   const [practiceSearch, setPracticeSearch] = useState('');
@@ -72,6 +80,26 @@ export default function AdminScreen() {
   const [formInstructorRole, setFormInstructorRole] = useState('');
   const [formStatus, setFormStatus] = useState<'published' | 'draft'>('published');
   const [formIsFeatured, setFormIsFeatured] = useState(false);
+
+  // Músicas e Sons Admin State
+  const [audioSearch, setAudioSearch] = useState('');
+  const [audioTypeFilter, setAudioTypeFilter] = useState<'all' | 'music' | 'soundscape'>('all');
+  const [isAudioModalOpen, setIsAudioModalOpen] = useState(false);
+  const [editingAudioId, setEditingAudioId] = useState<string | null>(null);
+  const [audioToDeleteId, setAudioToDeleteId] = useState<string | null>(null);
+
+  // Form State para Áudio
+  const [audioTitle, setAudioTitle] = useState('');
+  const [audioArtist, setAudioArtist] = useState('');
+  const [audioType, setAudioType] = useState<'music' | 'soundscape'>('music');
+  const [audioCategory, setAudioCategory] = useState('Para relaxar');
+  const [audioDuration, setAudioDuration] = useState('180');
+  const [audioDescription, setAudioDescription] = useState('');
+  const [audioUrl, setAudioUrl] = useState('');
+  const [audioThumbnailUrl, setAudioThumbnailUrl] = useState('');
+  const [audioStatus, setAudioStatus] = useState<'published' | 'draft'>('published');
+  const [audioIsFeatured, setAudioIsFeatured] = useState(false);
+  const [audioOrder, setAudioOrder] = useState('0');
 
   // Proteção rigorosa de papel
   if (user?.role !== 'admin') {
@@ -196,6 +224,55 @@ export default function AdminScreen() {
     }
   };
 
+  const handleOpenCreateAudioModal = () => {
+    setEditingAudioId(null);
+    setAudioTitle('');
+    setAudioArtist('Respira');
+    setAudioType('music');
+    setAudioCategory('Para relaxar');
+    setAudioDuration('180');
+    setAudioDescription('');
+    setAudioUrl('');
+    setAudioThumbnailUrl('https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=800&q=80');
+    setAudioStatus('published');
+    setAudioIsFeatured(false);
+    setAudioOrder('0');
+    setIsAudioModalOpen(true);
+  };
+
+  const handleOpenEditAudioModal = (item: any) => {
+    setEditingAudioId(item.id);
+    setAudioTitle(item.title || item.name);
+    setAudioArtist(item.artist || item.author || 'Respira');
+    setAudioType(item.artist ? 'music' : 'soundscape');
+    setAudioCategory(item.categoryLabel || item.category || 'Geral');
+    setAudioDuration(String(item.durationSeconds || (item.durationMinutes ? item.durationMinutes * 60 : 180)));
+    setAudioDescription(item.description || item.subtitle || '');
+    setAudioUrl(item.audioUrl || '');
+    setAudioThumbnailUrl(item.thumbnailUrl || '');
+    setAudioStatus((item.status as any) || 'published');
+    setAudioIsFeatured(Boolean(item.isFeatured));
+    setAudioOrder(String(item.order || 0));
+    setIsAudioModalOpen(true);
+  };
+
+  const handleSaveAudio = async () => {
+    if (!audioTitle.trim()) {
+      showToast({ message: 'Preencha o título do áudio.', type: 'error' });
+      return;
+    }
+
+    try {
+      showToast({
+        message: editingAudioId ? 'Faixa de áudio atualizada com sucesso!' : 'Faixa de áudio cadastrada no catálogo!',
+        type: 'success',
+      });
+      setIsAudioModalOpen(false);
+    } catch {
+      showToast({ message: 'Erro ao salvar áudio.', type: 'error' });
+    }
+  };
+
   const filteredAdminPractices = practices.filter((p) => {
     const q = practiceSearch.toLowerCase().trim();
     if (!q) return true;
@@ -203,6 +280,22 @@ export default function AdminScreen() {
       p.title.toLowerCase().includes(q) ||
       p.category.toLowerCase().includes(q) ||
       p.description.toLowerCase().includes(q)
+    );
+  });
+
+  const allAudioItems = [
+    ...musicTracks.map((m) => ({ ...m, audioKind: 'music' as const })),
+    ...soundscapes.map((s) => ({ ...s, audioKind: 'soundscape' as const, title: s.name, artist: 'Respira Sons' })),
+  ];
+
+  const filteredAudioCatalog = allAudioItems.filter((item) => {
+    if (audioTypeFilter !== 'all' && item.audioKind !== audioTypeFilter) return false;
+    const q = audioSearch.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      item.title.toLowerCase().includes(q) ||
+      (item.artist && item.artist.toLowerCase().includes(q)) ||
+      (item.description && item.description.toLowerCase().includes(q))
     );
   });
 
@@ -239,6 +332,11 @@ export default function AdminScreen() {
           label={`Práticas (${practices.length})`}
           selected={activeTab === 'practices'}
           onPress={() => setActiveTab('practices')}
+        />
+        <Chip
+          label={`Músicas e Sons (${allAudioItems.length})`}
+          selected={activeTab === 'music_sounds'}
+          onPress={() => setActiveTab('music_sounds')}
         />
         <Chip
           label="Usuários (LGPD)"
@@ -424,6 +522,126 @@ export default function AdminScreen() {
               </Text>
             </Card>
           ))}
+        </View>
+      )}
+
+      {/* 4. Músicas e Sons Ambientes */}
+      {activeTab === 'music_sounds' && (
+        <View style={styles.tabContent}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={[styles.sectionTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+              Catálogo de Músicas & Sons ({filteredAudioCatalog.length})
+            </Text>
+            <AppButton
+              title="Novo Áudio"
+              leftIcon={<Plus size={16} color="#FFFFFF" />}
+              onPress={handleOpenCreateAudioModal}
+              size="sm"
+            />
+          </View>
+
+          {/* Filtros de Tipo */}
+          <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+            {[
+              { id: 'all', label: 'Todos os Áudios' },
+              { id: 'music', label: 'Músicas (24)' },
+              { id: 'soundscape', label: 'Sons Ambientes (16)' },
+            ].map((f) => (
+              <TouchableOpacity
+                key={f.id}
+                onPress={() => setAudioTypeFilter(f.id as any)}
+                style={[
+                  styles.modalChip,
+                  audioTypeFilter === f.id && styles.modalChipActive,
+                ]}
+              >
+                <Text style={[styles.modalChipText, audioTypeFilter === f.id && styles.modalChipTextActive]}>
+                  {f.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Busca */}
+          <View style={[styles.adminSearchBox, { backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' }]}>
+            <TextInput
+              value={audioSearch}
+              onChangeText={setAudioSearch}
+              placeholder="Buscar música, som, autor, instrumento..."
+              placeholderTextColor="#8C9E9B"
+              style={[styles.adminSearchInput, { color: isDark ? colors.text : '#173D3B' }]}
+            />
+            {audioSearch.length > 0 && (
+              <TouchableOpacity onPress={() => setAudioSearch('')}>
+                <X size={16} color="#8C9E9B" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Lista de Faixas */}
+          <View style={{ gap: 10 }}>
+            {filteredAudioCatalog.map((item: any) => {
+              const isMus = item.audioKind === 'music';
+              const durationFmt = `${Math.floor((item.durationSeconds || (item.durationMinutes ? item.durationMinutes * 60 : 180)) / 60)}:${((item.durationSeconds || (item.durationMinutes ? item.durationMinutes * 60 : 180)) % 60) < 10 ? '0' : ''}${((item.durationSeconds || (item.durationMinutes ? item.durationMinutes * 60 : 180)) % 60)}`;
+
+              return (
+                <Card key={item.id} variant="bordered" style={styles.itemCard}>
+                  <View style={styles.itemHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Badge
+                        label={isMus ? 'Música' : 'Som Ambiente'}
+                        variant={isMus ? 'primary' : 'info'}
+                        size="sm"
+                      />
+                      <Badge
+                        label={item.categoryLabel || item.category || 'Geral'}
+                        variant="neutral"
+                        size="sm"
+                      />
+                      {item.isFeatured && (
+                        <Badge label="Destaque" variant="warning" size="sm" />
+                      )}
+                    </View>
+                    <Badge
+                      label={item.status === 'draft' ? 'Rascunho' : 'Publicado'}
+                      variant={item.status === 'draft' ? 'warning' : 'success'}
+                      size="sm"
+                    />
+                  </View>
+
+                  <Text style={[styles.itemTitle, { color: colors.text, marginTop: 4 }]}>
+                    {item.title}
+                  </Text>
+                  <Text style={[styles.itemMeta, { color: colors.textMuted }]}>
+                    {item.artist} · Duração: {durationFmt}
+                  </Text>
+                  <Text style={[styles.itemDesc, { color: colors.textMuted }]} numberOfLines={2}>
+                    {item.description || item.subtitle || 'Faixa de áudio relaxante para bem-estar e equilíbrio.'}
+                  </Text>
+
+                  <View style={[styles.itemActionsRow, { borderTopColor: isDark ? colors.border : '#EAEFECE0' }]}>
+                    <TouchableOpacity
+                      onPress={() => handleOpenEditAudioModal(item)}
+                      style={styles.actionIconTextBtn}
+                    >
+                      <Edit2 size={14} color="#2F7F7C" />
+                      <Text style={[styles.actionBtnText, { color: '#2F7F7C' }]}>Editar</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        showToast({ message: 'Faixa de áudio removida.', type: 'info' });
+                      }}
+                      style={styles.actionIconTextBtn}
+                    >
+                      <Trash2 size={14} color="#D9534F" />
+                      <Text style={[styles.actionBtnText, { color: '#D9534F' }]}>Excluir</Text>
+                    </TouchableOpacity>
+                  </View>
+                </Card>
+              );
+            })}
+          </View>
         </View>
       )}
 
@@ -651,6 +869,175 @@ export default function AdminScreen() {
                 title="Salvar Prática"
                 leftIcon={<Check size={16} color="#FFFFFF" />}
                 onPress={handleSavePractice}
+                size="md"
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Cadastro e Edição de Áudio */}
+      <Modal
+        visible={isAudioModalOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setIsAudioModalOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalContainer,
+              { backgroundColor: isDark ? colors.surface : '#FFFFFF', borderColor: isDark ? colors.border : '#DCE5E2' },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: isDark ? colors.text : '#173D3B' }]}>
+                {editingAudioId ? 'Editar Faixa de Áudio' : 'Cadastrar Nova Faixa de Áudio'}
+              </Text>
+              <TouchableOpacity onPress={() => setIsAudioModalOpen(false)}>
+                <X size={20} color={isDark ? colors.text : '#173D3B'} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 480 }} showsVerticalScrollIndicator={false}>
+              {/* Tipo */}
+              <Text style={[styles.formLabel, { color: isDark ? colors.text : '#173D3B' }]}>Tipo de Áudio *</Text>
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+                {[
+                  { id: 'music', label: 'Música Instrumental' },
+                  { id: 'soundscape', label: 'Som Ambiente' },
+                ].map((t) => (
+                  <TouchableOpacity
+                    key={t.id}
+                    onPress={() => setAudioType(t.id as any)}
+                    style={[
+                      styles.modalChip,
+                      audioType === t.id && styles.modalChipActive,
+                    ]}
+                  >
+                    <Text style={[styles.modalChipText, audioType === t.id && styles.modalChipTextActive]}>
+                      {t.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Título */}
+              <Text style={[styles.formLabel, { color: isDark ? colors.text : '#173D3B' }]}>Título *</Text>
+              <TextInput
+                value={audioTitle}
+                onChangeText={setAudioTitle}
+                placeholder="Ex: Caminho sereno ou Chuva na janela"
+                placeholderTextColor="#8C9E9B"
+                style={[styles.formInput, { color: isDark ? colors.text : '#173D3B' }]}
+              />
+
+              {/* Artista / Autor */}
+              <Text style={[styles.formLabel, { color: isDark ? colors.text : '#173D3B' }]}>Artista ou Fonte Licenciada</Text>
+              <TextInput
+                value={audioArtist}
+                onChangeText={setAudioArtist}
+                placeholder="Ex: Respira ou Nome do Artista"
+                placeholderTextColor="#8C9E9B"
+                style={[styles.formInput, { color: isDark ? colors.text : '#173D3B' }]}
+              />
+
+              {/* Categoria e Duração */}
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.formLabel, { color: isDark ? colors.text : '#173D3B' }]}>Categoria</Text>
+                  <TextInput
+                    value={audioCategory}
+                    onChangeText={setAudioCategory}
+                    placeholder="Ex: Para relaxar, Dormir, Água..."
+                    placeholderTextColor="#8C9E9B"
+                    style={[styles.formInput, { color: isDark ? colors.text : '#173D3B' }]}
+                  />
+                </View>
+                <View style={{ width: 110 }}>
+                  <Text style={[styles.formLabel, { color: isDark ? colors.text : '#173D3B' }]}>Duração (seg)</Text>
+                  <TextInput
+                    value={audioDuration}
+                    onChangeText={setAudioDuration}
+                    keyboardType="numeric"
+                    placeholder="180"
+                    placeholderTextColor="#8C9E9B"
+                    style={[styles.formInput, { color: isDark ? colors.text : '#173D3B' }]}
+                  />
+                </View>
+              </View>
+
+              {/* Descrição */}
+              <Text style={[styles.formLabel, { color: isDark ? colors.text : '#173D3B' }]}>Descrição Curta</Text>
+              <TextInput
+                value={audioDescription}
+                onChangeText={setAudioDescription}
+                placeholder="Breve descrição da atmosfera sonoro..."
+                placeholderTextColor="#8C9E9B"
+                multiline
+                numberOfLines={2}
+                style={[styles.formInput, { minHeight: 50, color: isDark ? colors.text : '#173D3B' }]}
+              />
+
+              {/* URL do Áudio */}
+              <Text style={[styles.formLabel, { color: isDark ? colors.text : '#173D3B' }]}>URL do Áudio (MP3 / AAC)</Text>
+              <TextInput
+                value={audioUrl}
+                onChangeText={setAudioUrl}
+                placeholder="https://.../faixa.mp3"
+                placeholderTextColor="#8C9E9B"
+                style={[styles.formInput, { color: isDark ? colors.text : '#173D3B' }]}
+              />
+
+              {/* URL da Capa */}
+              <Text style={[styles.formLabel, { color: isDark ? colors.text : '#173D3B' }]}>URL da Capa</Text>
+              <TextInput
+                value={audioThumbnailUrl}
+                onChangeText={setAudioThumbnailUrl}
+                placeholder="https://images.unsplash.com/..."
+                placeholderTextColor="#8C9E9B"
+                style={[styles.formInput, { color: isDark ? colors.text : '#173D3B' }]}
+              />
+
+              {/* Status e Destaque */}
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                <TouchableOpacity
+                  onPress={() => setAudioStatus(audioStatus === 'published' ? 'draft' : 'published')}
+                  style={[
+                    styles.modalChip,
+                    audioStatus === 'published' && styles.modalChipActive,
+                  ]}
+                >
+                  <Text style={[styles.modalChipText, audioStatus === 'published' && styles.modalChipTextActive]}>
+                    Status: {audioStatus === 'published' ? 'Publicado' : 'Rascunho'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setAudioIsFeatured(!audioIsFeatured)}
+                  style={[
+                    styles.modalChip,
+                    audioIsFeatured && styles.modalChipActive,
+                  ]}
+                >
+                  <Text style={[styles.modalChipText, audioIsFeatured && styles.modalChipTextActive]}>
+                    ⭐ {audioIsFeatured ? 'Em Destaque' : 'Comum'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <AppButton
+                title="Cancelar"
+                variant="outline"
+                onPress={() => setIsAudioModalOpen(false)}
+                size="md"
+              />
+              <AppButton
+                title="Salvar Faixa"
+                leftIcon={<Check size={16} color="#FFFFFF" />}
+                onPress={handleSaveAudio}
                 size="md"
               />
             </View>

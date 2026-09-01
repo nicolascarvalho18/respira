@@ -31,6 +31,7 @@ import {
   Info,
   ChevronRight,
   Sparkles,
+  X,
 } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { useToast } from '../ui/Toast';
@@ -39,6 +40,8 @@ import { PracticeSelectorModal } from './PracticeSelectorModal';
 import { usePracticeStore } from '../../store/practiceStore';
 import { useAuth } from '../../hooks/useAuth';
 import { getPracticeImage, getPracticeAltText } from '../../utils/practiceImages';
+import { soundEngine } from '../../services/sound/soundEngine';
+import { guidedVoiceService } from '../../services/sound/guidedVoiceService';
 import { Practice } from '../../types';
 
 export interface UniversalPracticePlayerProps {
@@ -46,7 +49,7 @@ export interface UniversalPracticePlayerProps {
   allPractices: Practice[];
   onSelectPractice: (p: Practice) => void;
   onRecordCompletion: (practiceId: string) => Promise<void>;
-  onToggleFavorite: (practiceId: string) => Promise<void>;
+  onToggleFavorite: (practiceId: string, userId?: string) => Promise<any> | void;
   onBack: () => void;
 }
 
@@ -80,6 +83,13 @@ export const UniversalPracticePlayer: React.FC<UniversalPracticePlayerProps> = (
   const [showStickyBottomBar, setShowStickyBottomBar] = useState(false);
 
   const scrollViewRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    return () => {
+      soundEngine.stopAll();
+      guidedVoiceService.cancel();
+    };
+  }, []);
 
   // Práticas Relacionadas (máximo 3)
   const relatedPractices = (practice.relatedPracticeIds || [])
@@ -492,22 +502,56 @@ export const UniversalPracticePlayer: React.FC<UniversalPracticePlayerProps> = (
             </View>
 
             <View style={styles.postPracticeActionsRow}>
-              {nextPractice && nextPractice.id !== practice.id && (
+              {nextPractice && nextPractice.id !== practice.id ? (
                 <TouchableOpacity
                   onPress={handleSelectNextPractice}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Continuar para a próxima prática: ${nextPractice.title}`}
                   style={styles.postNextBtn}
                 >
-                  <Text style={styles.postNextBtnText}>Próxima: {nextPractice.title}</Text>
+                  <Text style={styles.postNextBtnText}>Continuar ({nextPractice.title})</Text>
+                  <ArrowRight size={14} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  onPress={onBack}
+                  accessibilityRole="button"
+                  accessibilityLabel="Concluir e voltar às práticas"
+                  style={styles.postNextBtn}
+                >
+                  <Text style={styles.postNextBtnText}>Concluir práticas</Text>
                   <ArrowRight size={14} color="#FFFFFF" style={{ marginLeft: 6 }} />
                 </TouchableOpacity>
               )}
 
               <TouchableOpacity
                 onPress={handleRestartPractice}
+                accessibilityRole="button"
+                accessibilityLabel="Repetir este exercício"
                 style={[styles.postRepeatBtn, { borderColor: isDark ? '#293B37' : '#E2E8E5' }]}
               >
                 <RotateCcw size={14} color="#176F69" />
-                <Text style={styles.postRepeatBtnText}>Fazer novamente</Text>
+                <Text style={styles.postRepeatBtnText}>Repetir exercício</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setIsSelectorOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Escolher outro exercício"
+                style={[styles.postRepeatBtn, { borderColor: isDark ? '#293B37' : '#E2E8E5' }]}
+              >
+                <SlidersHorizontal size={14} color="#176F69" />
+                <Text style={styles.postRepeatBtnText}>Escolher outro</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={onBack}
+                accessibilityRole="button"
+                accessibilityLabel="Encerrar prática e voltar"
+                style={[styles.postRepeatBtn, { borderColor: isDark ? '#293B37' : '#E2E8E5' }]}
+              >
+                <X size={14} color={isDark ? '#F1F5F9' : '#647572'} />
+                <Text style={[styles.postRepeatBtnText, { color: isDark ? '#F1F5F9' : '#647572' }]}>Encerrar</Text>
               </TouchableOpacity>
             </View>
           </View>

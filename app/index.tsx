@@ -48,10 +48,14 @@ export default function SplashScreen() {
       } else {
         router.replace('/(auth)/login');
       }
-    }, 300);
+    }, 150);
 
     return () => clearTimeout(timer);
   }, [isLoading, isAuthenticated, isOnboardingCompleted, router]);
+
+  if (isAuthenticated) {
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+  }
 
   const animatedLogoStyle = useAnimatedStyle(() => {
     return {

@@ -33,12 +33,13 @@ import { Card } from '../../src/components/ui/Card';
 import { useAuth } from '../../src/hooks/useAuth';
 import { useMoodStore } from '../../src/store/moodStore';
 import { usePracticeStore } from '../../src/store/practiceStore';
+import { useDailyRoutineStore } from '../../src/store/dailyRoutineStore';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useBreakpoint } from '../../src/hooks/useBreakpoint';
 import { useToast } from '../../src/components/ui/Toast';
 import { getGreeting, formatHeaderDate, formatDateTime } from '../../src/utils/date';
 import { getPracticeImage } from '../../src/utils/practiceImages';
-import { PlannedExercise } from '../../src/types';
+import { PlannedExercise, DailyExercise } from '../../src/types';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -53,14 +54,17 @@ export default function HomeScreen() {
   const greetingFontSize = isDesktop ? 26 : isSmallScreen ? 21 : 24;
 
   const { records, updateExerciseStatus, fetchRecords } = useMoodStore();
-  const { practices, toggleFavorite: togglePracticeFavorite } = usePracticeStore();
+  const { practices, toggleFavorite: togglePracticeFavorite, fetchPractices } = usePracticeStore();
+  const { routine: dailyRoutine, fetchDailyRoutine, toggleExerciseCompletion } = useDailyRoutineStore();
 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       document.title = 'Início — Respira';
     }
     fetchRecords(user?.id);
-  }, [user?.id, fetchRecords]);
+    fetchPractices(user?.id);
+    fetchDailyRoutine(user?.id);
+  }, [user?.id, fetchRecords, fetchPractices, fetchDailyRoutine]);
 
   const lastRecord = records.length > 0 ? records[0] : null;
   const plannedExercises: PlannedExercise[] = lastRecord?.plannedExercises || [];
@@ -80,7 +84,57 @@ export default function HomeScreen() {
   const userName = user?.name || 'Nicolas';
   const userInitial = userName.trim().charAt(0).toUpperCase() || 'N';
 
-  // Alternar conclusão de atividade do dia
+  // Alternar conclusão de exercício da rotina diária
+  const handleToggleDailyExercise = async (exerciseId: string) => {
+    try {
+      const result = await toggleExerciseCompletion(exerciseId, user?.id);
+      if (result.isAllCompleted) {
+        showToast({
+          message: '🎉 Rotina de hoje concluída! Ótimo momento de autocuidado.',
+          type: 'success',
+        });
+      } else {
+        showToast({
+          message:
+            result.status === 'completed'
+              ? 'Exercício marcado como concluído!'
+              : 'Exercício marcado como pendente.',
+          type: 'info',
+        });
+      }
+    } catch {
+      showToast({
+        message: 'Não foi possível atualizar o exercício.',
+        type: 'error',
+      });
+    }
+  };
+
+  // Alternar favorito da recomendação diária com feedback
+  const handleToggleRecommendationFavorite = async () => {
+    if (!recommendedPractice) return;
+    if (!user?.id) {
+      showToast({
+        message: 'Entre na sua conta para salvar favoritos.',
+        type: 'info',
+      });
+      return;
+    }
+    try {
+      const res = await togglePracticeFavorite(recommendedPractice.id, user.id);
+      showToast({
+        message: res?.message || (recommendedPractice.isFavorite ? 'Removido dos favoritos' : 'Adicionado aos favoritos'),
+        type: 'info',
+      });
+    } catch {
+      showToast({
+        message: 'Não foi possível atualizar os favoritos.',
+        type: 'error',
+      });
+    }
+  };
+
+  // Alternar conclusão de atividade do dia planejada pelo humor
   const handleToggleActivity = async (recordId: string, exId: string, currentStatus: string) => {
     const nextStatus = currentStatus === 'completed' ? 'pending' : 'completed';
     try {
@@ -613,7 +667,313 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* 5. Recomendação para Hoje — Card Editorial Realista */}
+      {/* 5. Exercícios de Hoje — Rotina Diária de 3 Atividades */}
+      <View style={styles.dailyExercisesSectionWrap}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={{ flex: 1 }}>
+            <Text
+              accessibilityRole="header"
+              aria-level={2}
+              style={[styles.sectionTitle, { color: isDark ? colors.text : '#1F2927' }]}
+            >
+              Exercícios de hoje
+            </Text>
+            <Text style={[styles.sectionSubTitle, { color: isDark ? colors.textMuted : '#68736F' }]}>
+              Rotina curta de 3 momentos para equilíbrio e bem-estar
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.routineProgressBadge,
+              { backgroundColor: isDark ? '#1C3833' : '#EDF7F5' },
+            ]}
+          >
+            <Text style={[styles.routineProgressBadgeText, { color: '#247B74' }]}>
+              {dailyRoutine.completedCount} de {dailyRoutine.totalCount} concluídos
+            </Text>
+          </View>
+        </View>
+
+        {/* Barra de Progresso Diária */}
+        <View style={styles.routineProgressBarContainer}>
+          <View
+            style={[
+              styles.routineProgressBarTrack,
+              { backgroundColor: isDark ? '#2D3748' : '#DFE4E1' },
+            ]}
+          >
+            <View
+              style={[
+                styles.routineProgressBarFill,
+                {
+                  width: `${Math.min(
+                    100,
+                    Math.round(
+                      (dailyRoutine.completedCount / (dailyRoutine.totalCount || 1)) * 100
+                    )
+                  )}%`,
+                },
+              ]}
+            />
+          </View>
+        </View>
+
+        {/* Banner comemorativo quando todas as 3 atividades forem concluídas */}
+        {dailyRoutine.isAllCompleted && (
+          <View
+            style={[
+              styles.allCompletedBanner,
+              {
+                backgroundColor: isDark ? '#1C3833' : '#EDF7F5',
+                borderColor: isDark ? '#2D5950' : '#BFE3DC',
+              },
+            ]}
+          >
+            <CheckCircle2 size={20} color="#247B74" strokeWidth={2} style={{ marginRight: 10 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.allCompletedTitle, { color: isDark ? '#FFFFFF' : '#17332F' }]}>
+                Rotina de hoje concluída
+              </Text>
+              <Text style={[styles.allCompletedDesc, { color: isDark ? '#A3D0C7' : '#47635D' }]}>
+                Parabéns por dedicar este momento ao seu autocuidado e bem-estar.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Grade/Lista dos 3 Exercícios Diários */}
+        <View style={styles.dailyExercisesList}>
+          {dailyRoutine.exercises.map((exercise) => {
+            const isCompleted = exercise.status === 'completed';
+            const isInProgress = exercise.status === 'in_progress';
+
+            const TypeIcon =
+              exercise.type === 'breathing'
+                ? Wind
+                : exercise.type === 'mindfulness'
+                ? Leaf
+                : Smile;
+
+            const typeLabel =
+              exercise.type === 'breathing'
+                ? 'Respiração'
+                : exercise.type === 'mindfulness'
+                ? 'Atenção plena'
+                : 'Reflexão';
+
+            const statusLabel = isCompleted
+              ? 'Concluído'
+              : isInProgress
+              ? 'Em andamento'
+              : 'Não iniciado';
+
+            return (
+              <View
+                key={exercise.id}
+                style={[
+                  styles.dailyExerciseCard,
+                  {
+                    backgroundColor: isDark ? colors.surface : '#FFFFFF',
+                    borderColor: isCompleted
+                      ? '#247B74'
+                      : isDark
+                      ? colors.border
+                      : '#E0E5E2',
+                  },
+                ]}
+              >
+                <View style={styles.dailyExerciseTopRow}>
+                  {/* Ícone com fundo temático */}
+                  <View
+                    style={[
+                      styles.exerciseIconCircle,
+                      {
+                        backgroundColor: isCompleted
+                          ? '#247B74'
+                          : isDark
+                          ? '#1C3833'
+                          : '#EDF7F5',
+                      },
+                    ]}
+                  >
+                    <TypeIcon
+                      size={18}
+                      color={isCompleted ? '#FFFFFF' : '#247B74'}
+                      strokeWidth={2}
+                      aria-hidden={true}
+                    />
+                  </View>
+
+                  <View style={styles.exerciseHeaderInfo}>
+                    <View style={styles.exercisePillsRow}>
+                      <View
+                        style={[
+                          styles.exerciseTypePill,
+                          { backgroundColor: isDark ? '#2D3748' : '#F0F4F3' },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.exerciseTypePillText,
+                            { color: isDark ? colors.textMuted : '#526662' },
+                          ]}
+                        >
+                          {typeLabel}
+                        </Text>
+                      </View>
+
+                      <View
+                        style={[
+                          styles.exerciseDurationPill,
+                          { backgroundColor: isDark ? '#2D3748' : '#F0F4F3' },
+                        ]}
+                      >
+                        <Clock size={11} color="#247B74" style={{ marginRight: 4 }} />
+                        <Text style={styles.exerciseDurationText}>
+                          {exercise.durationLabel}
+                        </Text>
+                      </View>
+
+                      <View
+                        style={[
+                          styles.exerciseDifficultyPill,
+                          { backgroundColor: isDark ? '#2D3748' : '#F0F4F3' },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.exerciseDifficultyText,
+                            { color: isDark ? colors.textMuted : '#526662' },
+                          ]}
+                        >
+                          {exercise.difficulty}
+                        </Text>
+                      </View>
+
+                      <View
+                        style={[
+                          styles.exerciseStatusPill,
+                          isCompleted && { backgroundColor: '#247B74' },
+                          isInProgress && { backgroundColor: '#D87556' },
+                          !isCompleted &&
+                            !isInProgress && {
+                              backgroundColor: isDark ? '#1C2926' : '#ECEFEF',
+                            },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.exerciseStatusPillText,
+                            isCompleted || isInProgress
+                              ? { color: '#FFFFFF', fontWeight: '700' }
+                              : { color: isDark ? '#94A3B8' : '#68736F' },
+                          ]}
+                        >
+                          {statusLabel}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Text
+                      accessibilityRole="header"
+                      aria-level={3}
+                      style={[
+                        styles.exerciseTitle,
+                        {
+                          color: isDark ? colors.text : '#1F2927',
+                          textDecorationLine: isCompleted ? 'line-through' : 'none',
+                          opacity: isCompleted ? 0.75 : 1,
+                        },
+                      ]}
+                    >
+                      {exercise.title}
+                    </Text>
+
+                    <Text
+                      style={[
+                        styles.exerciseDesc,
+                        { color: isDark ? colors.textMuted : '#68736F' },
+                      ]}
+                    >
+                      {exercise.description}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Linha de Ações: Botão Iniciar e Checkbox Concluir */}
+                <View style={styles.exerciseFooterRow}>
+                  <TouchableOpacity
+                    onPress={() => router.push(exercise.actionUrl as any)}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Iniciar ${exercise.title}`}
+                    style={[
+                      styles.exerciseActionBtn,
+                      isCompleted && { backgroundColor: isDark ? '#2D3748' : '#EAEFECE0' },
+                    ]}
+                  >
+                    <Play
+                      size={12}
+                      color={isCompleted ? (isDark ? '#CBD5E1' : '#475569') : '#FFFFFF'}
+                      fill={isCompleted ? (isDark ? '#CBD5E1' : '#475569') : '#FFFFFF'}
+                      aria-hidden={true}
+                    />
+                    <Text
+                      style={[
+                        styles.exerciseActionBtnText,
+                        isCompleted && { color: isDark ? '#CBD5E1' : '#475569' },
+                      ]}
+                    >
+                      {isCompleted ? 'Refazer' : isInProgress ? 'Continuar' : 'Iniciar'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => handleToggleDailyExercise(exercise.id)}
+                    activeOpacity={0.75}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: isCompleted }}
+                    accessibilityLabel={
+                      isCompleted
+                        ? `Desmarcar ${exercise.title}`
+                        : `Marcar ${exercise.title} como concluído`
+                    }
+                    style={[
+                      styles.exerciseToggleCheckBtn,
+                      isCompleted && {
+                        backgroundColor: '#247B74',
+                        borderColor: '#247B74',
+                      },
+                      !isCompleted && {
+                        borderColor: isDark ? colors.border : '#CBD3D0',
+                      },
+                    ]}
+                  >
+                    {isCompleted ? (
+                      <Check size={14} color="#FFFFFF" strokeWidth={2.5} />
+                    ) : (
+                      <Circle size={14} color={isDark ? colors.textMuted : '#8F9B97'} />
+                    )}
+                    <Text
+                      style={[
+                        styles.exerciseToggleCheckText,
+                        isCompleted
+                          ? { color: '#FFFFFF', fontWeight: '700' }
+                          : { color: isDark ? colors.textMuted : '#5F736E' },
+                      ]}
+                    >
+                      {isCompleted ? 'Concluído' : 'Marcar concluído'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* 6. Recomendação para Hoje — Card Editorial Realista */}
       {recommendedPractice && (
         <View style={styles.recSectionWrap}>
           <View style={styles.sectionHeaderWrap}>
@@ -653,7 +1013,7 @@ export default function HomeScreen() {
                   {recommendedPractice.title}
                 </Text>
                 <TouchableOpacity
-                  onPress={() => togglePracticeFavorite(recommendedPractice.id)}
+                  onPress={handleToggleRecommendationFavorite}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   accessibilityRole="button"
                   accessibilityLabel={
@@ -748,7 +1108,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 7,
     paddingHorizontal: 12,
-    borderRadius: 10,
+    borderRadius: 20,
     borderWidth: 1,
     minHeight: 38,
   },
@@ -760,55 +1120,63 @@ const styles = StyleSheet.create({
 
   // 2. Card Momento Atual
   heroCard: {
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 20,
     marginBottom: 24,
     borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   heroBadge: {
+    alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginBottom: 2,
+    marginBottom: 10,
   },
   heroBadgeText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
   },
   heroQuestion: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
-    marginTop: 12,
-    marginBottom: 14,
     letterSpacing: -0.3,
+    marginBottom: 14,
   },
   lastRecordRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
-    marginBottom: 4,
+    marginBottom: 18,
   },
   lastRecordTitle: {
-    fontSize: 13.5,
-    fontWeight: '500',
-    lineHeight: 19,
+    fontSize: 14,
+    fontWeight: '600',
   },
   lastRecordMeta: {
-    fontSize: 13,
-    fontWeight: '400',
-    marginTop: 3,
-    lineHeight: 18,
+    fontSize: 12.5,
+    marginTop: 2,
+    lineHeight: 17,
   },
   primaryActionButton: {
     backgroundColor: '#247B74',
-    borderRadius: 10,
-    height: 46,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 13,
+    borderRadius: 10,
     gap: 8,
-    marginTop: 18,
+    shadowColor: '#247B74',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 3,
   },
   primaryActionText: {
     color: '#FFFFFF',
@@ -816,19 +1184,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   historyLinkBtn: {
-    alignSelf: 'flex-start',
-    marginTop: 14,
-    paddingVertical: 2,
+    alignSelf: 'center',
+    marginTop: 12,
+    paddingVertical: 4,
   },
   historyLinkText: {
     color: '#247B74',
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '600',
   },
 
   // 3. Atividades do Dia
   dailyActivitiesSection: {
     marginBottom: 24,
+  },
+  sectionHeaderWrap: {
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  sectionSubTitle: {
+    fontSize: 13,
+    marginTop: 2,
   },
   activitiesCard: {
     borderRadius: 14,
@@ -838,8 +1218,7 @@ const styles = StyleSheet.create({
   activityItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    padding: 12,
     gap: 12,
   },
   activityThumbnail: {
@@ -854,16 +1233,15 @@ const styles = StyleSheet.create({
   activityTitle: {
     fontSize: 14.5,
     fontWeight: '600',
+    marginBottom: 3,
   },
   activityMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    marginTop: 3,
   },
   activityMetaText: {
     fontSize: 12,
-    fontWeight: '400',
   },
   activityActionsRow: {
     flexDirection: 'row',
@@ -872,12 +1250,12 @@ const styles = StyleSheet.create({
   },
   activityStartBtn: {
     backgroundColor: '#247B74',
-    height: 30,
-    paddingHorizontal: 10,
-    borderRadius: 6,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
   },
   activityStartBtnText: {
     color: '#FFFFFF',
@@ -894,33 +1272,22 @@ const styles = StyleSheet.create({
   },
 
   // 4. Ações Rápidas
-  sectionHeaderWrap: {
-    marginBottom: 12,
-    marginTop: 4,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-  },
-  quickActionsGridMobile: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 24,
-  },
   quickActionsGridDesktop: {
     flexDirection: 'row',
     gap: 12,
     marginBottom: 24,
   },
+  quickActionsGridMobile: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 24,
+  },
   quickActionCard: {
-    flex: 1,
-    minWidth: 0,
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    minHeight: 105,
+    minHeight: 110,
     justifyContent: 'center',
   },
   quickActionCardMobile: {
@@ -929,7 +1296,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    minHeight: 105,
+    minHeight: 110,
     justifyContent: 'center',
   },
   quickActionIcon: {
@@ -947,7 +1314,174 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 
-  // 5. Recomendação para Hoje
+  // 5. Exercícios de Hoje (Rotina Diária)
+  dailyExercisesSectionWrap: {
+    marginBottom: 24,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 8,
+  },
+  routineProgressBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
+  },
+  routineProgressBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  routineProgressBarContainer: {
+    width: '100%',
+    marginBottom: 12,
+  },
+  routineProgressBarTrack: {
+    width: '100%',
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  routineProgressBarFill: {
+    height: '100%',
+    backgroundColor: '#247B74',
+    borderRadius: 3,
+  },
+  allCompletedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  allCompletedTitle: {
+    fontSize: 14.5,
+    fontWeight: '700',
+  },
+  allCompletedDesc: {
+    fontSize: 12.5,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  dailyExercisesList: {
+    gap: 10,
+  },
+  dailyExerciseCard: {
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+  },
+  dailyExerciseTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 12,
+  },
+  exerciseIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  exerciseHeaderInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  exercisePillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  exerciseTypePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  exerciseTypePillText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  exerciseDurationPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  exerciseDurationText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#247B74',
+  },
+  exerciseDifficultyPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  exerciseDifficultyText: {
+    fontSize: 11,
+  },
+  exerciseStatusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  exerciseStatusPillText: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  exerciseTitle: {
+    fontSize: 15.5,
+    fontWeight: '700',
+    marginBottom: 3,
+  },
+  exerciseDesc: {
+    fontSize: 12.5,
+    lineHeight: 17,
+  },
+  exerciseFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#EAEFECE0',
+  },
+  exerciseActionBtn: {
+    backgroundColor: '#247B74',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  exerciseActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  exerciseToggleCheckBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  exerciseToggleCheckText: {
+    fontSize: 12,
+  },
+
+  // 6. Recomendação para Hoje
   recSectionWrap: {
     marginBottom: 20,
   },

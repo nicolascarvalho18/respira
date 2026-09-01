@@ -24,6 +24,7 @@ import {
 import { AppShell } from '../../src/components/layout/AppShell';
 import { ContentCard } from '../../src/components/content/ContentCard';
 import { useContentStore, ArticleFilterOption } from '../../src/store/contentStore';
+import { useAuth } from '../../src/hooks/useAuth';
 import { useTheme } from '../../src/hooks/useTheme';
 import { ArticleCoverImage } from '../../src/components/illustrations/ArticleCovers';
 import { Article } from '../../src/types';
@@ -40,15 +41,10 @@ const CATEGORIES = [
 
 export default function ContentScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const { isDark } = useTheme();
   const { width } = useWindowDimensions();
   const { showToast } = useToast();
-
-  useEffect(() => {
-    if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.title = 'Conteúdos — Respira';
-    }
-  }, []);
 
   const {
     articles,
@@ -61,17 +57,32 @@ export default function ContentScreen() {
     clearFilters,
     loadMoreArticles,
     toggleFavorite,
+    fetchArticles,
     getFilteredArticles,
     getVisibleArticles,
   } = useContentStore();
 
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.title = 'Conteúdos — Respira';
+    }
+    fetchArticles(user?.id);
+  }, [user?.id, fetchArticles]);
+
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   const handleToggleFavorite = async (articleId: string) => {
-    try {
-      const isFav = await toggleFavorite(articleId);
+    if (!user?.id) {
       showToast({
-        message: isFav ? 'Adicionado aos salvos' : 'Removido dos salvos',
+        message: 'Entre na sua conta para salvar favoritos.',
+        type: 'info',
+      });
+      return;
+    }
+    try {
+      const res = await toggleFavorite(articleId, user.id);
+      showToast({
+        message: res?.message || 'Favorito atualizado',
         type: 'info',
       });
     } catch {

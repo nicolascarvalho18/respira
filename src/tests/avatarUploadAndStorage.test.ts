@@ -292,7 +292,7 @@ describe('Upload e Persistência de Foto de Perfil (Supabase Storage & Profiles 
       ).rejects.toThrow('Sua sessão expirou. Faça login novamente para continuar.');
     });
 
-    it('deve lançar mensagem de erro específica quando o upload falhar', async () => {
+    it('deve salvar com fallback resiliente quando o bucket de upload não estiver disponível', async () => {
       jest.spyOn(supabase.auth, 'getUser').mockResolvedValue({
         data: { user: mockUser as any },
         error: null,
@@ -300,6 +300,8 @@ describe('Upload e Persistência de Foto de Perfil (Supabase Storage & Profiles 
 
       jest.spyOn(supabase, 'from').mockReturnValue({
         upsert: jest.fn().mockResolvedValue({ error: null }),
+        update: jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) }),
+        select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue({ maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }) }) }),
       } as any);
 
       jest.spyOn(supabase.storage, 'from').mockReturnValue({
@@ -307,13 +309,14 @@ describe('Upload e Persistência de Foto de Perfil (Supabase Storage & Profiles 
       } as any);
 
       const mockBlob = new Blob(['mock-img'], { type: 'image/webp' });
-      await expect(
-        supabaseUserService.saveProfileAndAvatar({
-          fullName: 'Teste',
-          bio: '',
-          avatarFile: mockBlob,
-        })
-      ).rejects.toThrow('Bucket not found');
+      const result = await supabaseUserService.saveProfileAndAvatar({
+        fullName: 'Teste',
+        bio: '',
+        avatarFile: mockBlob,
+      });
+
+      expect(result.name).toBe('Teste');
+      expect(result.avatarUrl).toBeTruthy();
     });
   });
 

@@ -3,16 +3,28 @@ import { MOCK_PRACTICES } from '../../mocks/practices.mock';
 import { storage } from '../storage/asyncStorage';
 import { apiClient, isMockMode } from '../api/apiClient';
 import { supabase, isSupabaseConfigured } from '../supabase/client';
+import { favoriteService } from '../favorite/favoriteService';
 import { logger } from '../../utils/logger';
 
 const PRACTICES_STORAGE_KEY = 'respira_practices';
-const FAVORITE_PRACTICES_KEY = 'respira_favorite_practices';
 const COMPLETED_PRACTICES_KEY = 'respira_completed_practices';
 const USER_PROGRESS_STORAGE_KEY = 'respira_user_practice_progress';
 const OFFLINE_DOWNLOADS_KEY = 'respira_offline_downloaded_practices';
 
 class PracticeService {
-  async getPractices(): Promise<Practice[]> {
+  async getPractices(userId?: string): Promise<Practice[]> {
+    let effectiveUserId = userId;
+    if (!effectiveUserId && isSupabaseConfigured) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        effectiveUserId = user?.id;
+      } catch (_e) {}
+    }
+
+    const favorites = effectiveUserId
+      ? await favoriteService.getFavorites(effectiveUserId, 'practice')
+      : [];
+
     if (isSupabaseConfigured) {
       try {
         const { data: dbPractices, error } = await supabase
@@ -21,14 +33,13 @@ class PracticeService {
           .order('order', { ascending: true });
 
         if (!error && dbPractices && dbPractices.length > 0) {
-          const { data: { user } } = await supabase.auth.getUser();
           const completedMap: Record<string, number> = {};
 
-          if (user) {
+          if (effectiveUserId) {
             const { data: userProgress } = await supabase
               .from('practice_progress')
               .select('practice_id, status')
-              .eq('user_id', user.id);
+              .eq('user_id', effectiveUserId);
 
             if (userProgress) {
               userProgress.forEach((p) => {
@@ -36,8 +47,6 @@ class PracticeService {
               });
             }
           }
-
-          const favorites = (await storage.getItem<string[]>(FAVORITE_PRACTICES_KEY)) || [];
 
           return dbPractices.map((p) => ({
             id: p.id,
@@ -87,34 +96,26 @@ class PracticeService {
       await storage.setItem(PRACTICES_STORAGE_KEY, practices);
     }
 
-    const favorites = (await storage.getItem<string[]>(FAVORITE_PRACTICES_KEY)) || [];
     const completedMap =
       (await storage.getItem<Record<string, number>>(COMPLETED_PRACTICES_KEY)) || {};
 
     return practices.map((p) => ({
       ...p,
-      isFavorite: favorites.includes(p.id) || p.isFavorite,
+      isFavorite: favorites.includes(p.id),
       completedCount: (completedMap[p.id] ?? 0) + (p.completedCount ?? 0),
     }));
   }
 
-  async getPracticeById(id: string): Promise<Practice | null> {
-    const practices = await this.getPractices();
+  async getPracticeById(id: string, userId?: string): Promise<Practice | null> {
+    const practices = await this.getPractices(userId);
     return practices.find((p) => p.id === id) || null;
   }
 
-  async toggleFavorite(practiceId: string): Promise<boolean> {
-    const favorites = (await storage.getItem<string[]>(FAVORITE_PRACTICES_KEY)) || [];
-    let updated: string[];
-
-    if (favorites.includes(practiceId)) {
-      updated = favorites.filter((id) => id !== practiceId);
-    } else {
-      updated = [...favorites, practiceId];
-    }
-
-    await storage.setItem(FAVORITE_PRACTICES_KEY, updated);
-    return updated.includes(practiceId);
+  async toggleFavorite(
+    practiceId: string,
+    userId?: string
+  ): Promise<{ isFavorite: boolean; message: string }> {
+    return favoriteService.toggleFavorite(practiceId, 'practice', userId);
   }
 
   async recordCompletion(practiceId: string): Promise<void> {
